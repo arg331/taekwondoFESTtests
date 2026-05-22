@@ -1,5 +1,7 @@
 package com.taekwondo.examenes.domain.model;
 
+import com.taekwondo.examenes.domain.port.Clock;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -11,15 +13,23 @@ import java.util.Set;
 /**
  * Entidad de dominio: Exam.
  *
- * Un examen vive en dos estados principales:
- *  - DRAFT: el profesor lo construye y lo ajusta libremente
- *  - PUBLISHED: ya tiene código de acceso, lo pueden hacer los estudiantes,
- *               y es INMUTABLE (snapshot histórico)
+ * Estados:
+ *  - DRAFT     → el profesor lo construye y lo ajusta
+ *  - PUBLISHED → tiene código, los estudiantes pueden hacerlo
+ *  - EXPIRED   → cerrado MANUALMENTE por el profesor
  *
- * El examen guarda IDs de preguntas (no objetos completos) para garantizar
- * la inmutabilidad: si el profesor edita una pregunta más tarde, los exámenes
- * publicados que la contenían conservan su histórico (la pregunta cambia,
- * pero el examen ya guardó su contenido en el momento del examen del alumno).
+ * Sobre la expiración por TIEMPO: NO se persiste como estado EXPIRED.
+ * El campo expiresAt indica hasta cuándo es accesible. La pregunta
+ * "¿está accesible ahora mismo?" se calcula on-the-fly comparando
+ * con un Clock (ver isAccessibleAt / isCurrentlyExpired).
+ *
+ * Sobre la edición: el profesor puede editar el examen incluso después
+ * de publicarlo. Esto es una decisión consciente: los exámenes son
+ * típicamente privados, los resultados ya almacenados quedan como log
+ * histórico aunque la pregunta cambie. Sí se podrá publicar/cerrar/
+ * reabrir según el estado.
+ *
+ * El examen guarda IDs de preguntas, no objetos completos (modelo híbrido).
  */
 public final class Exam {
 
@@ -31,9 +41,9 @@ public final class Exam {
     private ExamConfig config;
     private final List<Long> questionIds;
     private final Set<Tag> generationTags;   // tags usados al pre-generar (referencia)
-    private String code;                      // null hasta publicar
+    private String code;                      // null hasta publicar; tras publicar, persiste
     private final LocalDateTime createdAt;
-    private LocalDateTime expiresAt;          // null hasta publicar
+    private LocalDateTime expiresAt;          // null = no expira por tiempo
 
     // ──────────────────────────────────────────────────
     // Factory methods
@@ -107,28 +117,20 @@ public final class Exam {
     }
 
     // ──────────────────────────────────────────────────
-    // Operaciones de negocio
+    // Operaciones de edición (válidas en cualquier estado)
     // ──────────────────────────────────────────────────
 
-    /** Solo se puede modificar mientras está en DRAFT. */
     public void rename(String newTitle) {
-        ensureDraft();
         validateTitle(newTitle);
         this.title = newTitle;
     }
 
     public void changeConfig(ExamConfig newConfig) {
-        ensureDraft();
         Objects.requireNonNull(newConfig, "config no puede ser null");
         this.config = newConfig;
     }
 
-    /**
-     * Reemplaza completamente la lista de preguntas del draft.
-     * El orden importa: define el orden de las preguntas en el examen.
-     */
     public void setQuestions(List<Long> newQuestionIds) {
-        ensureDraft();
         Objects.requireNonNull(newQuestionIds, "newQuestionIds no puede ser null");
         if (newQuestionIds.contains(null)) {
             throw new IllegalArgumentException("La lista de preguntas no puede contener null");
@@ -138,7 +140,6 @@ public final class Exam {
     }
 
     public void addQuestion(Long questionId) {
-        ensureDraft();
         Objects.requireNonNull(questionId, "questionId no puede ser null");
         if (questionIds.contains(questionId)) {
             throw new IllegalArgumentException("La pregunta ya está en el examen");
@@ -147,33 +148,39 @@ public final class Exam {
     }
 
     public void removeQuestion(Long questionId) {
-        ensureDraft();
         this.questionIds.remove(questionId);
     }
 
+    // ──────────────────────────────────────────────────
+    // Transiciones de estado
+    // ──────────────────────────────────────────────────
+
     /**
-     * Publica el examen.
+     * Publica el examen desde DRAFT.
      *
-     * @param code        código único de acceso (generado fuera del dominio)
-     * @param visibility  visibilidad inicial (puede cambiarse después)
-     * @param expiresAt   fecha de expiración
+     * @param code        código único de acceso (generado por ExamCodeGenerator)
+     * @param visibility  visibilidad inicial
+     * @param expiresAt   fecha de expiración (puede ser null = no expira por tiempo)
      */
     public void publish(String code, Visibility visibility, LocalDateTime expiresAt) {
-        ensureDraft();
+        if (status != ExamStatus.DRAFT) {
+            throw new IllegalStateException(
+                    "Solo se puede publicar un examen en estado DRAFT (estado actual: " + status + ")");
+        }
         if (code == null || code.isBlank()) {
             throw new IllegalArgumentException("El código de publicación es obligatorio");
         }
         if (visibility == null) {
             throw new IllegalArgumentException("La visibilidad es obligatoria");
         }
-        if (expiresAt == null || expiresAt.isBefore(LocalDateTime.now())) {
-            throw new IllegalArgumentException("La fecha de expiración debe ser futura");
-        }
         if (questionIds.size() != config.getNumberOfQuestions()) {
             throw new IllegalStateException(
                     "El examen debe tener " + config.getNumberOfQuestions()
                             + " preguntas para publicarse (tiene " + questionIds.size() + ")");
         }
+        // expiresAt puede ser null (sin expiración por tiempo).
+        // Si no lo es, debe ser futuro: no tiene sentido publicar algo ya expirado.
+        // Esta validación se hará en el caso de uso usando el Clock.
 
         this.code = code;
         this.visibility = visibility;
@@ -181,15 +188,48 @@ public final class Exam {
         this.status = ExamStatus.PUBLISHED;
     }
 
-    /** Marca el examen como expirado. Solo aplicable si estaba PUBLISHED. */
-    public void expire() {
+    /**
+     * El profesor cierra el examen manualmente.
+     * Solo aplicable si está PUBLISHED.
+     */
+    public void closeManually() {
         if (status != ExamStatus.PUBLISHED) {
-            throw new IllegalStateException("Solo se pueden expirar exámenes publicados");
+            throw new IllegalStateException(
+                    "Solo se pueden cerrar exámenes publicados (estado actual: " + status + ")");
         }
         this.status = ExamStatus.EXPIRED;
     }
 
-    /** Cambia la visibilidad de un examen publicado. */
+    /**
+     * Reabre un examen cerrado manualmente.
+     * Extiende la fecha de expiración con el valor dado.
+     *
+     * @param newExpiresAt nueva fecha de expiración (puede ser null = sin límite)
+     */
+    public void reopen(LocalDateTime newExpiresAt) {
+        if (status != ExamStatus.EXPIRED) {
+            throw new IllegalStateException(
+                    "Solo se pueden reabrir exámenes expirados (estado actual: " + status + ")");
+        }
+        this.expiresAt = newExpiresAt;
+        this.status = ExamStatus.PUBLISHED;
+    }
+
+    /**
+     * Extiende la fecha de expiración mientras el examen está PUBLISHED.
+     * Útil cuando el examen sigue activo pero el profesor quiere darle más tiempo.
+     */
+    public void extendExpiration(LocalDateTime newExpiresAt) {
+        if (status != ExamStatus.PUBLISHED) {
+            throw new IllegalStateException(
+                    "Solo se puede extender la expiración de exámenes publicados (estado actual: " + status + ")");
+        }
+        this.expiresAt = newExpiresAt;
+    }
+
+    /**
+     * Cambia la visibilidad de un examen ya publicado (o expirado).
+     */
     public void changeVisibility(Visibility newVisibility) {
         if (status == ExamStatus.DRAFT) {
             throw new IllegalStateException("Un draft no tiene visibilidad pública");
@@ -198,21 +238,39 @@ public final class Exam {
         this.visibility = newVisibility;
     }
 
-    public boolean isDraft()       { return status == ExamStatus.DRAFT; }
-    public boolean isPublished()   { return status == ExamStatus.PUBLISHED; }
-    public boolean isExpired()     { return status == ExamStatus.EXPIRED; }
-    public boolean isAccessible()  { return status == ExamStatus.PUBLISHED; }
-
     // ──────────────────────────────────────────────────
-    // Validaciones y guardas
+    // Consultas de estado (on-the-fly)
     // ──────────────────────────────────────────────────
 
-    private void ensureDraft() {
-        if (status != ExamStatus.DRAFT) {
-            throw new IllegalStateException(
-                    "Esta operación solo es válida en estado DRAFT (estado actual: " + status + ")");
-        }
+    public boolean isDraft()     { return status == ExamStatus.DRAFT; }
+    public boolean isPublished() { return status == ExamStatus.PUBLISHED; }
+    public boolean isExpired()   { return status == ExamStatus.EXPIRED; }
+
+    /**
+     * ¿Está realmente cerrado por tiempo, aunque su estado siga siendo PUBLISHED?
+     * Cálculo on-the-fly basado en el Clock.
+     */
+    public boolean isCurrentlyExpired(Clock clock) {
+        Objects.requireNonNull(clock, "clock no puede ser null");
+        if (status == ExamStatus.EXPIRED) return true;
+        if (status != ExamStatus.PUBLISHED) return false;
+        if (expiresAt == null) return false;   // sin fecha = no expira
+        return clock.now().isAfter(expiresAt);
     }
+
+    /**
+     * ¿Puede un estudiante acceder al examen AHORA?
+     * Combina el estado y la fecha de expiración.
+     */
+    public boolean isAccessibleAt(Clock clock) {
+        if (status != ExamStatus.PUBLISHED) return false;
+        if (expiresAt == null) return true;     // sin fecha de expiración = abierto siempre
+        return !clock.now().isAfter(expiresAt);
+    }
+
+    // ──────────────────────────────────────────────────
+    // Validaciones
+    // ──────────────────────────────────────────────────
 
     private static void validateTitle(String title) {
         if (title == null || title.isBlank()) {
@@ -227,7 +285,7 @@ public final class Exam {
     }
 
     // ──────────────────────────────────────────────────
-    // Getters (sin setters: cambios via métodos de negocio)
+    // Getters
     // ──────────────────────────────────────────────────
 
     public Long getId()                  { return id; }

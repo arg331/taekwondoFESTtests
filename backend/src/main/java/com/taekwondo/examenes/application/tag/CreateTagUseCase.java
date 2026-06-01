@@ -35,6 +35,7 @@ public class CreateTagUseCase {
         // 1. Regla de coordinación: no puede haber dos tags con el mismo nombre
         //    para el mismo profesor. Necesita consultar el repositorio,
         //    por eso no puede estar en la entidad Tag.
+
         if (tagRepository.existsByNameAndOwnerId(input.name(), input.ownerId())) {
             throw new BusinessRuleViolationException(
                     "Ya existe un tag con el nombre '" + input.name() + "'");

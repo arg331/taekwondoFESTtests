@@ -8,17 +8,9 @@ import java.util.Optional;
 /**
  * Puerto de salida: persistencia y consulta de resultados de exámenes.
  *
- * Operaciones expresadas como necesidades de la aplicación, sin asumir
- * tecnología de persistencia.
- *
- * NO incluimos métodos de actualización (Result es inmutable: se crea
- * cuando el estudiante termina y no se modifica). save() solo se usa
- * para persistir un Result nuevo.
+ * Result es inmutable: save() solo se usa al crear, nunca para actualizar.
  *
  * NO incluimos delete: los resultados son log histórico de la federación.
- * Si en el futuro se necesita anonimizarlos o archivarlos, eso será un
- * caso de uso explícito y un método específico en el puerto, nunca un
- * delete genérico expuesto.
  */
 public interface ResultRepository {
 
@@ -35,11 +27,17 @@ public interface ResultRepository {
     List<Result> findAllByExamId(Long examId);
 
     /**
+     * Lista todos los resultados de un estudiante registrado, en cualquier orden.
+     *
+     * Sólo cubre resultados con studentUserId == studentUserId.
+     * Los resultados anónimos NO aparecen aquí porque no tienen userId
+     * asociado (un anónimo no tiene cuenta y no puede consultar "su" historial).
+     */
+    List<Result> findAllByStudentUserId(Long studentUserId);
+
+    /**
      * Indica si un estudiante (identificado por su nombre) ya tiene un
      * resultado para un examen dado.
-     *
-     * Sirve para prevenir intentos duplicados: si el mismo nombre intenta
-     * acceder dos veces al mismo examen, se rechaza.
      */
     boolean existsByExamIdAndStudentName(Long examId, String studentName);
 

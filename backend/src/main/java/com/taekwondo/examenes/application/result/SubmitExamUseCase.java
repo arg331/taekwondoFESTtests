@@ -22,19 +22,18 @@ import java.util.Set;
 /**
  * Caso de uso: un estudiante envía sus respuestas y se calcula el resultado.
  *
- * Es el caso de uso más complejo del sistema porque orquesta tres agregados:
+ * Orquesta tres agregados:
  *  - Exam (verificar que existe y es accesible)
  *  - Question (verificar respuestas correctas en este momento)
  *  - Result (crear el snapshot histórico)
  *
- * Pasos:
- *  1. Resolver el examen por código.
- *  2. Verificar que es accesible (publicado y dentro de fecha).
- *  3. Comprobar que el estudiante no lo ha hecho ya.
- *  4. Validar que las respuestas cubren TODAS las preguntas del examen.
- *  5. Para cada respuesta: cargar la pregunta y construir un Answer
- *     con la respuesta correcta del momento.
- *  6. Crear el Result y persistirlo.
+ * Sobre la autenticación:
+ *  - Si el examen es REGISTERED_ONLY, se exige studentUserId no nulo.
+ *  - Si el examen es OPEN, studentUserId puede ser null (anónimo) o
+ *    no nulo (registrado que decide hacerlo con su cuenta).
+ *
+ * El studentUserId lo decide el controller a partir del JWT (si lo hay).
+ * Este caso de uso solo recibe el dato resuelto, no toca tokens.
  */
 public class SubmitExamUseCase {
 
@@ -53,7 +52,11 @@ public class SubmitExamUseCase {
         this.clock = clock;
     }
 
-    public ResultView execute(SubmitExamInput input) {
+    /**
+     * @param input          datos del envío (código, respuestas, datos del estudiante)
+     * @param studentUserId  id del usuario logueado, o null si es anónimo
+     */
+    public ResultView execute(SubmitExamInput input, Long studentUserId) {
         // 1. Resolver examen por código
         Exam exam = examRepository.findByCode(input.examCode())
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -65,22 +68,29 @@ public class SubmitExamUseCase {
                     "Este examen no está disponible en este momento");
         }
 
-        // 3. Prevenir duplicados: un estudiante (por nombre) no puede
+        // 3. Si el examen requiere registro, exigir que haya studentUserId
+        if (exam.requiresRegistration() && studentUserId == null) {
+            throw new BusinessRuleViolationException(
+                    "Este examen requiere estar registrado e iniciar sesión");
+        }
+
+        // 4. Prevenir duplicados: un estudiante (por nombre) no puede
         //    hacer el mismo examen dos veces.
         if (resultRepository.existsByExamIdAndStudentName(exam.getId(), input.studentName())) {
             throw new BusinessRuleViolationException(
                     "Este estudiante ya ha realizado este examen");
         }
 
-        // 4. Validar que las respuestas cubren exactamente las preguntas del examen.
+        // 5. Validar que las respuestas cubren exactamente las preguntas del examen.
         validateAnswerSet(exam.getQuestionIds(), input.answers());
 
-        // 5. Construir los Answers cargando la respuesta correcta de cada pregunta.
+        // 6. Construir los Answers cargando la respuesta correcta de cada pregunta.
         List<Answer> answers = buildAnswers(input.answers());
 
-        // 6. Crear y persistir el Result (la entidad calcula score y correctAnswers)
+        // 7. Crear y persistir el Result
         Result result = Result.createNew(
                 exam.getId(),
+                studentUserId,
                 input.studentName(),
                 input.studentClub(),
                 input.studentEmail(),
@@ -93,11 +103,6 @@ public class SubmitExamUseCase {
         return ResultView.from(persisted);
     }
 
-    /**
-     * Verifica que el conjunto de respuestas enviadas coincide EXACTAMENTE
-     * con el conjunto de preguntas del examen: ni faltan, ni sobran, ni
-     * hay duplicados.
-     */
     private void validateAnswerSet(List<Long> expectedQuestionIds,
                                     List<AnswerSubmission> submittedAnswers) {
         if (submittedAnswers == null || submittedAnswers.isEmpty()) {
@@ -122,11 +127,6 @@ public class SubmitExamUseCase {
         }
     }
 
-    /**
-     * Construye los objetos Answer cargando, para cada pregunta, su respuesta
-     * correcta tal y como es EN ESTE MOMENTO. Eso queda guardado en el Result
-     * como snapshot histórico.
-     */
     private List<Answer> buildAnswers(List<AnswerSubmission> submittedAnswers) {
         List<Answer> answers = new ArrayList<>(submittedAnswers.size());
         for (AnswerSubmission s : submittedAnswers) {

@@ -3,21 +3,10 @@ package com.taekwondo.examenes.infrastructure.config;
 import com.taekwondo.examenes.application.auth.GetCurrentUserUseCase;
 import com.taekwondo.examenes.application.auth.LoginUseCase;
 import com.taekwondo.examenes.application.auth.RegisterStudentUseCase;
-import com.taekwondo.examenes.application.question.CreateQuestionUseCase;
-import com.taekwondo.examenes.application.question.DeleteQuestionUseCase;
-import com.taekwondo.examenes.application.question.EditQuestionUseCase;
-import com.taekwondo.examenes.application.question.GetQuestionUseCase;
-import com.taekwondo.examenes.application.question.ListQuestionsUseCase;
-import com.taekwondo.examenes.application.question.SearchQuestionsUseCase;
-import com.taekwondo.examenes.application.tag.CreateTagUseCase;
-import com.taekwondo.examenes.application.tag.GetTagUseCase;
-import com.taekwondo.examenes.application.tag.ListTagsUseCase;
-import com.taekwondo.examenes.application.tag.RenameTagUseCase;
-import com.taekwondo.examenes.domain.port.JwtTokenProvider;
-import com.taekwondo.examenes.domain.port.PasswordHasher;
-import com.taekwondo.examenes.domain.port.QuestionRepository;
-import com.taekwondo.examenes.domain.port.TagRepository;
-import com.taekwondo.examenes.domain.port.UserRepository;
+import com.taekwondo.examenes.application.exam.*;
+import com.taekwondo.examenes.application.question.*;
+import com.taekwondo.examenes.application.tag.*;
+import com.taekwondo.examenes.domain.port.*;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -28,10 +17,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
  * sin anotaciones) en beans de Spring.
  *
  * Esta clase es el ÚNICO punto donde Spring "ve" los casos de uso.
- *
- * Adapters de infraestructura (TagRepositoryJpaAdapter,
- * BCryptPasswordHasherAdapter, JwtTokenProviderAdapter, etc.) NO están
- * aquí: usan @Component / @Repository directamente.
+ * Los adapters de infraestructura (TagRepositoryJpaAdapter, etc.)
+ * usan @Component/@Repository directamente.
  */
 @Configuration
 public class BeanConfiguration {
@@ -101,7 +88,6 @@ public class BeanConfiguration {
     }
 
     // ───── Auth ─────
-    // CreateUserUseCase NO se registra: lo invocará el seed inicial, no HTTP.
 
     @Bean
     public RegisterStudentUseCase registerStudentUseCase(UserRepository userRepository,
@@ -120,5 +106,90 @@ public class BeanConfiguration {
     public GetCurrentUserUseCase getCurrentUserUseCase(UserRepository userRepository,
                                                         JwtTokenProvider jwtTokenProvider) {
         return new GetCurrentUserUseCase(userRepository, jwtTokenProvider);
+    }
+
+    // ───── Exam ─────
+
+    @Bean
+    public CreateExamDraftUseCase createExamDraftUseCase(ExamRepository examRepository) {
+        return new CreateExamDraftUseCase(examRepository);
+    }
+
+    @Bean
+    public PreGenerateExamDraftUseCase preGenerateExamDraftUseCase(
+            ExamRepository examRepository,
+            QuestionRepository questionRepository,
+            TagRepository tagRepository) {
+        return new PreGenerateExamDraftUseCase(examRepository, questionRepository, tagRepository);
+    }
+
+    @Bean
+    public RenameExamUseCase renameExamUseCase(ExamRepository examRepository) {
+        return new RenameExamUseCase(examRepository);
+    }
+
+    @Bean
+    public ChangeExamConfigUseCase changeExamConfigUseCase(ExamRepository examRepository) {
+        return new ChangeExamConfigUseCase(examRepository);
+    }
+
+    @Bean
+    public UpdateExamQuestionsUseCase updateExamQuestionsUseCase(
+            ExamRepository examRepository,
+            QuestionRepository questionRepository) {
+        return new UpdateExamQuestionsUseCase(examRepository, questionRepository);
+    }
+
+    @Bean
+    public ChangeExamVisibilityUseCase changeExamVisibilityUseCase(ExamRepository examRepository) {
+        return new ChangeExamVisibilityUseCase(examRepository);
+    }
+
+    @Bean
+    public PublishExamUseCase publishExamUseCase(ExamRepository examRepository,
+                                                  Clock clock,
+                                                  ExamCodeGenerator codeGenerator) {
+        return new PublishExamUseCase(examRepository, clock, codeGenerator);
+    }
+
+    @Bean
+    public CloseExamUseCase closeExamUseCase(ExamRepository examRepository) {
+        return new CloseExamUseCase(examRepository);
+    }
+
+    @Bean
+    public ReopenExamUseCase reopenExamUseCase(ExamRepository examRepository, Clock clock) {
+        return new ReopenExamUseCase(examRepository, clock);
+    }
+
+    @Bean
+    public ExtendExamExpirationUseCase extendExamExpirationUseCase(ExamRepository examRepository,
+                                                                    Clock clock) {
+        return new ExtendExamExpirationUseCase(examRepository, clock);
+    }
+
+    @Bean
+    public DeleteExamDraftUseCase deleteExamDraftUseCase(ExamRepository examRepository) {
+        return new DeleteExamDraftUseCase(examRepository);
+    }
+
+    @Bean
+    public GetExamUseCase getExamUseCase(ExamRepository examRepository) {
+        return new GetExamUseCase(examRepository);
+    }
+
+    @Bean
+    public GetExamByCodeUseCase getExamByCodeUseCase(ExamRepository examRepository, Clock clock) {
+        return new GetExamByCodeUseCase(examRepository, clock);
+    }
+
+    @Bean
+    public ListMyExamsUseCase listMyExamsUseCase(ExamRepository examRepository) {
+        return new ListMyExamsUseCase(examRepository);
+    }
+
+    @Bean
+    public ListPublicExamsUseCase listPublicExamsUseCase(ExamRepository examRepository) {
+        return new ListPublicExamsUseCase(examRepository);
     }
 }

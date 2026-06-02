@@ -3,6 +3,7 @@ package com.taekwondo.examenes.infrastructure.config;
 import com.taekwondo.examenes.infrastructure.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -16,25 +17,14 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  * Endpoints públicos:
  *  - POST /api/auth/register
  *  - POST /api/auth/login
+ *  - GET  /api/exams/by-code/**   (estudiante anónimo entra con el código del QR)
  *  - /h2-console/** (DEV ONLY)
  *  - /error
  *
  * Todo lo demás requiere autenticación válida (JWT).
  *
- * Pipeline:
- *  1. JwtAuthenticationFilter (antes de UsernamePasswordAuthenticationFilter)
- *     valida el token y rellena SecurityContext con el userId.
- *  2. Spring Security comprueba la autorización según las reglas declaradas
- *     debajo en authorizeHttpRequests.
- *  3. Si la petición llega autenticada al controller, AuthenticatedUser
- *     accede al userId desde el SecurityContext.
- *
- * Decisiones:
- *  - CSRF deshabilitado: API REST sin cookies de sesión.
- *  - Sesión STATELESS: no se guarda sesión en el servidor.
- *  - frameOptions deshabilitado: necesario para H2 console (iframe).
- *  - exceptionHandling: si no estás autenticado y la URL lo requiere,
- *    devolvemos 401 directamente (sin redirección a login HTML).
+ * Cuando llegue Result end-to-end, POST /api/results también será público
+ * (un estudiante anónimo puede enviar respuestas si el examen es OPEN).
  */
 @Configuration
 public class SecurityConfig {
@@ -58,6 +48,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/register",
                                           "/api/auth/login",
                                           "/error").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/exams/by-code/**").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()
                         // Resto requiere autenticación
                         .anyRequest().authenticated())

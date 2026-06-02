@@ -1,43 +1,68 @@
 package com.taekwondo.examenes.infrastructure.config;
 
+import com.taekwondo.examenes.infrastructure.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
- * Configuración minimal de Spring Security para DESARROLLO.
+ * Configuración de Spring Security con JWT.
  *
- * Permite TODO sin autenticación. Útil para iterar end-to-end con
- * Postman/curl mientras no tengamos JWT funcional.
+ * Endpoints públicos:
+ *  - POST /api/auth/register
+ *  - POST /api/auth/login
+ *  - /h2-console/** (DEV ONLY)
+ *  - /error
  *
- * IMPORTANTE: esta clase NO sirve para producción. Cuando integremos
- * autenticación de verdad (JWT + filtros), esta clase se reemplazará
- * por una versión que:
- *  - Requiere token JWT en endpoints protegidos.
- *  - Distingue endpoints públicos (/api/auth/**, /h2-console)
- *    de los privados.
- *  - Procesa el token en un filtro custom.
+ * Todo lo demás requiere autenticación válida (JWT).
  *
- * Decisiones temporales tomadas aquí:
- *  - CSRF deshabilitado: imprescindible para APIs REST que reciben
- *    POST/PATCH/DELETE sin sesión web (no hay token CSRF).
- *  - Sesión STATELESS: el servidor no guarda sesión; cada petición
- *    es independiente. Encaja con el modelo JWT futuro.
- *  - frameOptions deshabilitado: necesario para que la consola H2
- *    funcione en /h2-console (la consola se sirve en un iframe).
+ * Pipeline:
+ *  1. JwtAuthenticationFilter (antes de UsernamePasswordAuthenticationFilter)
+ *     valida el token y rellena SecurityContext con el userId.
+ *  2. Spring Security comprueba la autorización según las reglas declaradas
+ *     debajo en authorizeHttpRequests.
+ *  3. Si la petición llega autenticada al controller, AuthenticatedUser
+ *     accede al userId desde el SecurityContext.
+ *
+ * Decisiones:
+ *  - CSRF deshabilitado: API REST sin cookies de sesión.
+ *  - Sesión STATELESS: no se guarda sesión en el servidor.
+ *  - frameOptions deshabilitado: necesario para H2 console (iframe).
+ *  - exceptionHandling: si no estás autenticado y la URL lo requiere,
+ *    devolvemos 401 directamente (sin redirección a login HTML).
  */
 @Configuration
 public class SecurityConfig {
+
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
-                .headers(headers -> headers.frameOptions(frame -> frame.disable()));
+                .headers(headers -> headers.frameOptions(frame -> frame.disable()))
+                .exceptionHandling(eh -> eh.authenticationEntryPoint(
+                        new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+                .authorizeHttpRequests(auth -> auth
+                        // Endpoints públicos
+                        .requestMatchers("/api/auth/register",
+                                          "/api/auth/login",
+                                          "/error").permitAll()
+                        .requestMatchers("/h2-console/**").permitAll()
+                        // Resto requiere autenticación
+                        .anyRequest().authenticated())
+                .addFilterBefore(jwtAuthenticationFilter,
+                        UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

@@ -10,6 +10,7 @@ import com.taekwondo.examenes.application.question.dto.CreateQuestionInput;
 import com.taekwondo.examenes.application.question.dto.EditQuestionInput;
 import com.taekwondo.examenes.application.question.dto.QuestionView;
 import com.taekwondo.examenes.application.question.dto.SearchQuestionsInput;
+import com.taekwondo.examenes.infrastructure.security.AuthenticatedUser;
 import com.taekwondo.examenes.infrastructure.web.dto.CreateQuestionRequest;
 import com.taekwondo.examenes.infrastructure.web.dto.EditQuestionRequest;
 import com.taekwondo.examenes.infrastructure.web.dto.QuestionResponse;
@@ -23,21 +24,11 @@ import java.util.Set;
 /**
  * Controller REST para Question.
  *
- * Responsabilidades:
- *  - Recibir peticiones HTTP, convertir a Input de aplicación.
- *  - Invocar el caso de uso correspondiente.
- *  - Convertir el resultado a DTO HTTP y devolverlo.
- *
- * NO contiene lógica de negocio.
- *
- * Nota: ownerId temporalmente HARDCODEADO. Cuando integremos JWT,
- * se obtendrá del SecurityContext.
+ * El ownerId se obtiene del usuario autenticado (JWT) vía AuthenticatedUser.
  */
 @RestController
 @RequestMapping("/api/questions")
 public class QuestionController {
-
-    private static final Long TEMPORARY_OWNER_ID = 1L;
 
     private final CreateQuestionUseCase createQuestionUseCase;
     private final EditQuestionUseCase editQuestionUseCase;
@@ -69,7 +60,7 @@ public class QuestionController {
                 request.explanation(),
                 request.difficulty(),
                 request.tagIds(),
-                TEMPORARY_OWNER_ID
+                AuthenticatedUser.currentUserId()
         );
         QuestionView view = createQuestionUseCase.execute(input);
         return ResponseEntity.status(HttpStatus.CREATED).body(QuestionResponse.from(view));
@@ -86,7 +77,7 @@ public class QuestionController {
                 request.explanation(),
                 request.difficulty(),
                 request.tagIds(),
-                TEMPORARY_OWNER_ID
+                AuthenticatedUser.currentUserId()
         );
         QuestionView view = editQuestionUseCase.execute(input);
         return QuestionResponse.from(view);
@@ -94,19 +85,19 @@ public class QuestionController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
-        deleteQuestionUseCase.execute(id, TEMPORARY_OWNER_ID);
+        deleteQuestionUseCase.execute(id, AuthenticatedUser.currentUserId());
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}")
     public QuestionResponse get(@PathVariable Long id) {
-        QuestionView view = getQuestionUseCase.execute(id, TEMPORARY_OWNER_ID);
+        QuestionView view = getQuestionUseCase.execute(id, AuthenticatedUser.currentUserId());
         return QuestionResponse.from(view);
     }
 
     @GetMapping
     public List<QuestionResponse> list() {
-        return listQuestionsUseCase.execute(TEMPORARY_OWNER_ID).stream()
+        return listQuestionsUseCase.execute(AuthenticatedUser.currentUserId()).stream()
                 .map(QuestionResponse::from)
                 .toList();
     }
@@ -117,7 +108,7 @@ public class QuestionController {
             @RequestParam(required = false) String textContains) {
 
         SearchQuestionsInput input = new SearchQuestionsInput(
-                TEMPORARY_OWNER_ID,
+                AuthenticatedUser.currentUserId(),
                 tagIds,
                 textContains
         );

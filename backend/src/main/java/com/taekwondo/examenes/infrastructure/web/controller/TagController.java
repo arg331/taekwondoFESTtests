@@ -7,6 +7,7 @@ import com.taekwondo.examenes.application.tag.RenameTagUseCase;
 import com.taekwondo.examenes.application.tag.dto.CreateTagInput;
 import com.taekwondo.examenes.application.tag.dto.RenameTagInput;
 import com.taekwondo.examenes.application.tag.dto.TagView;
+import com.taekwondo.examenes.infrastructure.security.AuthenticatedUser;
 import com.taekwondo.examenes.infrastructure.web.dto.CreateTagRequest;
 import com.taekwondo.examenes.infrastructure.web.dto.RenameTagRequest;
 import com.taekwondo.examenes.infrastructure.web.dto.TagResponse;
@@ -19,23 +20,13 @@ import java.util.List;
 /**
  * Controller REST para Tag.
  *
- * Responsabilidades:
- *  - Recibir peticiones HTTP, convertir a Input de aplicación.
- *  - Invocar el caso de uso correspondiente.
- *  - Convertir el resultado a DTO HTTP y devolverlo.
- *
- * NO contiene lógica de negocio: solo traduce HTTP <-> aplicación.
- *
- * Nota IMPORTANTE: el ownerId está temporalmente HARDCODEADO mientras
- * no haya autenticación. Cuando integremos JWT + Spring Security,
- * lo obtendremos del SecurityContext.
+ * El ownerId se obtiene del usuario autenticado (JWT) vía AuthenticatedUser.
+ * Sin token válido, JwtAuthenticationFilter + SecurityConfig rechazan
+ * la petición antes de llegar aquí.
  */
 @RestController
 @RequestMapping("/api/tags")
 public class TagController {
-
-    // TEMPORAL: hasta que tengamos auth, simulamos un único profesor con id 1.
-    private static final Long TEMPORARY_OWNER_ID = 1L;
 
     private final CreateTagUseCase createTagUseCase;
     private final GetTagUseCase getTagUseCase;
@@ -57,7 +48,7 @@ public class TagController {
         CreateTagInput input = new CreateTagInput(
                 request.name(),
                 request.color(),
-                TEMPORARY_OWNER_ID
+                AuthenticatedUser.currentUserId()
         );
         TagView view = createTagUseCase.execute(input);
         return ResponseEntity.status(HttpStatus.CREATED).body(TagResponse.from(view));
@@ -65,20 +56,21 @@ public class TagController {
 
     @GetMapping("/{id}")
     public TagResponse get(@PathVariable Long id) {
-        TagView view = getTagUseCase.execute(id, TEMPORARY_OWNER_ID);
+        TagView view = getTagUseCase.execute(id, AuthenticatedUser.currentUserId());
         return TagResponse.from(view);
     }
 
     @GetMapping
     public List<TagResponse> list() {
-        return listTagsUseCase.execute(TEMPORARY_OWNER_ID).stream()
+        return listTagsUseCase.execute(AuthenticatedUser.currentUserId()).stream()
                 .map(TagResponse::from)
                 .toList();
     }
 
     @PatchMapping("/{id}")
     public TagResponse rename(@PathVariable Long id, @RequestBody RenameTagRequest request) {
-        RenameTagInput input = new RenameTagInput(id, request.newName(), TEMPORARY_OWNER_ID);
+        RenameTagInput input = new RenameTagInput(
+                id, request.newName(), AuthenticatedUser.currentUserId());
         TagView view = renameTagUseCase.execute(input);
         return TagResponse.from(view);
     }

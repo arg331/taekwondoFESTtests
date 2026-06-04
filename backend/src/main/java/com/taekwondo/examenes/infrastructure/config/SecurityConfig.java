@@ -18,13 +18,15 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  *  - POST /api/auth/register
  *  - POST /api/auth/login
  *  - GET  /api/exams/by-code/**   (estudiante anónimo entra con el código del QR)
+ *  - POST /api/results             (estudiante envía respuestas; puede ser anónimo)
  *  - /h2-console/** (DEV ONLY)
  *  - /error
  *
  * Todo lo demás requiere autenticación válida (JWT).
  *
- * Cuando llegue Result end-to-end, POST /api/results también será público
- * (un estudiante anónimo puede enviar respuestas si el examen es OPEN).
+ * Nota sobre POST /api/results: aunque sea público, el filtro JWT se ejecuta
+ * antes. Si llega un token válido, el SecurityContext se rellena con el
+ * userId y el controller lo asocia al resultado. Si no, queda anónimo.
  */
 @Configuration
 public class SecurityConfig {
@@ -49,6 +51,7 @@ public class SecurityConfig {
                                           "/api/auth/login",
                                           "/error").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/exams/by-code/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/results").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()
                         // Resto requiere autenticación
                         .anyRequest().authenticated())

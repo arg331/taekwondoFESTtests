@@ -4,7 +4,9 @@ import com.taekwondo.examenes.application.auth.GetCurrentUserUseCase;
 import com.taekwondo.examenes.application.auth.LoginUseCase;
 import com.taekwondo.examenes.application.auth.RegisterStudentUseCase;
 import com.taekwondo.examenes.application.exam.*;
+import com.taekwondo.examenes.application.favorite.*;
 import com.taekwondo.examenes.application.question.*;
+import com.taekwondo.examenes.application.result.*;
 import com.taekwondo.examenes.application.tag.*;
 import com.taekwondo.examenes.domain.port.*;
 import org.springframework.context.annotation.Bean;
@@ -12,25 +14,13 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-/**
- * Wiring de Spring: convierte los casos de uso (clases Java puras
- * sin anotaciones) en beans de Spring.
- *
- * Esta clase es el ÚNICO punto donde Spring "ve" los casos de uso.
- * Los adapters de infraestructura (TagRepositoryJpaAdapter, etc.)
- * usan @Component/@Repository directamente.
- */
 @Configuration
 public class BeanConfiguration {
-
-    // ───── Beans de seguridad ─────
 
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
-
-    // ───── Tag ─────
 
     @Bean
     public CreateTagUseCase createTagUseCase(TagRepository tagRepository) {
@@ -51,8 +41,6 @@ public class BeanConfiguration {
     public RenameTagUseCase renameTagUseCase(TagRepository tagRepository) {
         return new RenameTagUseCase(tagRepository);
     }
-
-    // ───── Question ─────
 
     @Bean
     public CreateQuestionUseCase createQuestionUseCase(QuestionRepository questionRepository,
@@ -87,8 +75,6 @@ public class BeanConfiguration {
         return new SearchQuestionsUseCase(questionRepository, tagRepository);
     }
 
-    // ───── Auth ─────
-
     @Bean
     public RegisterStudentUseCase registerStudentUseCase(UserRepository userRepository,
                                                           PasswordHasher passwordHasher) {
@@ -107,8 +93,6 @@ public class BeanConfiguration {
                                                         JwtTokenProvider jwtTokenProvider) {
         return new GetCurrentUserUseCase(userRepository, jwtTokenProvider);
     }
-
-    // ───── Exam ─────
 
     @Bean
     public CreateExamDraftUseCase createExamDraftUseCase(ExamRepository examRepository) {
@@ -191,5 +175,54 @@ public class BeanConfiguration {
     @Bean
     public ListPublicExamsUseCase listPublicExamsUseCase(ExamRepository examRepository) {
         return new ListPublicExamsUseCase(examRepository);
+    }
+
+    @Bean
+    public SubmitExamUseCase submitExamUseCase(ExamRepository examRepository,
+                                                QuestionRepository questionRepository,
+                                                ResultRepository resultRepository,
+                                                Clock clock) {
+        return new SubmitExamUseCase(examRepository, questionRepository, resultRepository, clock);
+    }
+
+    @Bean
+    public GetResultUseCase getResultUseCase(ResultRepository resultRepository,
+                                              ExamRepository examRepository) {
+        return new GetResultUseCase(resultRepository, examRepository);
+    }
+
+    @Bean
+    public ListResultsByExamUseCase listResultsByExamUseCase(ResultRepository resultRepository,
+                                                              ExamRepository examRepository) {
+        return new ListResultsByExamUseCase(resultRepository, examRepository);
+    }
+
+    @Bean
+    public GetExamStatisticsUseCase getExamStatisticsUseCase(ResultRepository resultRepository,
+                                                              ExamRepository examRepository) {
+        return new GetExamStatisticsUseCase(resultRepository, examRepository);
+    }
+
+    @Bean
+    public ListMyAttemptsUseCase listMyAttemptsUseCase(ResultRepository resultRepository) {
+        return new ListMyAttemptsUseCase(resultRepository);
+    }
+
+    @Bean
+    public FavoriteExamUseCase favoriteExamUseCase(ExamRepository examRepository,
+                                                    ExamFavoriteRepository favoriteRepository) {
+        return new FavoriteExamUseCase(examRepository, favoriteRepository);
+    }
+
+    @Bean
+    public UnfavoriteExamUseCase unfavoriteExamUseCase(ExamFavoriteRepository favoriteRepository) {
+        return new UnfavoriteExamUseCase(favoriteRepository);
+    }
+
+    @Bean
+    public ListMyFavoriteExamsUseCase listMyFavoriteExamsUseCase(
+            ExamFavoriteRepository favoriteRepository,
+            ExamRepository examRepository) {
+        return new ListMyFavoriteExamsUseCase(favoriteRepository, examRepository);
     }
 }

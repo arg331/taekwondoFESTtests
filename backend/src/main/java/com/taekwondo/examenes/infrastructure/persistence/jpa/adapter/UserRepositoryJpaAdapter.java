@@ -1,6 +1,7 @@
 package com.taekwondo.examenes.infrastructure.persistence.jpa.adapter;
 
 import com.taekwondo.examenes.domain.model.User;
+import com.taekwondo.examenes.domain.model.UserRole;
 import com.taekwondo.examenes.domain.port.UserRepository;
 import com.taekwondo.examenes.infrastructure.persistence.jpa.entity.UserJpaEntity;
 import com.taekwondo.examenes.infrastructure.persistence.jpa.repository.UserSpringDataRepository;
@@ -54,5 +55,10 @@ public class UserRepositoryJpaAdapter implements UserRepository {
     @Override
     public boolean existsByEmail(String email) {
         return springDataRepository.existsByEmail(email);
+    }
+
+    @Override
+    public boolean existsByRole(UserRole role) {
+        return springDataRepository.existsByRole(role);
     }
 }

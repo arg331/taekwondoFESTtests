@@ -1,5 +1,6 @@
 package com.taekwondo.examenes.infrastructure.persistence.jpa.repository;
 
+import com.taekwondo.examenes.domain.model.UserRole;
 import com.taekwondo.examenes.infrastructure.persistence.jpa.entity.UserJpaEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -20,4 +21,6 @@ public interface UserSpringDataRepository extends JpaRepository<UserJpaEntity, L
     boolean existsByUsername(String username);
 
     boolean existsByEmail(String email);
+
+    boolean existsByRole(UserRole role);
 }

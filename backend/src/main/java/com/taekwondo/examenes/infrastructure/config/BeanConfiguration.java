@@ -1,5 +1,6 @@
 package com.taekwondo.examenes.infrastructure.config;
 
+import com.taekwondo.examenes.application.auth.CreateUserUseCase;
 import com.taekwondo.examenes.application.auth.GetCurrentUserUseCase;
 import com.taekwondo.examenes.application.auth.LoginUseCase;
 import com.taekwondo.examenes.application.auth.RegisterStudentUseCase;
@@ -73,6 +74,12 @@ public class BeanConfiguration {
     public SearchQuestionsUseCase searchQuestionsUseCase(QuestionRepository questionRepository,
                                                           TagRepository tagRepository) {
         return new SearchQuestionsUseCase(questionRepository, tagRepository);
+    }
+
+    @Bean
+    public CreateUserUseCase createUserUseCase(UserRepository userRepository,
+                                                PasswordHasher passwordHasher) {
+        return new CreateUserUseCase(userRepository, passwordHasher);
     }
 
     @Bean

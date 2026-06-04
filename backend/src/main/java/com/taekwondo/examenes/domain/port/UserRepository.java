@@ -1,6 +1,7 @@
 package com.taekwondo.examenes.domain.port;
 
 import com.taekwondo.examenes.domain.model.User;
+import com.taekwondo.examenes.domain.model.UserRole;
 
 import java.util.Optional;
 
@@ -26,4 +27,11 @@ public interface UserRepository {
     boolean existsByUsername(String username);
 
     boolean existsByEmail(String email);
+
+    /**
+     * Indica si existe al menos un usuario con el rol dado.
+     * Usado por el seed para comprobar si ya existe un ADMIN
+     * sin depender de un username concreto.
+     */
+    boolean existsByRole(UserRole role);
 }

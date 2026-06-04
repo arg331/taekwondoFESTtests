@@ -40,7 +40,7 @@ public class FavoriteExamUseCase {
 
         if (exam.getOwnerId().equals(professorId)) {
             throw new BusinessRuleViolationException(
-                    "No puedes favoritear tus propios exámenes");
+                    "No puedes añadir a favoritos tus propios exámenes");
         }
 
         if (favoriteRepository.existsByProfessorIdAndExamId(professorId, examId)) {

@@ -14,12 +14,13 @@ import com.taekwondo.examenes.domain.port.ExamRepository;
  *  - El examen debe existir.
  *  - Debe ser ACCESIBLE en este momento (PUBLISHED y, si tiene
  *    expiresAt, no haber pasado).
- *  - NO se comprueba ownerId: este caso de uso NO es del profesor;
- *    es de un usuario anónimo (el estudiante) que entra con su QR.
+ *  - NO se filtra por accessMode aquí: aunque sea REGISTERED_ONLY,
+ *    devolvemos los datos para que el frontend muestre el formulario
+ *    de login con el contexto correcto. La restricción real se aplica
+ *    en SubmitExamUseCase.
  *
- * Si el examen no es accesible (DRAFT, EXPIRED manual o vencido por
- * tiempo) lanzamos error específico de negocio para que el cliente
- * pueda mostrar un mensaje adecuado (p. ej., "este examen ha cerrado").
+ * NO se comprueba ownerId: este caso de uso es de un visitante
+ * (anónimo o registrado) que entra con el código del QR.
  */
 public class GetExamByCodeUseCase {
 
@@ -40,7 +41,6 @@ public class GetExamByCodeUseCase {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "No existe ningún examen con código " + code));
 
-        // Verificación on-the-fly: la entidad combina estado y fecha de expiración.
         if (!exam.isAccessibleAt(clock)) {
             throw new BusinessRuleViolationException(
                     "Este examen no está disponible en este momento");

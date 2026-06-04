@@ -2,6 +2,7 @@ package com.taekwondo.examenes.application.exam.dto;
 
 import com.taekwondo.examenes.application.tag.dto.TagView;
 import com.taekwondo.examenes.domain.model.Exam;
+import com.taekwondo.examenes.domain.model.ExamAccessMode;
 import com.taekwondo.examenes.domain.model.ExamStatus;
 import com.taekwondo.examenes.domain.model.Visibility;
 
@@ -16,10 +17,11 @@ import java.util.stream.Collectors;
  * Reutilizada en todos los casos de uso que devuelven un examen
  * (create, publish, list, get, etc.).
  *
- * Diseño: incluye los TagViews completos (no IDs) porque los clientes
- * casi siempre necesitan mostrar nombre/color de los tags de generación.
- * Las preguntas, en cambio, se mantienen como IDs: si el cliente las
- * necesita, las pide aparte (caso de uso específico para vista detallada).
+ * Incluye accessMode para que el frontend pueda decidir si pedir login
+ * antes de mostrar el examen al visitante.
+ *
+ * Las preguntas se mantienen como IDs: si el cliente las necesita
+ * resueltas, las pide aparte (otro caso de uso específico).
  */
 public record ExamView(
         Long id,
@@ -27,6 +29,7 @@ public record ExamView(
         Long ownerId,
         ExamStatus status,
         Visibility visibility,
+        ExamAccessMode accessMode,
         ExamConfigView config,
         List<Long> questionIds,
         Set<TagView> generationTags,
@@ -45,6 +48,7 @@ public record ExamView(
                 exam.getOwnerId(),
                 exam.getStatus(),
                 exam.getVisibility(),
+                exam.getAccessMode(),
                 ExamConfigView.from(exam.getConfig()),
                 exam.getQuestionIds(),
                 tagViews,

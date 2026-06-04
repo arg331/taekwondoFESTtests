@@ -10,28 +10,30 @@ import java.util.Objects;
  * Entidad de dominio: Result (resultado de un estudiante en un examen).
  *
  * Es un AGREGADO: contiene un value object Answer por cada pregunta.
- * No hay forma de modificar las answers desde fuera: son parte del
- * Result y se establecen al crearlo.
  *
- * Inmutabilidad: una vez creado un Result, NO se edita. Representa
- * un evento ocurrido (el estudiante terminó el examen). No tiene
- * sentido modificarlo posteriormente.
+ * Inmutabilidad: una vez creado, NO se edita.
  *
- * Snapshot histórico: el Result guarda examId, no Exam. Si el examen
- * cambia más tarde, el resultado conserva su contenido original
- * (preguntas, respuestas correctas en el momento, etc.).
+ * Identidad del estudiante:
+ *  - Si studentUserId != null  → estudiante registrado (cuenta verificada)
+ *  - Si studentUserId == null  → estudiante anónimo (solo aportó nombre)
+ *
+ * En ambos casos se guardan studentName, studentClub y studentEmail
+ * porque el estudiante los introdujo manualmente al hacer el examen.
  */
 public final class Result {
 
+    private static final int PASSING_SCORE = 70;
+
     private final Long id;
     private final Long examId;
+    private final Long studentUserId;        // null si anónimo
     private final String studentName;
-    private final String studentClub;        // opcional
-    private final String studentEmail;       // opcional
+    private final String studentClub;
+    private final String studentEmail;
     private final List<Answer> answers;
-    private final int correctAnswers;        // derivado pero persistido por eficiencia
+    private final int correctAnswers;
     private final int totalQuestions;
-    private final int score;                 // 0-100, derivado pero persistido
+    private final int score;
     private final int timeSpentSeconds;
     private final LocalDateTime completedAt;
 
@@ -39,11 +41,8 @@ public final class Result {
     // Factory methods
     // ──────────────────────────────────────────────────
 
-    /**
-     * Crea un Result nuevo (sin ID asignado todavía).
-     * El score y correctAnswers se calculan a partir de las answers.
-     */
     public static Result createNew(Long examId,
+                                    Long studentUserId,
                                     String studentName,
                                     String studentClub,
                                     String studentEmail,
@@ -61,25 +60,17 @@ public final class Result {
         int computedScore = total == 0 ? 0 : Math.round((correct * 100f) / total);
 
         return new Result(
-                null,
-                examId,
-                studentName,
-                studentClub,
-                studentEmail,
+                null, examId, studentUserId,
+                studentName, studentClub, studentEmail,
                 new ArrayList<>(answers),
-                correct,
-                total,
-                computedScore,
-                timeSpentSeconds,
-                completedAt
+                correct, total, computedScore,
+                timeSpentSeconds, completedAt
         );
     }
 
-    /**
-     * Reconstruye un Result desde la BD (con ID y campos derivados ya calculados).
-     */
     public static Result reconstitute(Long id,
                                        Long examId,
+                                       Long studentUserId,
                                        String studentName,
                                        String studentClub,
                                        String studentEmail,
@@ -91,19 +82,21 @@ public final class Result {
                                        LocalDateTime completedAt) {
         Objects.requireNonNull(id, "id no puede ser null en reconstitución");
         return new Result(
-                id, examId, studentName, studentClub, studentEmail,
+                id, examId, studentUserId,
+                studentName, studentClub, studentEmail,
                 new ArrayList<>(answers),
                 correctAnswers, totalQuestions, score,
                 timeSpentSeconds, completedAt
         );
     }
 
-    private Result(Long id, Long examId, String studentName, String studentClub,
-                   String studentEmail, List<Answer> answers, int correctAnswers,
-                   int totalQuestions, int score, int timeSpentSeconds,
-                   LocalDateTime completedAt) {
+    private Result(Long id, Long examId, Long studentUserId,
+                   String studentName, String studentClub, String studentEmail,
+                   List<Answer> answers, int correctAnswers, int totalQuestions,
+                   int score, int timeSpentSeconds, LocalDateTime completedAt) {
         this.id = id;
         this.examId = examId;
+        this.studentUserId = studentUserId;
         this.studentName = studentName;
         this.studentClub = studentClub;
         this.studentEmail = studentEmail;
@@ -119,16 +112,8 @@ public final class Result {
     // Consultas de negocio
     // ──────────────────────────────────────────────────
 
-    /**
-     * Considera "aprobado" a partir del 70%.
-     * Constante del dominio: si la federación cambia el umbral,
-     * solo hay que tocar este punto.
-     */
-    private static final int PASSING_SCORE = 70;
-
-    public boolean isPassed() {
-        return score >= PASSING_SCORE;
-    }
+    public boolean isPassed()       { return score >= PASSING_SCORE; }
+    public boolean isVerified()     { return studentUserId != null; }
 
     // ──────────────────────────────────────────────────
     // Validaciones
@@ -162,6 +147,7 @@ public final class Result {
 
     public Long getId()                     { return id; }
     public Long getExamId()                 { return examId; }
+    public Long getStudentUserId()          { return studentUserId; }
     public String getStudentName()          { return studentName; }
     public String getStudentClub()          { return studentClub; }
     public String getStudentEmail()         { return studentEmail; }

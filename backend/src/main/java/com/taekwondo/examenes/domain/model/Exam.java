@@ -18,18 +18,14 @@ import java.util.Set;
  *  - PUBLISHED → tiene código, los estudiantes pueden hacerlo
  *  - EXPIRED   → cerrado MANUALMENTE por el profesor
  *
+ * Modo de acceso:
+ *  - OPEN              → anónimos + registrados
+ *  - REGISTERED_ONLY   → solo estudiantes con cuenta
+ *
  * Sobre la expiración por TIEMPO: NO se persiste como estado EXPIRED.
  * El campo expiresAt indica hasta cuándo es accesible. La pregunta
  * "¿está accesible ahora mismo?" se calcula on-the-fly comparando
- * con un Clock (ver isAccessibleAt / isCurrentlyExpired).
- *
- * Sobre la edición: el profesor puede editar el examen incluso después
- * de publicarlo. Esto es una decisión consciente: los exámenes son
- * típicamente privados, los resultados ya almacenados quedan como log
- * histórico aunque la pregunta cambie. Sí se podrá publicar/cerrar/
- * reabrir según el estado.
- *
- * El examen guarda IDs de preguntas, no objetos completos (modelo híbrido).
+ * con un Clock.
  */
 public final class Exam {
 
@@ -38,12 +34,13 @@ public final class Exam {
     private final Long ownerId;
     private ExamStatus status;
     private Visibility visibility;
+    private ExamAccessMode accessMode;
     private ExamConfig config;
     private final List<Long> questionIds;
-    private final Set<Tag> generationTags;   // tags usados al pre-generar (referencia)
-    private String code;                      // null hasta publicar; tras publicar, persiste
+    private final Set<Tag> generationTags;
+    private String code;
     private final LocalDateTime createdAt;
-    private LocalDateTime expiresAt;          // null = no expira por tiempo
+    private LocalDateTime expiresAt;
 
     // ──────────────────────────────────────────────────
     // Factory methods
@@ -58,11 +55,10 @@ public final class Exam {
         Objects.requireNonNull(config, "config es obligatorio");
 
         return new Exam(
-                null,
-                title,
-                ownerId,
+                null, title, ownerId,
                 ExamStatus.DRAFT,
                 Visibility.PRIVATE,
+                ExamAccessMode.OPEN,
                 config,
                 new ArrayList<>(),
                 new HashSet<>(generationTags != null ? generationTags : Set.of()),
@@ -77,6 +73,7 @@ public final class Exam {
                                      Long ownerId,
                                      ExamStatus status,
                                      Visibility visibility,
+                                     ExamAccessMode accessMode,
                                      ExamConfig config,
                                      List<Long> questionIds,
                                      Set<Tag> generationTags,
@@ -85,29 +82,23 @@ public final class Exam {
                                      LocalDateTime expiresAt) {
         Objects.requireNonNull(id, "id no puede ser null en reconstitución");
         return new Exam(
-                id, title, ownerId, status, visibility, config,
+                id, title, ownerId, status, visibility, accessMode, config,
                 new ArrayList<>(questionIds),
                 new HashSet<>(generationTags),
                 code, createdAt, expiresAt
         );
     }
 
-    private Exam(Long id,
-                 String title,
-                 Long ownerId,
-                 ExamStatus status,
-                 Visibility visibility,
-                 ExamConfig config,
-                 List<Long> questionIds,
-                 Set<Tag> generationTags,
-                 String code,
-                 LocalDateTime createdAt,
-                 LocalDateTime expiresAt) {
+    private Exam(Long id, String title, Long ownerId,
+                 ExamStatus status, Visibility visibility, ExamAccessMode accessMode,
+                 ExamConfig config, List<Long> questionIds, Set<Tag> generationTags,
+                 String code, LocalDateTime createdAt, LocalDateTime expiresAt) {
         this.id = id;
         this.title = title;
         this.ownerId = ownerId;
         this.status = status;
         this.visibility = visibility;
+        this.accessMode = accessMode;
         this.config = config;
         this.questionIds = questionIds;
         this.generationTags = generationTags;
@@ -151,17 +142,15 @@ public final class Exam {
         this.questionIds.remove(questionId);
     }
 
+    public void changeAccessMode(ExamAccessMode newAccessMode) {
+        Objects.requireNonNull(newAccessMode, "accessMode no puede ser null");
+        this.accessMode = newAccessMode;
+    }
+
     // ──────────────────────────────────────────────────
     // Transiciones de estado
     // ──────────────────────────────────────────────────
 
-    /**
-     * Publica el examen desde DRAFT.
-     *
-     * @param code        código único de acceso (generado por ExamCodeGenerator)
-     * @param visibility  visibilidad inicial
-     * @param expiresAt   fecha de expiración (puede ser null = no expira por tiempo)
-     */
     public void publish(String code, Visibility visibility, LocalDateTime expiresAt) {
         if (status != ExamStatus.DRAFT) {
             throw new IllegalStateException(
@@ -178,9 +167,6 @@ public final class Exam {
                     "El examen debe tener " + config.getNumberOfQuestions()
                             + " preguntas para publicarse (tiene " + questionIds.size() + ")");
         }
-        // expiresAt puede ser null (sin expiración por tiempo).
-        // Si no lo es, debe ser futuro: no tiene sentido publicar algo ya expirado.
-        // Esta validación se hará en el caso de uso usando el Clock.
 
         this.code = code;
         this.visibility = visibility;
@@ -188,10 +174,6 @@ public final class Exam {
         this.status = ExamStatus.PUBLISHED;
     }
 
-    /**
-     * El profesor cierra el examen manualmente.
-     * Solo aplicable si está PUBLISHED.
-     */
     public void closeManually() {
         if (status != ExamStatus.PUBLISHED) {
             throw new IllegalStateException(
@@ -200,12 +182,6 @@ public final class Exam {
         this.status = ExamStatus.EXPIRED;
     }
 
-    /**
-     * Reabre un examen cerrado manualmente.
-     * Extiende la fecha de expiración con el valor dado.
-     *
-     * @param newExpiresAt nueva fecha de expiración (puede ser null = sin límite)
-     */
     public void reopen(LocalDateTime newExpiresAt) {
         if (status != ExamStatus.EXPIRED) {
             throw new IllegalStateException(
@@ -215,10 +191,6 @@ public final class Exam {
         this.status = ExamStatus.PUBLISHED;
     }
 
-    /**
-     * Extiende la fecha de expiración mientras el examen está PUBLISHED.
-     * Útil cuando el examen sigue activo pero el profesor quiere darle más tiempo.
-     */
     public void extendExpiration(LocalDateTime newExpiresAt) {
         if (status != ExamStatus.PUBLISHED) {
             throw new IllegalStateException(
@@ -227,9 +199,6 @@ public final class Exam {
         this.expiresAt = newExpiresAt;
     }
 
-    /**
-     * Cambia la visibilidad de un examen ya publicado (o expirado).
-     */
     public void changeVisibility(Visibility newVisibility) {
         if (status == ExamStatus.DRAFT) {
             throw new IllegalStateException("Un draft no tiene visibilidad pública");
@@ -239,32 +208,25 @@ public final class Exam {
     }
 
     // ──────────────────────────────────────────────────
-    // Consultas de estado (on-the-fly)
+    // Consultas
     // ──────────────────────────────────────────────────
 
-    public boolean isDraft()     { return status == ExamStatus.DRAFT; }
-    public boolean isPublished() { return status == ExamStatus.PUBLISHED; }
-    public boolean isExpired()   { return status == ExamStatus.EXPIRED; }
+    public boolean isDraft()              { return status == ExamStatus.DRAFT; }
+    public boolean isPublished()          { return status == ExamStatus.PUBLISHED; }
+    public boolean isExpired()            { return status == ExamStatus.EXPIRED; }
+    public boolean requiresRegistration() { return accessMode == ExamAccessMode.REGISTERED_ONLY; }
 
-    /**
-     * ¿Está realmente cerrado por tiempo, aunque su estado siga siendo PUBLISHED?
-     * Cálculo on-the-fly basado en el Clock.
-     */
     public boolean isCurrentlyExpired(Clock clock) {
         Objects.requireNonNull(clock, "clock no puede ser null");
         if (status == ExamStatus.EXPIRED) return true;
         if (status != ExamStatus.PUBLISHED) return false;
-        if (expiresAt == null) return false;   // sin fecha = no expira
+        if (expiresAt == null) return false;
         return clock.now().isAfter(expiresAt);
     }
 
-    /**
-     * ¿Puede un estudiante acceder al examen AHORA?
-     * Combina el estado y la fecha de expiración.
-     */
     public boolean isAccessibleAt(Clock clock) {
         if (status != ExamStatus.PUBLISHED) return false;
-        if (expiresAt == null) return true;     // sin fecha de expiración = abierto siempre
+        if (expiresAt == null) return true;
         return !clock.now().isAfter(expiresAt);
     }
 
@@ -288,17 +250,18 @@ public final class Exam {
     // Getters
     // ──────────────────────────────────────────────────
 
-    public Long getId()                  { return id; }
-    public String getTitle()             { return title; }
-    public Long getOwnerId()             { return ownerId; }
-    public ExamStatus getStatus()        { return status; }
-    public Visibility getVisibility()    { return visibility; }
-    public ExamConfig getConfig()        { return config; }
-    public List<Long> getQuestionIds()   { return Collections.unmodifiableList(questionIds); }
-    public Set<Tag> getGenerationTags()  { return Collections.unmodifiableSet(generationTags); }
-    public String getCode()              { return code; }
-    public LocalDateTime getCreatedAt()  { return createdAt; }
-    public LocalDateTime getExpiresAt()  { return expiresAt; }
+    public Long getId()                     { return id; }
+    public String getTitle()                { return title; }
+    public Long getOwnerId()                { return ownerId; }
+    public ExamStatus getStatus()           { return status; }
+    public Visibility getVisibility()       { return visibility; }
+    public ExamAccessMode getAccessMode()   { return accessMode; }
+    public ExamConfig getConfig()           { return config; }
+    public List<Long> getQuestionIds()      { return Collections.unmodifiableList(questionIds); }
+    public Set<Tag> getGenerationTags()     { return Collections.unmodifiableSet(generationTags); }
+    public String getCode()                 { return code; }
+    public LocalDateTime getCreatedAt()     { return createdAt; }
+    public LocalDateTime getExpiresAt()     { return expiresAt; }
 
     @Override
     public boolean equals(Object o) {

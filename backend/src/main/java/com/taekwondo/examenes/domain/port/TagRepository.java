@@ -10,6 +10,7 @@ import java.util.Optional;
  *
  * <p>El dominio define lo que necesita. La infraestructura lo implementa
  * con la tecnología que sea (JPA, MongoDB, en memoria, ...). El dominio
+ * no conoce a la infraestructura.</p>
  *
  * <p>Cada método se justifica por un caso de uso real. No añadir métodos
  * "por si acaso": ISP (Interface Segregation Principle).</p>
@@ -34,15 +35,8 @@ public interface TagRepository {
     List<Tag> findAllByOwnerId(Long ownerId);
 
     /**
-     * Busca un tag por nombre dentro de los tags de un profesor.
-     * Útil para detectar duplicados.
-     */
-    Optional<Tag> findByNameAndOwnerId(String name, Long ownerId);
-
-    /**
      * Indica si ya existe un tag con ese nombre para ese profesor.
-     * Equivalente a findByNameAndOwnerId(...).isPresent(), pero más expresivo
-     * y potencialmente más eficiente en la implementación.
+     * Usado para detectar duplicados al crear o renombrar.
      */
     boolean existsByNameAndOwnerId(String name, Long ownerId);
 }

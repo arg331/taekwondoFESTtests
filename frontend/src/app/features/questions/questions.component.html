@@ -1,0 +1,204 @@
+<div class="questions-page">
+
+  <!-- Cabecera -->
+  <div class="page-header">
+    <div>
+      <h1>Banco de preguntas</h1>
+      <p class="subtitle">{{ filtered().length }} de {{ questions().length }} preguntas</p>
+    </div>
+    <button mat-flat-button color="primary" (click)="openCreate()">
+      <mat-icon>add</mat-icon>
+      Nueva pregunta
+    </button>
+  </div>
+
+  <!-- Formulario crear/editar -->
+  @if (showForm()) {
+    <mat-card class="form-card">
+      <mat-card-header>
+        <mat-card-title>
+          {{ editingId() ? 'Editar pregunta' : 'Nueva pregunta' }}
+        </mat-card-title>
+      </mat-card-header>
+
+      <mat-card-content>
+        <form [formGroup]="form">
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Texto de la pregunta</mat-label>
+            <textarea matInput formControlName="text" rows="3"></textarea>
+            @if (form.get('text')?.hasError('required') && form.get('text')?.touched) {
+              <mat-error>Campo obligatorio</mat-error>
+            }
+            @if (form.get('text')?.hasError('minlength')) {
+              <mat-error>Mínimo 10 caracteres</mat-error>
+            }
+          </mat-form-field>
+
+          <p class="section-label">Opciones de respuesta</p>
+          <div class="options-grid" formArrayName="options">
+            @for (ctrl of optionsArray.controls; track $index) {
+              <div class="option-row">
+                <mat-radio-button
+                  [value]="$index"
+                  [checked]="form.get('correctAnswer')?.value === $index"
+                  (change)="form.get('correctAnswer')?.setValue($index)"
+                  color="primary">
+                </mat-radio-button>
+                <mat-form-field appearance="outline" class="option-field">
+                  <mat-label>Opción {{ $index + 1 }}</mat-label>
+                  <input matInput [formControlName]="$index" />
+                </mat-form-field>
+              </div>
+            }
+          </div>
+          <p class="hint">Selecciona el radio button de la opción correcta</p>
+
+          <div class="row-2">
+            <mat-form-field appearance="outline">
+              <mat-label>Dificultad</mat-label>
+              <mat-select formControlName="difficulty">
+                @for (d of difficulties; track d) {
+                  <mat-option [value]="d">{{ diffLabel[d] }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Tags</mat-label>
+              <mat-select formControlName="tagIds" multiple>
+                @for (tag of tags(); track tag.id) {
+                  <mat-option [value]="tag.id">{{ tag.name }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          </div>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Explicación de la respuesta</mat-label>
+            <textarea matInput formControlName="explanation" rows="2"></textarea>
+            @if (form.get('explanation')?.hasError('required') && form.get('explanation')?.touched) {
+              <mat-error>Campo obligatorio</mat-error>
+            }
+          </mat-form-field>
+
+        </form>
+      </mat-card-content>
+
+      <mat-card-actions align="end">
+        <button mat-button (click)="cancel()">Cancelar</button>
+        <button mat-flat-button color="primary"
+                (click)="save()"
+                [disabled]="form.invalid || saving()">
+          @if (saving()) {
+            <mat-spinner diameter="18" />
+          } @else {
+            {{ editingId() ? 'Guardar cambios' : 'Crear pregunta' }}
+          }
+        </button>
+      </mat-card-actions>
+    </mat-card>
+  }
+
+  <!-- Filtros -->
+  <mat-card class="filters-card">
+    <mat-card-content>
+      <div class="filters">
+        <mat-form-field appearance="outline" class="filter-text">
+          <mat-label>Buscar</mat-label>
+          <input matInput
+                 [value]="filterText()"
+                 (input)="filterText.set($any($event.target).value)"
+                 placeholder="Texto de la pregunta..." />
+          <mat-icon matPrefix>search</mat-icon>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="filter-select">
+          <mat-label>Dificultad</mat-label>
+          <mat-select [value]="filterDiff()"
+                      (selectionChange)="filterDiff.set($event.value)">
+            <mat-option value="">Todas</mat-option>
+            @for (d of difficulties; track d) {
+              <mat-option [value]="d">{{ diffLabel[d] }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="filter-select">
+          <mat-label>Tag</mat-label>
+          <mat-select [value]="filterTagId()"
+                      (selectionChange)="filterTagId.set($event.value)">
+            <mat-option value="">Todos</mat-option>
+            @for (tag of tags(); track tag.id) {
+              <mat-option [value]="tag.id">{{ tag.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Lista de preguntas -->
+  @if (loading()) {
+    <div class="loading">
+      <mat-spinner diameter="40" />
+    </div>
+  } @else if (filtered().length === 0) {
+    <div class="empty">
+      <mat-icon>quiz</mat-icon>
+      <p>No hay preguntas que mostrar.</p>
+      <button mat-flat-button color="primary" (click)="openCreate()">
+        Crear primera pregunta
+      </button>
+    </div>
+  } @else {
+    <div class="questions-list">
+      @for (q of filtered(); track q.id) {
+        <mat-card class="question-card">
+          <mat-card-content>
+            <div class="question-header">
+              <p class="question-text">{{ q.text }}</p>
+              <div class="question-actions">
+                <button mat-icon-button (click)="openEdit(q)" matTooltip="Editar">
+                  <mat-icon>edit</mat-icon>
+                </button>
+                <button mat-icon-button color="warn" (click)="delete(q)" matTooltip="Eliminar">
+                  <mat-icon>delete</mat-icon>
+                </button>
+              </div>
+            </div>
+
+            <div class="options-list">
+              @for (opt of q.options; track $index) {
+                <div class="option-item" [class.correct]="$index === q.correctAnswer">
+                  <mat-icon class="option-icon">
+                    {{ $index === q.correctAnswer ? 'check_circle' : 'radio_button_unchecked' }}
+                  </mat-icon>
+                  <span>{{ opt }}</span>
+                </div>
+              }
+            </div>
+
+            @if (q.explanation) {
+              <p class="explanation">
+                <mat-icon>lightbulb</mat-icon>
+                {{ q.explanation }}
+              </p>
+            }
+
+            <div class="question-footer">
+              <span class="difficulty-badge"
+                    [style.background]="diffColor[q.difficulty]">
+                {{ diffLabel[q.difficulty] }}
+              </span>
+              @for (tag of q.tags; track tag.id) {
+                <mat-chip>{{ tag.name }}</mat-chip>
+              }
+            </div>
+          </mat-card-content>
+        </mat-card>
+      }
+    </div>
+  }
+
+</div>

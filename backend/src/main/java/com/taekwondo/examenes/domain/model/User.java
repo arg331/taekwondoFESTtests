@@ -3,19 +3,6 @@ package com.taekwondo.examenes.domain.model;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
-/**
- * Entidad de dominio: User.
- *
- * Cubre los DOS tipos de usuario:
- *  - ADMIN: profesores
- *  - STUDENT: estudiantes registrados
- *
- * Lo distingue el campo role (UserRole).
- *
- * Decisión de seguridad: la entidad NUNCA conoce la contraseña en claro.
- * Solo trabaja con el hash. Quien crea el User debe haber hasheado
- * previamente la contraseña con el puerto PasswordHasher.
- */
 public final class User {
 
     private final Long id;
@@ -27,15 +14,8 @@ public final class User {
     private boolean active;
     private final LocalDateTime createdAt;
 
-    // ──────────────────────────────────────────────────
-    // Factory methods
-    // ──────────────────────────────────────────────────
-
-    public static User createNew(String username,
-                                  String email,
-                                  String passwordHash,
-                                  String displayName,
-                                  UserRole role) {
+    public static User createNew(String username, String email, String passwordHash,
+                                  String displayName, UserRole role) {
         validateUsername(username);
         validateEmail(email);
         validatePasswordHash(passwordHash);
@@ -45,13 +25,9 @@ public final class User {
                 true, LocalDateTime.now());
     }
 
-    public static User reconstitute(Long id,
-                                     String username,
-                                     String email,
-                                     String passwordHash,
-                                     String displayName,
-                                     UserRole role,
-                                     boolean active,
+    public static User reconstitute(Long id, String username, String email,
+                                     String passwordHash, String displayName,
+                                     UserRole role, boolean active,
                                      LocalDateTime createdAt) {
         Objects.requireNonNull(id, "id no puede ser null en reconstitución");
         return new User(id, username, email, passwordHash, displayName, role,
@@ -71,9 +47,7 @@ public final class User {
         this.createdAt = createdAt;
     }
 
-    // ──────────────────────────────────────────────────
-    // Operaciones de negocio
-    // ──────────────────────────────────────────────────
+    // ── Operaciones de negocio ──────────────────────
 
     public void changeEmail(String newEmail) {
         validateEmail(newEmail);
@@ -93,12 +67,22 @@ public final class User {
     public void deactivate() { this.active = false; }
     public void activate()   { this.active = true; }
 
+    public void promoteToAdmin() {
+        if (this.role == UserRole.ADMIN)
+            throw new IllegalStateException("El usuario ya es ADMIN");
+        this.role = UserRole.ADMIN;
+    }
+
+    public void demoteToStudent() {
+        if (this.role == UserRole.STUDENT)
+            throw new IllegalStateException("El usuario ya es STUDENT");
+        this.role = UserRole.STUDENT;
+    }
+
     public boolean isAdmin()   { return role == UserRole.ADMIN; }
     public boolean isStudent() { return role == UserRole.STUDENT; }
 
-    // ──────────────────────────────────────────────────
-    // Validaciones
-    // ──────────────────────────────────────────────────
+    // ── Validaciones ──────────────────────────────
 
     private static void validateUsername(String username) {
         if (username == null || username.isBlank())
@@ -129,18 +113,16 @@ public final class User {
             throw new IllegalArgumentException("El rol no puede ser null");
     }
 
-    // ──────────────────────────────────────────────────
-    // Getters
-    // ──────────────────────────────────────────────────
+    // ── Getters ───────────────────────────────────
 
-    public Long getId()                  { return id; }
-    public String getUsername()          { return username; }
-    public String getEmail()             { return email; }
-    public String getPasswordHash()      { return passwordHash; }
-    public String getDisplayName()       { return displayName; }
-    public UserRole getRole()            { return role; }
-    public boolean isActive()            { return active; }
-    public LocalDateTime getCreatedAt()  { return createdAt; }
+    public Long getId()                 { return id; }
+    public String getUsername()         { return username; }
+    public String getEmail()            { return email; }
+    public String getPasswordHash()     { return passwordHash; }
+    public String getDisplayName()      { return displayName; }
+    public UserRole getRole()           { return role; }
+    public boolean isActive()           { return active; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
 
     @Override
     public boolean equals(Object o) {
@@ -150,7 +132,5 @@ public final class User {
     }
 
     @Override
-    public int hashCode() {
-        return Objects.hash(id);
-    }
+    public int hashCode() { return Objects.hash(id); }
 }

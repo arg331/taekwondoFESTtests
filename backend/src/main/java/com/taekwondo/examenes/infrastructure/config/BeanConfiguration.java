@@ -4,6 +4,8 @@ import com.taekwondo.examenes.application.auth.CreateUserUseCase;
 import com.taekwondo.examenes.application.auth.GetCurrentUserUseCase;
 import com.taekwondo.examenes.application.auth.LoginUseCase;
 import com.taekwondo.examenes.application.auth.RegisterStudentUseCase;
+import com.taekwondo.examenes.application.auth.ListUsersUseCase;
+import com.taekwondo.examenes.application.auth.PromoteUserUseCase;
 import com.taekwondo.examenes.application.exam.*;
 import com.taekwondo.examenes.application.favorite.*;
 import com.taekwondo.examenes.application.question.*;
@@ -231,5 +233,15 @@ public class BeanConfiguration {
             ExamFavoriteRepository favoriteRepository,
             ExamRepository examRepository) {
         return new ListMyFavoriteExamsUseCase(favoriteRepository, examRepository);
+    }
+
+    @Bean
+    public ListUsersUseCase listUsersUseCase(UserRepository userRepository) {
+        return new ListUsersUseCase(userRepository);
+    }
+
+    @Bean
+    public PromoteUserUseCase promoteUserUseCase(UserRepository userRepository) {
+        return new PromoteUserUseCase(userRepository);
     }
 }

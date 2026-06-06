@@ -34,12 +34,16 @@ public class SecurityConfig {
                 .exceptionHandling(eh -> eh.authenticationEntryPoint(
                         new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .authorizeHttpRequests(auth -> auth
+                        // Públicos
                         .requestMatchers("/api/auth/register",
                                           "/api/auth/login",
                                           "/error").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/exams/by-code/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/results").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()
+                        // Solo ADMIN
+                        .requestMatchers("/api/users/**").hasAuthority("ADMIN")
+                        // Resto: autenticado
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class);

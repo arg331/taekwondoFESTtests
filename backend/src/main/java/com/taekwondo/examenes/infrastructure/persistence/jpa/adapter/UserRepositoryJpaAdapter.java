@@ -3,19 +3,13 @@ package com.taekwondo.examenes.infrastructure.persistence.jpa.adapter;
 import com.taekwondo.examenes.domain.model.User;
 import com.taekwondo.examenes.domain.model.UserRole;
 import com.taekwondo.examenes.domain.port.UserRepository;
-import com.taekwondo.examenes.infrastructure.persistence.jpa.entity.UserJpaEntity;
 import com.taekwondo.examenes.infrastructure.persistence.jpa.repository.UserSpringDataRepository;
 import com.taekwondo.examenes.infrastructure.persistence.mapper.UserMapper;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
-/**
- * Adaptador de salida: implementa UserRepository del dominio usando
- * Spring Data JPA.
- *
- * Mantiene el puerto del dominio (UserRepository) libre de Spring.
- */
 @Repository
 public class UserRepositoryJpaAdapter implements UserRepository {
 
@@ -27,9 +21,7 @@ public class UserRepositoryJpaAdapter implements UserRepository {
 
     @Override
     public User save(User user) {
-        UserJpaEntity entity = UserMapper.toJpa(user);
-        UserJpaEntity persisted = springDataRepository.save(entity);
-        return UserMapper.toDomain(persisted);
+        return UserMapper.toDomain(springDataRepository.save(UserMapper.toJpa(user)));
     }
 
     @Override
@@ -60,5 +52,12 @@ public class UserRepositoryJpaAdapter implements UserRepository {
     @Override
     public boolean existsByRole(UserRole role) {
         return springDataRepository.existsByRole(role);
+    }
+
+    @Override
+    public List<User> findAll() {
+        return springDataRepository.findAll().stream()
+                .map(UserMapper::toDomain)
+                .toList();
     }
 }

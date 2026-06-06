@@ -1,0 +1,69 @@
+<div class="login-wrapper">
+  <mat-card class="login-card">
+
+    <mat-card-header>
+      <mat-card-title>
+        <span class="title-icon">🥋</span>
+        FEST Taekwondo
+      </mat-card-title>
+      <mat-card-subtitle>Accede a tu cuenta</mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      <form [formGroup]="form" (ngSubmit)="submit()">
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Usuario o email</mat-label>
+          <input matInput formControlName="usernameOrEmail" autocomplete="username" />
+          <mat-icon matPrefix>person</mat-icon>
+          @if (form.get('usernameOrEmail')?.hasError('required') && form.get('usernameOrEmail')?.touched) {
+            <mat-error>Campo obligatorio</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Contraseña</mat-label>
+          <input matInput
+                 formControlName="plainPassword"
+                 [type]="showPass() ? 'text' : 'password'"
+                 autocomplete="current-password" />
+          <mat-icon matPrefix>lock</mat-icon>
+          <button mat-icon-button matSuffix type="button"
+                  (click)="showPass.set(!showPass())">
+            <mat-icon>{{ showPass() ? 'visibility_off' : 'visibility' }}</mat-icon>
+          </button>
+          @if (form.get('plainPassword')?.hasError('required') && form.get('plainPassword')?.touched) {
+            <mat-error>Campo obligatorio</mat-error>
+          }
+          @if (form.get('plainPassword')?.hasError('minlength')) {
+            <mat-error>Mínimo 6 caracteres</mat-error>
+          }
+        </mat-form-field>
+
+        @if (error()) {
+          <p class="error-msg">{{ error() }}</p>
+        }
+
+        <button mat-flat-button color="primary"
+                type="submit"
+                class="full-width submit-btn"
+                [disabled]="form.invalid || loading()">
+          @if (loading()) {
+            <mat-spinner diameter="20" />
+          } @else {
+            Entrar
+          }
+        </button>
+
+      </form>
+    </mat-card-content>
+
+    <mat-card-actions>
+      <p class="register-link">
+        ¿No tienes cuenta?
+        <a routerLink="/auth/register">Regístrate</a>
+      </p>
+    </mat-card-actions>
+
+  </mat-card>
+</div>

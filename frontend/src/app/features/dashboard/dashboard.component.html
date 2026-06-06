@@ -1,0 +1,101 @@
+<div class="dashboard">
+
+  <!-- Bienvenida -->
+  <div class="welcome">
+    <h1>Hola, {{ auth.currentUser()?.displayName }} 👋</h1>
+    <p class="subtitle">Panel de control de exámenes de arbitraje</p>
+  </div>
+
+  <!-- Tarjetas de resumen -->
+  <div class="stats-grid">
+    <mat-card class="stat-card">
+      <mat-card-content>
+        <mat-icon class="stat-icon draft">edit_note</mat-icon>
+        <p class="stat-number">{{ drafts().length }}</p>
+        <p class="stat-label">Borradores</p>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="stat-card">
+      <mat-card-content>
+        <mat-icon class="stat-icon published">check_circle</mat-icon>
+        <p class="stat-number">{{ published().length }}</p>
+        <p class="stat-label">Publicados</p>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="stat-card">
+      <mat-card-content>
+        <mat-icon class="stat-icon expired">schedule</mat-icon>
+        <p class="stat-number">{{ expired().length }}</p>
+        <p class="stat-label">Expirados</p>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="stat-card">
+      <mat-card-content>
+        <mat-icon class="stat-icon total">assignment</mat-icon>
+        <p class="stat-number">{{ exams().length }}</p>
+        <p class="stat-label">Total</p>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <!-- Accesos rápidos -->
+  <div class="quick-actions">
+    <button mat-flat-button color="primary" routerLink="/exams">
+      <mat-icon>add</mat-icon>
+      Nuevo examen
+    </button>
+    <button mat-stroked-button routerLink="/questions">
+      <mat-icon>quiz</mat-icon>
+      Banco de preguntas
+    </button>
+  </div>
+
+  <mat-divider />
+
+  <!-- Lista de exámenes recientes -->
+  <div class="exams-section">
+    <h2>Mis exámenes</h2>
+
+    @if (loading()) {
+      <div class="loading">
+        <mat-spinner diameter="40" />
+      </div>
+    } @else if (exams().length === 0) {
+      <div class="empty">
+        <mat-icon>assignment_late</mat-icon>
+        <p>No tienes exámenes todavía.</p>
+        <button mat-flat-button color="primary" routerLink="/exams">
+          Crear mi primer examen
+        </button>
+      </div>
+    } @else {
+      <div class="exams-grid">
+        @for (exam of exams(); track exam.id) {
+          <mat-card class="exam-card" (click)="goToExam(exam.id)">
+            <mat-card-header>
+              <mat-card-title>{{ exam.title }}</mat-card-title>
+              <mat-card-subtitle>
+                {{ exam.config.numberOfQuestions }} preguntas
+                @if (exam.config.timeLimitMinutes) {
+                  · {{ exam.config.timeLimitMinutes }} min
+                }
+              </mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-content>
+              <mat-chip [color]="getStatusColor(exam.status)" highlighted>
+                {{ getStatusLabel(exam.status) }}
+              </mat-chip>
+              @if (exam.code) {
+                <span class="exam-code">{{ exam.code }}</span>
+              }
+            </mat-card-content>
+          </mat-card>
+        }
+      </div>
+    }
+  </div>
+
+</div>

@@ -1,0 +1,114 @@
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: #1a1a1a !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  border-bottom: 3px solid #C62828;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: white;
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: 0.02em;
+}
+
+.brand-icon {
+  font-size: 1.5rem;
+}
+
+.brand-name {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.nav-links {
+  display: flex;
+  gap: 4px;
+
+  a {
+    color: rgba(255,255,255,0.8);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-radius: 4px;
+    transition: all 0.2s;
+
+    &:hover {
+      color: white;
+      background: rgba(198, 40, 40, 0.3);
+    }
+
+    &.active-link {
+      color: white;
+      background: #C62828;
+    }
+
+    mat-icon {
+      font-size: 18px;
+      height: 18px;
+      width: 18px;
+    }
+  }
+}
+
+.user-btn {
+  color: rgba(255,255,255,0.85);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  &:hover {
+    color: white;
+  }
+
+  .username {
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.9rem;
+  }
+}
+
+.user-info-menu {
+  padding: 12px 16px 8px;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 4px;
+
+  .user-name {
+    font-weight: 700;
+    margin: 0 0 2px;
+    color: #1a1a1a;
+  }
+
+  .user-email {
+    font-size: 0.8rem;
+    color: #666;
+    margin: 0 0 2px;
+  }
+
+  .user-role {
+    font-size: 0.7rem;
+    color: white;
+    background: #C62828;
+    margin: 4px 0 0;
+    padding: 2px 8px;
+    border-radius: 12px;
+    display: inline-block;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+  }
+}

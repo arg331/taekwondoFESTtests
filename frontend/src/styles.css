@@ -1,1 +1,45 @@
-/* You can add global styles to this file, and also import other style files */
+/* Overrides globales para tema ITF */
+
+/* Forzar rojo ITF en todos los componentes primarios */
+:root {
+  --mat-sys-primary: #C62828;
+  --mat-sys-on-primary: #ffffff;
+  --mat-sys-primary-container: #ffcdd2;
+  --mat-sys-on-primary-container: #7f0000;
+  --mat-sys-secondary: #424242;
+  --mat-sys-on-secondary: #ffffff;
+}
+
+/* Botones flat (color="primary") */
+.mat-mdc-unelevated-button.mat-primary {
+  --mdc-filled-button-container-color: #C62828 !important;
+  --mdc-filled-button-label-text-color: #ffffff !important;
+}
+
+/* Botones raised */
+.mat-mdc-raised-button.mat-primary {
+  --mdc-protected-button-container-color: #C62828 !important;
+  --mdc-protected-button-label-text-color: #ffffff !important;
+}
+
+/* Spinner */
+.mat-mdc-progress-spinner circle {
+  stroke: #C62828 !important;
+}
+
+/* Chips primary */
+.mat-mdc-chip.mat-primary {
+  --mdc-chip-elevated-container-color: #C62828 !important;
+  --mdc-chip-label-text-color: #ffffff !important;
+}
+
+/* Form fields focus */
+.mat-mdc-form-field.mat-focused .mdc-notched-outline__leading,
+.mat-mdc-form-field.mat-focused .mdc-notched-outline__notch,
+.mat-mdc-form-field.mat-focused .mdc-notched-outline__trailing {
+  border-color: #C62828 !important;
+}
+
+.mat-mdc-form-field.mat-focused .mat-mdc-floating-label {
+  color: #C62828 !important;
+}

@@ -1,0 +1,236 @@
+<div class="exams-page">
+
+  <!-- Cabecera -->
+  <div class="page-header">
+    <div>
+      <h1>Mis exámenes</h1>
+      <p class="subtitle">{{ exams().length }} exámenes</p>
+    </div>
+    <button mat-flat-button color="primary" (click)="openCreateForm()">
+      <mat-icon>add</mat-icon>
+      Nuevo examen
+    </button>
+  </div>
+
+  <!-- Formulario crear draft -->
+  @if (showForm()) {
+    <mat-card class="form-card">
+      <mat-card-header>
+        <mat-card-title>Nuevo examen</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <form [formGroup]="draftForm">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Título del examen</mat-label>
+            <input matInput formControlName="title" />
+            @if (draftForm.get('title')?.hasError('required') && draftForm.get('title')?.touched) {
+              <mat-error>Campo obligatorio</mat-error>
+            }
+          </mat-form-field>
+
+          <div class="row-3" style="grid-template-columns: 1fr 1fr;">
+            <mat-form-field appearance="outline">
+              <mat-label>Nº preguntas</mat-label>
+              <input matInput type="number" formControlName="numberOfQuestions" />
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Tiempo límite (min)</mat-label>
+              <input matInput type="number" formControlName="timeLimitMinutes" />
+              <mat-hint>0 = sin límite</mat-hint>
+            </mat-form-field>
+          </div>
+
+          <div class="toggles">
+            <mat-slide-toggle formControlName="showScore" color="primary">
+              Mostrar puntuación al estudiante
+            </mat-slide-toggle>
+            <mat-slide-toggle formControlName="randomizeOptions" color="primary">
+              Opciones en orden aleatorio
+            </mat-slide-toggle>
+            <mat-slide-toggle formControlName="randomizeQuestionOrder" color="primary">
+              Preguntas en orden aleatorio
+            </mat-slide-toggle>
+          </div>
+        </form>
+      </mat-card-content>
+      <mat-card-actions align="end">
+        <button mat-button (click)="cancelForm()">Cancelar</button>
+        <button mat-flat-button color="primary"
+                (click)="createDraft()"
+                [disabled]="draftForm.invalid || saving()">
+          @if (saving()) { <mat-spinner diameter="18" /> }
+          @else { Crear borrador }
+        </button>
+      </mat-card-actions>
+    </mat-card>
+  }
+
+  <div class="content-grid">
+
+    <!-- Lista de exámenes -->
+    @if (loading()) {
+      <div class="loading"><mat-spinner diameter="40" /></div>
+    } @else if (exams().length === 0) {
+      <div class="empty">
+        <mat-icon>assignment_late</mat-icon>
+        <p>No tienes exámenes todavía.</p>
+        <button mat-flat-button color="primary" (click)="openCreateForm()">
+          Crear primer examen
+        </button>
+      </div>
+    } @else {
+      <div class="exams-list">
+        @for (exam of exams(); track exam.id) {
+          <mat-card class="exam-card"
+                    [class.selected]="selectedExam()?.id === exam.id"
+                    (click)="selectExam(exam)">
+            <mat-card-content>
+              <div class="exam-card-header">
+                <mat-icon [style.color]="statusColor[exam.status]">
+                  {{ statusIcon[exam.status] }}
+                </mat-icon>
+                <div class="exam-card-info">
+                  <p class="exam-title">{{ exam.title }}</p>
+                  <p class="exam-meta">
+                    {{ exam.config.numberOfQuestions }} preguntas
+                    @if (exam.config.timeLimitMinutes) {
+                      · {{ exam.config.timeLimitMinutes }} min
+                    }
+                  </p>
+                </div>
+              </div>
+              @if (exam.code) {
+                <p class="exam-code">{{ exam.code }}</p>
+              }
+            </mat-card-content>
+          </mat-card>
+        }
+      </div>
+    }
+
+    <!-- Panel de detalle -->
+    @if (selectedExam()) {
+      <mat-card class="detail-card">
+        <mat-card-header>
+          <mat-card-title>{{ selectedExam()!.title }}</mat-card-title>
+          <mat-card-subtitle>
+            <span class="status-badge"
+                  [style.background]="statusColor[selectedExam()!.status]">
+              {{ statusLabel[selectedExam()!.status] }}
+            </span>
+          </mat-card-subtitle>
+        </mat-card-header>
+
+        <mat-card-content>
+
+          <!-- QR si está publicado -->
+          @if (showQr() && selectedExam()!.code) {
+            <div class="qr-section">
+              <img [src]="getQrUrl(selectedExam()!.code!)"
+                   alt="QR del examen"
+                   class="qr-image" />
+              <p class="qr-code">{{ selectedExam()!.code }}</p>
+              <button mat-stroked-button (click)="copyCode(selectedExam()!.code!)">
+                <mat-icon>content_copy</mat-icon>
+                Copiar código
+              </button>
+            </div>
+          }
+
+          @if (selectedExam()!.code && !showQr()) {
+            <div class="code-row">
+              <span class="exam-code-big">{{ selectedExam()!.code }}</span>
+              <button mat-icon-button (click)="showQr.set(selectedExam())"
+                      matTooltip="Ver QR">
+                <mat-icon>qr_code</mat-icon>
+              </button>
+              <button mat-icon-button (click)="copyCode(selectedExam()!.code!)"
+                      matTooltip="Copiar código">
+                <mat-icon>content_copy</mat-icon>
+              </button>
+            </div>
+          }
+
+          <mat-divider />
+
+          <!-- Preguntas asignadas -->
+          <div class="questions-section">
+            <p class="section-title">
+              Preguntas asignadas ({{ selectedQuestionIds().length }})
+            </p>
+
+            @if (questions().length === 0) {
+              <p class="hint">No tienes preguntas en tu banco todavía.</p>
+            } @else {
+              <div class="questions-picker">
+                @for (q of questions(); track q.id) {
+                  <div class="question-pick-row"
+                       [class.picked]="isSelected(q.id)"
+                       (click)="toggleQuestion(q.id)">
+                    <mat-icon>
+                      {{ isSelected(q.id) ? 'check_box' : 'check_box_outline_blank' }}
+                    </mat-icon>
+                    <span class="question-pick-text">{{ q.text }}</span>
+                  </div>
+                }
+              </div>
+              <button mat-stroked-button color="primary"
+                      (click)="saveQuestions()">
+                <mat-icon>save</mat-icon>
+                Guardar selección
+              </button>
+            }
+          </div>
+
+          <mat-divider />
+
+          <!-- Acciones -->
+          <div class="actions-section">
+            @if (selectedExam()!.status === 'DRAFT') {
+
+              <!-- publishForm en su propio <form>, separado del draftForm -->
+              <form [formGroup]="publishForm" class="publish-options">
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>Visibilidad</mat-label>
+                  <mat-select formControlName="visibility">
+                    <mat-option value="PUBLIC">Público</mat-option>
+                    <mat-option value="PRIVATE">Privado</mat-option>
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>Expira en (opcional)</mat-label>
+                  <input matInput type="datetime-local" formControlName="expiresAt" />
+                </mat-form-field>
+              </form>
+
+              <button mat-flat-button color="primary"
+                      (click)="publish(selectedExam()!)"
+                      [disabled]="selectedQuestionIds().length < 5">
+                <mat-icon>publish</mat-icon>
+                Publicar examen
+              </button>
+              @if (selectedQuestionIds().length < 5) {
+                <p class="hint-warn">Necesitas al menos 5 preguntas para publicar</p>
+              }
+              <button mat-button color="warn"
+                      (click)="deleteDraft(selectedExam()!)">
+                <mat-icon>delete</mat-icon>
+                Eliminar borrador
+              </button>
+            }
+
+            @if (selectedExam()!.status === 'PUBLISHED') {
+              <button mat-stroked-button color="warn"
+                      (click)="close(selectedExam()!)">
+                <mat-icon>stop_circle</mat-icon>
+                Cerrar examen
+              </button>
+            }
+          </div>
+
+        </mat-card-content>
+      </mat-card>
+    }
+
+  </div>
+</div>

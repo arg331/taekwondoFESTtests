@@ -8,12 +8,13 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatChipsModule } from '@angular/material/chips';
-import { MatDialogModule, MatDialog } from '@angular/material/dialog';
+import { MatDialogModule } from '@angular/material/dialog';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatBadgeModule } from '@angular/material/badge';
+import { MatExpansionModule } from '@angular/material/expansion';
 import { QuestionService } from '../../core/services/question.service';
 import { TagService } from '../../core/services/tag.service';
 import { QuestionResponse, Difficulty } from '../../core/models/question.models';
@@ -37,7 +38,8 @@ import { TagResponse } from '../../core/models/tag.models';
     MatTooltipModule,
     MatDividerModule,
     MatRadioModule,
-    MatBadgeModule
+    MatBadgeModule,
+    MatExpansionModule
   ],
   templateUrl: './questions.component.html',
   styleUrl: './questions.component.scss'
@@ -47,6 +49,7 @@ export class QuestionsComponent implements OnInit {
   private tagSvc      = inject(TagService);
   private fb          = inject(FormBuilder);
 
+  // ── Estado preguntas ──────────────────────────────
   loading     = signal(true);
   saving      = signal(false);
   questions   = signal<QuestionResponse[]>([]);
@@ -56,6 +59,11 @@ export class QuestionsComponent implements OnInit {
   filterText  = signal('');
   filterDiff  = signal<Difficulty | ''>('');
   filterTagId = signal<number | ''>('');
+
+  // ── Estado tags ───────────────────────────────────
+  savingTag      = signal(false);
+  showTagForm    = signal(false);
+  editingTagId   = signal<number | null>(null);
 
   difficulties: Difficulty[] = ['FACIL', 'MEDIO', 'DIFICIL'];
   diffLabel: Record<Difficulty, string> = {
@@ -80,13 +88,14 @@ export class QuestionsComponent implements OnInit {
     return list;
   });
 
+  // ── Formulario pregunta ───────────────────────────
   form = this.fb.group({
     text:          ['', [Validators.required, Validators.minLength(10)]],
     options:       this.fb.array([
       this.fb.control('', Validators.required),
       this.fb.control('', Validators.required),
-      this.fb.control('', Validators.required),
-      this.fb.control('', Validators.required),
+      this.fb.control(''),
+      this.fb.control(''),
     ]),
     correctAnswer: [0, Validators.required],
     explanation:   ['', Validators.required],
@@ -97,6 +106,17 @@ export class QuestionsComponent implements OnInit {
   get optionsArray() {
     return this.form.get('options') as FormArray;
   }
+
+  // Cuenta cuántas opciones tienen texto (mínimo 2 requeridas)
+  get filledOptionsCount(): number {
+    return this.optionsArray.controls.filter(c => c.value?.trim()).length;
+  }
+
+  // ── Formulario tag ────────────────────────────────
+  tagForm = this.fb.group({
+    name:  ['', [Validators.required, Validators.minLength(2)]],
+    color: ['#C62828', Validators.required]
+  });
 
   ngOnInit(): void {
     this.load();
@@ -111,6 +131,7 @@ export class QuestionsComponent implements OnInit {
     });
   }
 
+  // ── Acciones preguntas ────────────────────────────
   openCreate(): void {
     this.editingId.set(null);
     this.form.reset({
@@ -123,9 +144,12 @@ export class QuestionsComponent implements OnInit {
 
   openEdit(q: QuestionResponse): void {
     this.editingId.set(q.id);
+    // Rellenar las 4 opciones (pueden venir menos)
+    const opts = [...q.options];
+    while (opts.length < 4) opts.push('');
     this.form.setValue({
       text: q.text,
-      options: [...q.options],
+      options: opts,
       correctAnswer: q.correctAnswer,
       explanation: q.explanation,
       difficulty: q.difficulty,
@@ -141,13 +165,21 @@ export class QuestionsComponent implements OnInit {
 
   save(): void {
     if (this.form.invalid || this.saving()) return;
-    this.saving.set(true);
+    if (this.filledOptionsCount < 2) return; // validación opciones vacías
 
+    this.saving.set(true);
     const value = this.form.value as any;
+
+    // Solo enviar opciones con texto
+    const options = (value.options as string[]).filter(o => o?.trim());
+
+    // Asegurar que correctAnswer apunta a una opción válida
+    const correctAnswer = Number(value.correctAnswer);
+
     const request = {
       text: value.text,
-      options: value.options,
-      correctAnswer: Number(value.correctAnswer),
+      options,
+      correctAnswer,
       explanation: value.explanation,
       difficulty: value.difficulty,
       tagIds: value.tagIds ?? []
@@ -176,6 +208,48 @@ export class QuestionsComponent implements OnInit {
     if (!confirm(`¿Eliminar la pregunta "${q.text.substring(0, 50)}..."?`)) return;
     this.questionSvc.delete(q.id).subscribe({
       next: () => this.questions.update(list => list.filter(x => x.id !== q.id))
+    });
+  }
+
+  // ── Acciones tags ─────────────────────────────────
+  openCreateTag(): void {
+    this.editingTagId.set(null);
+    this.tagForm.reset({ name: '', color: '#C62828' });
+    this.showTagForm.set(true);
+  }
+
+  openEditTag(tag: TagResponse): void {
+    this.editingTagId.set(tag.id);
+    this.tagForm.setValue({ name: tag.name, color: tag.color });
+    this.showTagForm.set(true);
+  }
+
+  cancelTag(): void {
+    this.showTagForm.set(false);
+    this.editingTagId.set(null);
+  }
+
+  saveTag(): void {
+    if (this.tagForm.invalid || this.savingTag()) return;
+    this.savingTag.set(true);
+    const { name, color } = this.tagForm.value as { name: string; color: string };
+
+    const op = this.editingTagId()
+      ? this.tagSvc.rename(this.editingTagId()!, { newName: name })
+      : this.tagSvc.create({ name, color });
+
+    op.subscribe({
+      next: (tag) => {
+        if (this.editingTagId()) {
+          this.tags.update(list => list.map(t => t.id === tag.id ? tag : t));
+        } else {
+          this.tags.update(list => [...list, tag]);
+        }
+        this.savingTag.set(false);
+        this.showTagForm.set(false);
+        this.editingTagId.set(null);
+      },
+      error: () => this.savingTag.set(false)
     });
   }
 }

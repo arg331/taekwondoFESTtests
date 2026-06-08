@@ -162,8 +162,35 @@
             @if (questions().length === 0) {
               <p class="hint">No tienes preguntas en tu banco todavía.</p>
             } @else {
+
+              <!-- Filtros del picker -->
+              <div class="picker-filters">
+                <mat-form-field appearance="outline" class="picker-search">
+                  <mat-label>Buscar</mat-label>
+                  <input matInput
+                         [value]="pickerSearch()"
+                         (input)="pickerSearch.set($any($event.target).value)"
+                         placeholder="Texto..." />
+                  <mat-icon matPrefix>search</mat-icon>
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="picker-diff">
+                  <mat-label>Dificultad</mat-label>
+                  <mat-select [value]="pickerDiff()"
+                              (selectionChange)="pickerDiff.set($event.value)">
+                    <mat-option value="">Todas</mat-option>
+                    @for (d of difficulties; track d) {
+                      <mat-option [value]="d">{{ diffLabel[d] }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+              </div>
+
+              <p class="picker-count hint">
+                {{ filteredQuestions().length }} de {{ questions().length }} preguntas
+              </p>
+
               <div class="questions-picker">
-                @for (q of questions(); track q.id) {
+                @for (q of filteredQuestions(); track q.id) {
                   <div class="question-pick-row"
                        [class.picked]="isSelected(q.id)"
                        (click)="toggleQuestion(q.id)">
@@ -173,9 +200,12 @@
                     <span class="question-pick-text">{{ q.text }}</span>
                   </div>
                 }
+                @if (filteredQuestions().length === 0) {
+                  <p class="hint" style="padding: 12px;">Sin resultados.</p>
+                }
               </div>
-              <button mat-stroked-button color="primary"
-                      (click)="saveQuestions()">
+
+              <button mat-stroked-button color="primary" (click)="saveQuestions()">
                 <mat-icon>save</mat-icon>
                 Guardar selección
               </button>
@@ -187,8 +217,6 @@
           <!-- Acciones -->
           <div class="actions-section">
             @if (selectedExam()!.status === 'DRAFT') {
-
-              <!-- publishForm en su propio <form>, separado del draftForm -->
               <form [formGroup]="publishForm" class="publish-options">
                 <mat-form-field appearance="outline" class="full-width">
                   <mat-label>Visibilidad</mat-label>
@@ -212,16 +240,14 @@
               @if (selectedQuestionIds().length < 5) {
                 <p class="hint-warn">Necesitas al menos 5 preguntas para publicar</p>
               }
-              <button mat-button color="warn"
-                      (click)="deleteDraft(selectedExam()!)">
+              <button mat-button color="warn" (click)="deleteDraft(selectedExam()!)">
                 <mat-icon>delete</mat-icon>
                 Eliminar borrador
               </button>
             }
 
             @if (selectedExam()!.status === 'PUBLISHED') {
-              <button mat-stroked-button color="warn"
-                      (click)="close(selectedExam()!)">
+              <button mat-stroked-button color="warn" (click)="close(selectedExam()!)">
                 <mat-icon>stop_circle</mat-icon>
                 Cerrar examen
               </button>

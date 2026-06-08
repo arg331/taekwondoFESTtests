@@ -1,0 +1,67 @@
+<div class="users-page">
+
+  <div class="page-header">
+    <div>
+      <h1>Gestión de usuarios</h1>
+      <p class="subtitle">{{ users().length }} usuarios registrados</p>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="loading">
+      <mat-spinner diameter="40" />
+    </div>
+  } @else {
+    <div class="users-list">
+      @for (user of users(); track user.id) {
+        <mat-card class="user-card">
+          <mat-card-content>
+            <div class="user-row">
+
+              <div class="user-info">
+                <mat-icon class="avatar-icon">account_circle</mat-icon>
+                <div>
+                  <p class="user-name">
+                    {{ user.displayName }}
+                    @if (isCurrentUser(user)) {
+                      <span class="you-badge">Tú</span>
+                    }
+                  </p>
+                  <p class="user-meta">{{ user.username }} · {{ user.email }}</p>
+                </div>
+              </div>
+
+              <div class="user-actions">
+                <span class="role-badge"
+                      [class.admin]="user.role === 'ADMIN'"
+                      [class.student]="user.role === 'STUDENT'">
+                  {{ user.role === 'ADMIN' ? 'Profesor/Admin' : 'Estudiante' }}
+                </span>
+
+                @if (!isCurrentUser(user)) {
+                  @if (user.role === 'STUDENT') {
+                    <button mat-stroked-button color="primary"
+                            (click)="promote(user)"
+                            matTooltip="Promover a Profesor/Admin">
+                      <mat-icon>arrow_upward</mat-icon>
+                      Promover
+                    </button>
+                  } @else {
+                    <button mat-stroked-button color="warn"
+                            (click)="demote(user)"
+                            matTooltip="Degradar a Estudiante">
+                      <mat-icon>arrow_downward</mat-icon>
+                      Degradar
+                    </button>
+                  }
+                }
+              </div>
+
+            </div>
+          </mat-card-content>
+        </mat-card>
+      }
+    </div>
+  }
+
+</div>

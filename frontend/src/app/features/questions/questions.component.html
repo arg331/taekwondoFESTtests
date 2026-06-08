@@ -12,7 +12,7 @@
     </button>
   </div>
 
-  <!-- Formulario crear/editar -->
+  <!-- Formulario crear/editar pregunta -->
   @if (showForm()) {
     <mat-card class="form-card">
       <mat-card-header>
@@ -36,6 +36,7 @@
           </mat-form-field>
 
           <p class="section-label">Opciones de respuesta</p>
+          <p class="hint">Mínimo 2 opciones con texto. Selecciona el radio de la correcta.</p>
           <div class="options-grid" formArrayName="options">
             @for (ctrl of optionsArray.controls; track $index) {
               <div class="option-row">
@@ -52,7 +53,10 @@
               </div>
             }
           </div>
-          <p class="hint">Selecciona el radio button de la opción correcta</p>
+
+          @if (filledOptionsCount < 2) {
+            <p class="hint-warn">Necesitas al menos 2 opciones con texto.</p>
+          }
 
           <div class="row-2">
             <mat-form-field appearance="outline">
@@ -67,6 +71,9 @@
             <mat-form-field appearance="outline">
               <mat-label>Tags</mat-label>
               <mat-select formControlName="tagIds" multiple>
+                @if (tags().length === 0) {
+                  <mat-option disabled>Sin tags — créalos abajo</mat-option>
+                }
                 @for (tag of tags(); track tag.id) {
                   <mat-option [value]="tag.id">{{ tag.name }}</mat-option>
                 }
@@ -89,7 +96,7 @@
         <button mat-button (click)="cancel()">Cancelar</button>
         <button mat-flat-button color="primary"
                 (click)="save()"
-                [disabled]="form.invalid || saving()">
+                [disabled]="form.invalid || saving() || filledOptionsCount < 2">
           @if (saving()) {
             <mat-spinner diameter="18" />
           } @else {
@@ -99,6 +106,67 @@
       </mat-card-actions>
     </mat-card>
   }
+
+  <!-- Panel de gestión de Tags -->
+  <mat-expansion-panel class="tags-panel">
+    <mat-expansion-panel-header>
+      <mat-panel-title>
+        <mat-icon style="margin-right:8px;">label</mat-icon>
+        Gestión de tags ({{ tags().length }})
+      </mat-panel-title>
+      <mat-panel-description>Crear y renombrar etiquetas para clasificar preguntas</mat-panel-description>
+    </mat-expansion-panel-header>
+
+    <div class="tags-content">
+
+      <!-- Formulario tag -->
+      @if (showTagForm()) {
+        <div class="tag-form-row">
+          <form [formGroup]="tagForm" class="tag-form-inline">
+            <mat-form-field appearance="outline" class="tag-name-field">
+              <mat-label>Nombre del tag</mat-label>
+              <input matInput formControlName="name" />
+            </mat-form-field>
+            @if (!editingTagId()) {
+              <mat-form-field appearance="outline" class="tag-color-field">
+                <mat-label>Color</mat-label>
+                <input matInput type="color" formControlName="color" />
+              </mat-form-field>
+            }
+            <button mat-flat-button color="primary"
+                    (click)="saveTag()"
+                    [disabled]="tagForm.invalid || savingTag()">
+              @if (savingTag()) { <mat-spinner diameter="18" /> }
+              @else { {{ editingTagId() ? 'Renombrar' : 'Crear' }} }
+            </button>
+            <button mat-button (click)="cancelTag()">Cancelar</button>
+          </form>
+        </div>
+      } @else {
+        <button mat-stroked-button color="primary" (click)="openCreateTag()" style="margin-bottom:12px;">
+          <mat-icon>add</mat-icon>
+          Nuevo tag
+        </button>
+      }
+
+      <!-- Lista de tags -->
+      @if (tags().length === 0) {
+        <p class="hint">No hay tags todavía. Créalos para clasificar las preguntas.</p>
+      } @else {
+        <div class="tags-list">
+          @for (tag of tags(); track tag.id) {
+            <div class="tag-item">
+              <span class="tag-chip" [style.background]="tag.color">{{ tag.name }}</span>
+              <button mat-icon-button (click)="openEditTag(tag)" matTooltip="Renombrar">
+                <mat-icon>edit</mat-icon>
+              </button>
+            </div>
+          }
+        </div>
+      }
+
+    </div>
+  </mat-expansion-panel>
 
   <!-- Filtros -->
   <mat-card class="filters-card">
@@ -192,7 +260,7 @@
                 {{ diffLabel[q.difficulty] }}
               </span>
               @for (tag of q.tags; track tag.id) {
-                <mat-chip>{{ tag.name }}</mat-chip>
+                <span class="tag-chip-small" [style.background]="tag.color">{{ tag.name }}</span>
               }
             </div>
           </mat-card-content>

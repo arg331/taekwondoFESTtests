@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, computed } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatButtonModule } from '@angular/material/button';
@@ -25,14 +25,24 @@ import { AuthService } from '../../../core/services/auth.service';
   styleUrl: './navbar.component.scss'
 })
 export class NavbarComponent {
-  auth = inject(AuthService);
+  auth   = inject(AuthService);
   router = inject(Router);
 
-  navLinks = [
-    { label: 'Dashboard', path: '/dashboard', icon: 'dashboard' },
-    { label: 'Preguntas', path: '/questions', icon: 'quiz' },
-    { label: 'Exámenes', path: '/exams', icon: 'assignment' },
+  adminLinks = [
+    { label: 'Dashboard',  path: '/dashboard',  icon: 'dashboard' },
+    { label: 'Preguntas',  path: '/questions',  icon: 'quiz' },
+    { label: 'Exámenes',   path: '/exams',       icon: 'assignment' },
+    { label: 'Usuarios',   path: '/users',       icon: 'people' },
   ];
+
+  studentLinks = [
+    { label: 'Dashboard',  path: '/dashboard',  icon: 'dashboard' },
+    { label: 'Mis resultados', path: '/results', icon: 'bar_chart' },
+  ];
+
+  navLinks = computed(() =>
+    this.auth.isAdmin() ? this.adminLinks : this.studentLinks
+  );
 
   logout(): void {
     this.auth.logout();

@@ -1,6 +1,5 @@
-<mat-toolbar color="primary" class="navbar">
+<mat-toolbar class="navbar">
 
-  <!-- Logo -->
   <a routerLink="/dashboard" class="brand">
     <span class="brand-icon">🥋</span>
     <span class="brand-name">FEST Taekwondo</span>
@@ -8,9 +7,8 @@
 
   <span class="spacer"></span>
 
-  <!-- Nav links (escritorio) -->
   <nav class="nav-links">
-    @for (link of navLinks; track link.path) {
+    @for (link of navLinks(); track link.path) {
       <a mat-button
          [routerLink]="link.path"
          routerLinkActive="active-link">
@@ -22,7 +20,6 @@
 
   <span class="spacer"></span>
 
-  <!-- Usuario + logout -->
   <button mat-button [matMenuTriggerFor]="userMenu" class="user-btn">
     <mat-icon>account_circle</mat-icon>
     <span class="username">{{ auth.currentUser()?.displayName }}</span>

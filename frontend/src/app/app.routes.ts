@@ -1,14 +1,11 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
+import { adminGuard } from './core/guards/role.guard';
 
 export const routes: Routes = [
-  {
-    path: '',
-    redirectTo: 'dashboard',
-    pathMatch: 'full'
-  },
+  { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
 
-  // Rutas públicas (sin navbar)
+  // Públicas
   {
     path: 'auth',
     loadChildren: () =>
@@ -20,7 +17,7 @@ export const routes: Routes = [
       import('./features/exam-take/exam-take.routes').then(m => m.EXAM_TAKE_ROUTES)
   },
 
-  // Rutas privadas (con navbar, requieren login)
+  // Privadas con layout
   {
     path: '',
     canActivate: [authGuard],
@@ -35,11 +32,13 @@ export const routes: Routes = [
       },
       {
         path: 'questions',
+        canActivate: [adminGuard],
         loadChildren: () =>
           import('./features/questions/questions.routes').then(m => m.QUESTIONS_ROUTES)
       },
       {
         path: 'exams',
+        canActivate: [adminGuard],
         loadChildren: () =>
           import('./features/exams/exams.routes').then(m => m.EXAMS_ROUTES)
       },
@@ -47,12 +46,15 @@ export const routes: Routes = [
         path: 'results',
         loadChildren: () =>
           import('./features/results/results.routes').then(m => m.RESULTS_ROUTES)
+      },
+      {
+        path: 'users',
+        canActivate: [adminGuard],
+        loadChildren: () =>
+          import('./features/users/users.routes').then(m => m.USERS_ROUTES)
       }
     ]
   },
 
-  {
-    path: '**',
-    redirectTo: 'dashboard'
-  }
+  { path: '**', redirectTo: 'dashboard' }
 ];

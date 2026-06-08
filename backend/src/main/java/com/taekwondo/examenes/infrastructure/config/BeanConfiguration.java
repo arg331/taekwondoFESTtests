@@ -177,6 +177,14 @@ public class BeanConfiguration {
     }
 
     @Bean
+    public GetExamQuestionsByCodeUseCase getExamQuestionsByCodeUseCase(
+            ExamRepository examRepository,
+            QuestionRepository questionRepository,
+            Clock clock) {
+        return new GetExamQuestionsByCodeUseCase(examRepository, questionRepository, clock);
+    }
+
+    @Bean
     public ListMyExamsUseCase listMyExamsUseCase(ExamRepository examRepository) {
         return new ListMyExamsUseCase(examRepository);
     }

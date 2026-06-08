@@ -10,21 +10,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/**
- * Controller REST para Exam.
- *
- * Endpoints autenticados (requieren JWT):
- *  - Crear drafts, editar, publicar, listar mis exámenes, etc.
- *
- * Endpoints públicos (sin token):
- *  - GET /api/exams/by-code/{code}: el estudiante anónimo accede al examen
- *    desde el QR. El servidor solo necesita el código para devolver el
- *    examen accesible. Los datos del estudiante (nombre/club/email) se
- *    piden DESPUÉS, en el submit del Result.
- *
- * El ownerId/requesterOwnerId se obtiene siempre del JWT vía
- * AuthenticatedUser.currentUserId() en todos los endpoints autenticados.
- */
 @RestController
 @RequestMapping("/api/exams")
 public class ExamController {
@@ -42,6 +27,7 @@ public class ExamController {
     private final DeleteExamDraftUseCase deleteExamDraftUseCase;
     private final GetExamUseCase getExamUseCase;
     private final GetExamByCodeUseCase getExamByCodeUseCase;
+    private final GetExamQuestionsByCodeUseCase getExamQuestionsByCodeUseCase;
     private final ListMyExamsUseCase listMyExamsUseCase;
     private final ListPublicExamsUseCase listPublicExamsUseCase;
 
@@ -59,6 +45,7 @@ public class ExamController {
             DeleteExamDraftUseCase deleteExamDraftUseCase,
             GetExamUseCase getExamUseCase,
             GetExamByCodeUseCase getExamByCodeUseCase,
+            GetExamQuestionsByCodeUseCase getExamQuestionsByCodeUseCase,
             ListMyExamsUseCase listMyExamsUseCase,
             ListPublicExamsUseCase listPublicExamsUseCase) {
         this.createExamDraftUseCase = createExamDraftUseCase;
@@ -74,6 +61,7 @@ public class ExamController {
         this.deleteExamDraftUseCase = deleteExamDraftUseCase;
         this.getExamUseCase = getExamUseCase;
         this.getExamByCodeUseCase = getExamByCodeUseCase;
+        this.getExamQuestionsByCodeUseCase = getExamQuestionsByCodeUseCase;
         this.listMyExamsUseCase = listMyExamsUseCase;
         this.listPublicExamsUseCase = listPublicExamsUseCase;
     }
@@ -219,10 +207,17 @@ public class ExamController {
                 .toList();
     }
 
-    // ───── Consulta pública (estudiante con QR) ─────
+    // ───── Consultas públicas (estudiante con QR) ─────
 
     @GetMapping("/by-code/{code}")
     public ExamResponse getExamByCode(@PathVariable String code) {
         return ExamResponse.from(getExamByCodeUseCase.execute(code));
+    }
+
+    @GetMapping("/by-code/{code}/questions")
+    public List<PublicQuestionResponse> getExamQuestionsByCode(@PathVariable String code) {
+        return getExamQuestionsByCodeUseCase.execute(code).stream()
+                .map(PublicQuestionResponse::from)
+                .toList();
     }
 }

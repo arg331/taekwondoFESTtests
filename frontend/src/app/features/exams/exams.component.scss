@@ -203,3 +203,22 @@
 }
 .picker-count { margin: 0 0 6px; }
 .hint-warn { font-size: 0.8rem; color: #f44336; margin: 4px 0; }
+
+.config-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 8px 0;
+  font-size: 0.85rem;
+  color: #555;
+}
+.config-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  mat-icon { font-size: 16px; height: 16px; width: 16px; color: #999; }
+}
+.config-edit-form {
+  padding: 8px 0;
+}

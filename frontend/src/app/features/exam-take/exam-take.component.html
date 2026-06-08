@@ -1,0 +1,221 @@
+<div class="exam-take-page">
+
+  @if (phase() === 'loading') {
+    <div class="center-screen">
+      <mat-spinner diameter="48" />
+      <p>Cargando examen...</p>
+    </div>
+  }
+
+  @if (phase() === 'error') {
+    <div class="center-screen">
+      <mat-icon class="error-icon">error_outline</mat-icon>
+      <h2>Examen no disponible</h2>
+      <p class="error-msg">{{ errorMsg() }}</p>
+      <a mat-flat-button color="primary" routerLink="/auth/login">Iniciar sesión</a>
+    </div>
+  }
+
+  @if (phase() === 'access') {
+    <div class="access-wrapper">
+      <mat-card class="access-card">
+        <div class="brand-header">
+          <span class="brand-icon">🥋</span>
+          <span class="brand-name">FEST Taekwondo</span>
+        </div>
+        <mat-card-header>
+          <mat-card-title>{{ exam()!.title }}</mat-card-title>
+          <mat-card-subtitle>
+            {{ exam()!.config.numberOfQuestions }} preguntas
+            @if (exam()!.config.timeLimitMinutes) {
+              · {{ exam()!.config.timeLimitMinutes }} min
+            }
+          </mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <p class="access-intro">Introduce tus datos para comenzar el examen.</p>
+          <form [formGroup]="accessForm">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Nombre completo *</mat-label>
+              <input matInput formControlName="studentName" />
+              @if (accessForm.get('studentName')?.hasError('required') && accessForm.get('studentName')?.touched) {
+                <mat-error>Campo obligatorio</mat-error>
+              }
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Club (opcional)</mat-label>
+              <input matInput formControlName="studentClub" />
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Email (opcional)</mat-label>
+              <input matInput type="email" formControlName="studentEmail" />
+              @if (accessForm.get('studentEmail')?.hasError('email')) {
+                <mat-error>Email no válido</mat-error>
+              }
+            </mat-form-field>
+          </form>
+        </mat-card-content>
+        <mat-card-actions align="end">
+          <button mat-flat-button color="primary"
+                  (click)="startExam()"
+                  [disabled]="accessForm.invalid">
+            <mat-icon>play_arrow</mat-icon>
+            Comenzar examen
+          </button>
+        </mat-card-actions>
+      </mat-card>
+    </div>
+  }
+
+  @if (phase() === 'exam') {
+    <div class="exam-wrapper">
+      <div class="exam-header">
+        <div class="exam-header-left">
+          <span class="exam-title">{{ exam()!.title }}</span>
+          <span class="exam-progress">{{ answeredCount() }}/{{ questions().length }} respondidas</span>
+        </div>
+        @if (exam()!.config.timeLimitMinutes) {
+          <div class="timer" [class.timer-warn]="timerWarning">
+            <mat-icon>timer</mat-icon>
+            {{ timerDisplay }}
+          </div>
+        }
+      </div>
+
+      <div class="progress-bar-wrapper">
+        <div class="progress-bar-fill" [style.width.%]="progress()"></div>
+      </div>
+
+      <div class="exam-body">
+        <div class="question-nav">
+          @for (q of questions(); track q.id; let i = $index) {
+            <button class="nav-btn"
+                    [class.nav-current]="i === currentIndex()"
+                    [class.nav-answered]="getAnswer(q.id) !== undefined"
+                    (click)="goTo(i)">
+              {{ i + 1 }}
+            </button>
+          }
+        </div>
+
+        <mat-card class="question-card">
+          <mat-card-content>
+            <p class="question-num">Pregunta {{ currentIndex() + 1 }} de {{ questions().length }}</p>
+            <p class="question-text">{{ currentQuestion().text }}</p>
+            <div class="options-list">
+              @for (opt of currentQuestion().options; track $index) {
+                <div class="option-item"
+                     [class.option-selected]="getAnswer(currentQuestion().id) === $index"
+                     (click)="selectAnswer(currentQuestion().id, $index)">
+                  <div class="option-letter">{{ ['A','B','C','D'][$index] }}</div>
+                  <span>{{ opt }}</span>
+                </div>
+              }
+            </div>
+          </mat-card-content>
+          <mat-card-actions class="question-actions">
+            <button mat-stroked-button
+                    (click)="goTo(currentIndex() - 1)"
+                    [disabled]="currentIndex() === 0">
+              <mat-icon>arrow_back</mat-icon>
+              Anterior
+            </button>
+            @if (currentIndex() < questions().length - 1) {
+              <button mat-flat-button color="primary" (click)="goTo(currentIndex() + 1)">
+                Siguiente
+                <mat-icon>arrow_forward</mat-icon>
+              </button>
+            } @else {
+              <button mat-flat-button color="primary"
+                      (click)="submitExam()"
+                      [disabled]="submitting()">
+                @if (submitting()) {
+                  <mat-spinner diameter="18" />
+                } @else {
+                  <ng-container>
+                    <mat-icon>send</mat-icon>
+                    Enviar examen
+                  </ng-container>
+                }
+              </button>
+            }
+          </mat-card-actions>
+        </mat-card>
+      </div>
+
+      @if (allAnswered() && currentIndex() < questions().length - 1) {
+        <div class="submit-bar">
+          <button mat-flat-button color="primary"
+                  (click)="submitExam()"
+                  [disabled]="submitting()">
+            <mat-icon>send</mat-icon>
+            Todas respondidas — Enviar examen
+          </button>
+        </div>
+      }
+    </div>
+  }
+
+  @if (phase() === 'result' && result()) {
+    <div class="result-wrapper">
+      <mat-card class="result-card">
+        <div class="brand-header">
+          <span class="brand-icon">🥋</span>
+          <span class="brand-name">FEST Taekwondo</span>
+        </div>
+
+        @if (exam()!.config.showScore) {
+          <div class="score-circle" [style.border-color]="passedColor">
+            <span class="score-value">{{ result()!.score }}</span>
+            <span class="score-label">/ 100</span>
+          </div>
+          <div class="passed-badge" [style.background]="passedColor">{{ passedLabel }}</div>
+          <div class="result-stats">
+            <div class="stat">
+              <span class="stat-value">{{ result()!.correctAnswers }}</span>
+              <span class="stat-label">Correctas</span>
+            </div>
+            <div class="stat">
+              <span class="stat-value">{{ result()!.totalQuestions - result()!.correctAnswers }}</span>
+              <span class="stat-label">Incorrectas</span>
+            </div>
+            <div class="stat">
+              <span class="stat-value">{{ result()!.totalQuestions }}</span>
+              <span class="stat-label">Total</span>
+            </div>
+          </div>
+          <mat-divider />
+          <div class="answers-detail">
+            <p class="detail-title">Detalle de respuestas</p>
+            @for (answer of result()!.answers; track answer.questionId; let i = $index) {
+              <div class="answer-row"
+                   [class.answer-correct]="answer.correct"
+                   [class.answer-wrong]="!answer.correct">
+                <mat-icon>{{ answer.correct ? 'check_circle' : 'cancel' }}</mat-icon>
+                <span class="answer-label">Pregunta {{ i + 1 }}</span>
+                <span class="answer-chosen">Tu respuesta: {{ ['A','B','C','D'][answer.studentAnswer] }}</span>
+                @if (!answer.correct) {
+                  <span class="answer-correct-label">Correcta: {{ ['A','B','C','D'][answer.correctAnswer] }}</span>
+                }
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="no-score">
+            <mat-icon style="font-size:3rem;height:3rem;width:3rem;color:#4caf50">check_circle</mat-icon>
+            <h2>Examen completado</h2>
+            <p>El profesor revisará tu resultado.</p>
+          </div>
+        }
+
+        <mat-card-actions align="end">
+          <a mat-flat-button color="primary" routerLink="/dashboard">
+            <mat-icon>home</mat-icon>
+            Ir al inicio
+          </a>
+        </mat-card-actions>
+      </mat-card>
+    </div>
+  }
+
+</div>

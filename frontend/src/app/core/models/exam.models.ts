@@ -78,3 +78,15 @@ export interface ExtendExamExpirationRequest {
 export interface ReopenExamRequest {
   newExpiresAt: string | null;
 }
+
+export interface PublicQuestionResponse {
+  id: number;
+  text: string;
+  options: string[];
+}
+
+export interface PublicQuestionResponse {
+  id: number;
+  text: string;
+  options: string[];
+}

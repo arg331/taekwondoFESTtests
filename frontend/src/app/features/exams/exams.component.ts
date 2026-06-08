@@ -1,7 +1,7 @@
 import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, Validators, ReactiveFormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -47,6 +47,7 @@ export class ExamsComponent implements OnInit {
   private examSvc     = inject(ExamService);
   private questionSvc = inject(QuestionService);
   private fb          = inject(FormBuilder);
+  private route       = inject(ActivatedRoute);
   router              = inject(Router);
 
   loading      = signal(true);
@@ -56,8 +57,8 @@ export class ExamsComponent implements OnInit {
   showForm     = signal(false);
   selectedExam = signal<ExamResponse | null>(null);
   showQr       = signal<ExamResponse | null>(null);
+  editingConfig = signal(false);
 
-  // ── Filtros del picker ────────────────────────────
   pickerSearch = signal('');
   pickerDiff   = signal<Difficulty | ''>('');
 
@@ -98,6 +99,15 @@ export class ExamsComponent implements OnInit {
     expiresAt:  [null as string | null]
   });
 
+  configForm = this.fb.group({
+    title:                  ['', [Validators.required, Validators.minLength(3)]],
+    numberOfQuestions:      [10, [Validators.required, Validators.min(5), Validators.max(50)]],
+    timeLimitMinutes:       [null as number | null],
+    showScore:              [true],
+    randomizeOptions:       [false],
+    randomizeQuestionOrder: [false]
+  });
+
   selectedQuestionIds = signal<number[]>([]);
 
   ngOnInit(): void {
@@ -108,7 +118,16 @@ export class ExamsComponent implements OnInit {
     this.loading.set(true);
     this.questionSvc.getAll().subscribe(q => this.questions.set(q));
     this.examSvc.getMine().subscribe({
-      next: e => { this.exams.set(e); this.loading.set(false); },
+      next: e => {
+        this.exams.set(e);
+        this.loading.set(false);
+        // Leer query param ?select=id desde el dashboard
+        const selectId = this.route.snapshot.queryParamMap.get('select');
+        if (selectId) {
+          const exam = e.find(ex => ex.id === Number(selectId));
+          if (exam) this.selectExam(exam);
+        }
+      },
       error: () => this.loading.set(false)
     });
   }
@@ -153,6 +172,7 @@ export class ExamsComponent implements OnInit {
     this.selectedExam.set(exam);
     this.selectedQuestionIds.set([...exam.questionIds]);
     this.showQr.set(null);
+    this.editingConfig.set(false);
     this.pickerSearch.set('');
     this.pickerDiff.set('');
   }
@@ -160,8 +180,66 @@ export class ExamsComponent implements OnInit {
   closeDetail(): void {
     this.selectedExam.set(null);
     this.showQr.set(null);
+    this.editingConfig.set(false);
   }
 
+  // ── Editar config ──────────────────────────────────
+  openEditConfig(): void {
+    const exam = this.selectedExam()!;
+    this.configForm.setValue({
+      title:                  exam.title,
+      numberOfQuestions:      exam.config.numberOfQuestions,
+      timeLimitMinutes:       exam.config.timeLimitMinutes ?? null,
+      showScore:              exam.config.showScore,
+      randomizeOptions:       exam.config.randomizeOptions,
+      randomizeQuestionOrder: exam.config.randomizeQuestionOrder
+    });
+    this.editingConfig.set(true);
+  }
+
+  cancelEditConfig(): void {
+    this.editingConfig.set(false);
+  }
+
+  saveConfig(): void {
+    const exam = this.selectedExam();
+    if (!exam || this.configForm.invalid || this.saving()) return;
+    this.saving.set(true);
+    const v = this.configForm.value as any;
+
+    const titleChanged = v.title !== exam.title;
+    const configChanged =
+      v.numberOfQuestions !== exam.config.numberOfQuestions ||
+      (v.timeLimitMinutes || null) !== exam.config.timeLimitMinutes ||
+      v.showScore !== exam.config.showScore ||
+      v.randomizeOptions !== exam.config.randomizeOptions ||
+      v.randomizeQuestionOrder !== exam.config.randomizeQuestionOrder;
+
+    let pending = (titleChanged ? 1 : 0) + (configChanged ? 1 : 0);
+    if (pending === 0) { this.saving.set(false); this.editingConfig.set(false); return; }
+
+    const done = (updated: ExamResponse) => {
+      pending--;
+      this.exams.update(list => list.map(e => e.id === updated.id ? updated : e));
+      this.selectedExam.set(updated);
+      if (pending === 0) { this.saving.set(false); this.editingConfig.set(false); }
+    };
+
+    if (titleChanged) {
+      this.examSvc.rename(exam.id, { newTitle: v.title }).subscribe({ next: done, error: () => this.saving.set(false) });
+    }
+    if (configChanged) {
+      this.examSvc.changeConfig(exam.id, {
+        numberOfQuestions:      v.numberOfQuestions,
+        timeLimitMinutes:       v.timeLimitMinutes || null,
+        showScore:              v.showScore,
+        randomizeOptions:       v.randomizeOptions,
+        randomizeQuestionOrder: v.randomizeQuestionOrder
+      }).subscribe({ next: done, error: () => this.saving.set(false) });
+    }
+  }
+
+  // ── Preguntas ──────────────────────────────────────
   toggleQuestion(id: number): void {
     const current = this.selectedQuestionIds();
     if (current.includes(id)) {
@@ -188,6 +266,7 @@ export class ExamsComponent implements OnInit {
     });
   }
 
+  // ── Estado ────────────────────────────────────────
   publish(exam: ExamResponse): void {
     const v = this.publishForm.value as any;
     this.examSvc.publish(exam.id, {

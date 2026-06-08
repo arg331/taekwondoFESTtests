@@ -121,3 +121,34 @@
     border-radius: 4px;
   }
 }
+
+.student-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.student-card {
+  border-left: 4px solid #C62828;
+  mat-card-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    text-align: center;
+    padding: 24px;
+  }
+  .student-icon {
+    font-size: 3rem;
+    height: 3rem;
+    width: 3rem;
+    color: #C62828;
+  }
+  h2 { margin: 0; }
+  .student-steps {
+    text-align: left;
+    color: #555;
+    line-height: 1.8;
+    margin: 0;
+    padding-left: 20px;
+  }
+}

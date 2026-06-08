@@ -12,15 +12,16 @@ import {
   UpdateExamQuestionsRequest,
   ChangeExamVisibilityRequest,
   ExtendExamExpirationRequest,
-  ReopenExamRequest
+  ReopenExamRequest,
+  PublicQuestionResponse
 } from '../models/exam.models';
+import { ResultResponse, SubmitExamRequest } from '../models/result.models';
 
 @Injectable({ providedIn: 'root' })
 export class ExamService {
   private http = inject(HttpClient);
   private api = `${environment.apiUrl}/exams`;
 
-  // ── Consultas ──────────────────────────────────────
   getMine(): Observable<ExamResponse[]> {
     return this.http.get<ExamResponse[]>(`${this.api}/mine`);
   }
@@ -37,11 +38,14 @@ export class ExamService {
     return this.http.get<ExamResponse>(`${this.api}/by-code/${code}`);
   }
 
+  getQuestionsByCode(code: string): Observable<PublicQuestionResponse[]> {
+    return this.http.get<PublicQuestionResponse[]>(`${this.api}/by-code/${code}/questions`);
+  }
+
   getFavorites(): Observable<ExamResponse[]> {
     return this.http.get<ExamResponse[]>(`${environment.apiUrl}/favorites`);
   }
 
-  // ── Creación ──────────────────────────────────────
   createDraft(request: CreateExamDraftRequest): Observable<ExamResponse> {
     return this.http.post<ExamResponse>(`${this.api}/drafts`, request);
   }
@@ -50,7 +54,6 @@ export class ExamService {
     return this.http.post<ExamResponse>(`${this.api}/drafts/pre-generated`, request);
   }
 
-  // ── Edición ──────────────────────────────────────
   rename(id: number, request: RenameExamRequest): Observable<ExamResponse> {
     return this.http.patch<ExamResponse>(`${this.api}/${id}/title`, request);
   }
@@ -67,7 +70,6 @@ export class ExamService {
     return this.http.patch<ExamResponse>(`${this.api}/${id}/visibility`, request);
   }
 
-  // ── Transiciones de estado ──────────────────────────────────────
   publish(id: number, request: PublishExamRequest): Observable<ExamResponse> {
     return this.http.post<ExamResponse>(`${this.api}/${id}/publish`, request);
   }
@@ -84,17 +86,19 @@ export class ExamService {
     return this.http.patch<ExamResponse>(`${this.api}/${id}/expiration`, request);
   }
 
-  // ── Borrado ──────────────────────────────────────
   deleteDraft(id: number): Observable<void> {
     return this.http.delete<void>(`${this.api}/${id}`);
   }
 
-  // ── Favoritos ──────────────────────────────────────
   favorite(id: number): Observable<void> {
     return this.http.post<void>(`${this.api}/${id}/favorite`, {});
   }
 
   unfavorite(id: number): Observable<void> {
     return this.http.delete<void>(`${this.api}/${id}/favorite`);
+  }
+
+  submitExam(request: SubmitExamRequest): Observable<ResultResponse> {
+    return this.http.post<ResultResponse>(`${environment.apiUrl}/results`, request);
   }
 }

@@ -32,21 +32,29 @@ export class DashboardComponent implements OnInit {
   examSvc = inject(ExamService);
   router  = inject(Router);
 
-  loading = signal(true);
-  exams   = signal<ExamResponse[]>([]);
+  loading       = signal(false);
+  exams         = signal<ExamResponse[]>([]);
+  publicExams   = signal<ExamResponse[]>([]);
+  loadingPublic = signal(false);
 
   drafts    = computed(() => this.exams().filter(e => e.status === 'DRAFT'));
   published = computed(() => this.exams().filter(e => e.status === 'PUBLISHED'));
   expired   = computed(() => this.exams().filter(e => e.status === 'EXPIRED'));
 
   ngOnInit(): void {
-    this.examSvc.getMine().subscribe({
-      next: (exams) => {
-        this.exams.set(exams);
-        this.loading.set(false);
-      },
-      error: () => this.loading.set(false)
-    });
+    if (this.auth.isAdmin()) {
+      this.loading.set(true);
+      this.examSvc.getMine().subscribe({
+        next: exams => { this.exams.set(exams); this.loading.set(false); },
+        error: () => this.loading.set(false)
+      });
+    } else {
+      this.loadingPublic.set(true);
+      this.examSvc.getPublic().subscribe({
+        next: exams => { this.publicExams.set(exams); this.loadingPublic.set(false); },
+        error: () => this.loadingPublic.set(false)
+      });
+    }
   }
 
   getStatusColor(status: string): string {
@@ -58,6 +66,10 @@ export class DashboardComponent implements OnInit {
   }
 
   goToExam(id: number): void {
-    this.router.navigate(['/exams', id]);
+    this.router.navigate(['/exams'], { queryParams: { select: id } });
+  }
+
+  goToExamTake(code: string): void {
+    this.router.navigate(['/exam', code]);
   }
 }

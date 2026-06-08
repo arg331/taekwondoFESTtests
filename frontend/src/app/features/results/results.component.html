@@ -1,0 +1,219 @@
+<div class="results-page">
+
+  <div class="page-header">
+    <h1>{{ auth.isAdmin() ? 'Resultados' : 'Mis resultados' }}</h1>
+  </div>
+
+  @if (auth.isAdmin()) {
+    <div class="admin-layout">
+
+      <div class="exams-list">
+        <p class="list-title">Selecciona un examen</p>
+        @if (loadingExams()) {
+          <mat-spinner diameter="32" />
+        } @else if (publishedExams().length === 0) {
+          <p class="hint">No tienes exámenes publicados todavía.</p>
+        } @else {
+          @for (exam of publishedExams(); track exam.id) {
+            <mat-card class="exam-item"
+                      [class.selected]="selectedExam()?.id === exam.id"
+                      (click)="selectExam(exam)">
+              <mat-card-content>
+                <p class="exam-name">{{ exam.title }}</p>
+                <p class="exam-meta">
+                  <span class="status-dot"
+                        [style.background]="exam.status === 'PUBLISHED' ? '#4caf50' : '#9e9e9e'">
+                  </span>
+                  {{ exam.status === 'PUBLISHED' ? 'Publicado' : 'Expirado' }}
+                </p>
+              </mat-card-content>
+            </mat-card>
+          }
+        }
+      </div>
+
+      <div class="results-panel">
+        @if (!selectedExam()) {
+          <div class="empty">
+            <mat-icon>bar_chart</mat-icon>
+            <p>Selecciona un examen para ver sus resultados.</p>
+          </div>
+        } @else if (loadingResults()) {
+          <div class="empty"><mat-spinner diameter="40" /></div>
+        } @else {
+
+          @if (stats()) {
+            <div class="stats-row">
+              <mat-card class="stat-mini">
+                <mat-card-content>
+                  <p class="stat-n">{{ stats()!.totalAttempts }}</p>
+                  <p class="stat-l">Intentos</p>
+                </mat-card-content>
+              </mat-card>
+              <mat-card class="stat-mini">
+                <mat-card-content>
+                  <p class="stat-n">{{ stats()!.averageScore | number:'1.0-0' }}</p>
+                  <p class="stat-l">Score medio</p>
+                </mat-card-content>
+              </mat-card>
+              <mat-card class="stat-mini">
+                <mat-card-content>
+                  <p class="stat-n" style="color:#4caf50">{{ stats()!.passedCount }}</p>
+                  <p class="stat-l">Aprobados</p>
+                </mat-card-content>
+              </mat-card>
+              <mat-card class="stat-mini">
+                <mat-card-content>
+                  <p class="stat-n" style="color:#f44336">{{ stats()!.failedCount }}</p>
+                  <p class="stat-l">Suspensos</p>
+                </mat-card-content>
+              </mat-card>
+              <mat-card class="stat-mini">
+                <mat-card-content>
+                  <p class="stat-n">{{ stats()!.highestScore }}</p>
+                  <p class="stat-l">Mejor score</p>
+                </mat-card-content>
+              </mat-card>
+              <mat-card class="stat-mini">
+                <mat-card-content>
+                  <p class="stat-n">{{ stats()!.lowestScore }}</p>
+                  <p class="stat-l">Peor score</p>
+                </mat-card-content>
+              </mat-card>
+            </div>
+
+            @if (stats()!.totalAttempts > 0) {
+              <div class="pie-row">
+                <svg class="pie-chart" viewBox="-1.1 -1.1 2.2 2.2">
+                  @if (stats()!.passedCount > 0 && stats()!.failedCount > 0) {
+                    <path [attr.d]="pieAprobados" fill="#4caf50" />
+                    <path [attr.d]="pieSuspensos" fill="#f44336" />
+                  } @else if (stats()!.passedCount === stats()!.totalAttempts) {
+                    <circle cx="0" cy="0" r="1" fill="#4caf50" />
+                  } @else {
+                    <circle cx="0" cy="0" r="1" fill="#f44336" />
+                  }
+                </svg>
+                <div class="pie-legend">
+                  <div class="legend-item">
+                    <span class="legend-dot" style="background:#4caf50"></span>
+                    Aprobados: {{ stats()!.passedCount }}
+                    ({{ (stats()!.passedCount / stats()!.totalAttempts * 100) | number:'1.0-0' }}%)
+                  </div>
+                  <div class="legend-item">
+                    <span class="legend-dot" style="background:#f44336"></span>
+                    Suspensos: {{ stats()!.failedCount }}
+                    ({{ (stats()!.failedCount / stats()!.totalAttempts * 100) | number:'1.0-0' }}%)
+                  </div>
+                </div>
+              </div>
+            }
+
+            <mat-divider />
+          }
+
+          @if (results().length === 0) {
+            <div class="empty" style="padding: 32px 0;">
+              <mat-icon>people_outline</mat-icon>
+              <p>Nadie ha realizado este examen todavía.</p>
+            </div>
+          } @else {
+            <p class="section-title">Participantes ({{ results().length }})</p>
+            <div class="table-wrapper">
+              <table mat-table [dataSource]="results()" class="results-table">
+                <ng-container matColumnDef="studentName">
+                  <th mat-header-cell *matHeaderCellDef>Nombre</th>
+                  <td mat-cell *matCellDef="let r">{{ r.studentName }}</td>
+                </ng-container>
+                <ng-container matColumnDef="studentClub">
+                  <th mat-header-cell *matHeaderCellDef>Club</th>
+                  <td mat-cell *matCellDef="let r">{{ r.studentClub ?? '—' }}</td>
+                </ng-container>
+                <ng-container matColumnDef="score">
+                  <th mat-header-cell *matHeaderCellDef>Score</th>
+                  <td mat-cell *matCellDef="let r">
+                    <span class="score-badge" [style.background]="r.passed ? '#4caf50' : '#f44336'">
+                      {{ r.score }}
+                    </span>
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="passed">
+                  <th mat-header-cell *matHeaderCellDef>Resultado</th>
+                  <td mat-cell *matCellDef="let r">
+                    <mat-icon [style.color]="r.passed ? '#4caf50' : '#f44336'">
+                      {{ r.passed ? 'check_circle' : 'cancel' }}
+                    </mat-icon>
+                    {{ r.passed ? 'Aprobado' : 'Suspenso' }}
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="time">
+                  <th mat-header-cell *matHeaderCellDef>Tiempo</th>
+                  <td mat-cell *matCellDef="let r">{{ formatTime(r.timeSpentSeconds) }}</td>
+                </ng-container>
+                <ng-container matColumnDef="date">
+                  <th mat-header-cell *matHeaderCellDef>Fecha</th>
+                  <td mat-cell *matCellDef="let r">{{ formatDate(r.completedAt) }}</td>
+                </ng-container>
+                <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+                <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+              </table>
+            </div>
+          }
+        }
+      </div>
+
+    </div>
+  }
+
+  @if (!auth.isAdmin()) {
+    @if (loadingMine()) {
+      <div class="empty"><mat-spinner diameter="40" /></div>
+    } @else if (myAttempts().length === 0) {
+      <div class="empty">
+        <mat-icon>assignment_late</mat-icon>
+        <p>Todavía no has realizado ningún examen.</p>
+      </div>
+    } @else {
+      <div class="table-wrapper">
+        <table mat-table [dataSource]="myAttempts()" class="results-table">
+          <ng-container matColumnDef="studentName">
+            <th mat-header-cell *matHeaderCellDef>Examen</th>
+            <td mat-cell *matCellDef="let r">Examen #{{ r.examId }}</td>
+          </ng-container>
+          <ng-container matColumnDef="studentClub">
+            <th mat-header-cell *matHeaderCellDef>Preguntas</th>
+            <td mat-cell *matCellDef="let r">{{ r.correctAnswers }}/{{ r.totalQuestions }}</td>
+          </ng-container>
+          <ng-container matColumnDef="score">
+            <th mat-header-cell *matHeaderCellDef>Score</th>
+            <td mat-cell *matCellDef="let r">
+              <span class="score-badge" [style.background]="r.passed ? '#4caf50' : '#f44336'">
+                {{ r.score }}
+              </span>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="passed">
+            <th mat-header-cell *matHeaderCellDef>Resultado</th>
+            <td mat-cell *matCellDef="let r">
+              <mat-icon [style.color]="r.passed ? '#4caf50' : '#f44336'">
+                {{ r.passed ? 'check_circle' : 'cancel' }}
+              </mat-icon>
+              {{ r.passed ? 'Aprobado' : 'Suspenso' }}
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="time">
+            <th mat-header-cell *matHeaderCellDef>Tiempo</th>
+            <td mat-cell *matCellDef="let r">{{ formatTime(r.timeSpentSeconds) }}</td>
+          </ng-container>
+          <ng-container matColumnDef="date">
+            <th mat-header-cell *matHeaderCellDef>Fecha</th>
+            <td mat-cell *matCellDef="let r">{{ formatDate(r.completedAt) }}</td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+        </table>
+      </div>
+    }
+  }
+
+</div>

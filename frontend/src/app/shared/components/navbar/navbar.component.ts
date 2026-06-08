@@ -32,12 +32,13 @@ export class NavbarComponent {
     { label: 'Dashboard',  path: '/dashboard',  icon: 'dashboard' },
     { label: 'Preguntas',  path: '/questions',  icon: 'quiz' },
     { label: 'Exámenes',   path: '/exams',       icon: 'assignment' },
+    { label: 'Resultados', path: '/results',     icon: 'bar_chart' },
     { label: 'Usuarios',   path: '/users',       icon: 'people' },
   ];
 
   studentLinks = [
-    { label: 'Dashboard',  path: '/dashboard',  icon: 'dashboard' },
-    { label: 'Mis resultados', path: '/results', icon: 'bar_chart' },
+    { label: 'Dashboard',      path: '/dashboard', icon: 'dashboard' },
+    { label: 'Mis resultados', path: '/results',   icon: 'bar_chart' },
   ];
 
   navLinks = computed(() =>

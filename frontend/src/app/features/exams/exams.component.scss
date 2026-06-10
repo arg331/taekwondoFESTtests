@@ -222,3 +222,38 @@
 .config-edit-form {
   padding: 8px 0;
 }
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.random-card {
+  border-left: 4px solid #9c27b0;
+}
+
+.random-card mat-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  mat-icon { color: #9c27b0; }
+}
+
+.tag-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.count-ok  { color: #4caf50; font-weight: 700; }
+.count-warn { color: #f44336; font-weight: 700; }
+
+.row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 8px;
+}

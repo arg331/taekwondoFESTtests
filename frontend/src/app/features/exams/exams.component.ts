@@ -17,8 +17,10 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { ExamService } from '../../core/services/exam.service';
 import { QuestionService } from '../../core/services/question.service';
+import { TagService } from '../../core/services/tag.service';
 import { ExamResponse, ExamStatus } from '../../core/models/exam.models';
 import { QuestionResponse, Difficulty } from '../../core/models/question.models';
+import { TagResponse } from '../../core/models/tag.models';
 
 @Component({
   selector: 'app-exams',
@@ -46,18 +48,22 @@ import { QuestionResponse, Difficulty } from '../../core/models/question.models'
 export class ExamsComponent implements OnInit {
   private examSvc     = inject(ExamService);
   private questionSvc = inject(QuestionService);
+  private tagSvc      = inject(TagService);
   private fb          = inject(FormBuilder);
   private route       = inject(ActivatedRoute);
   router              = inject(Router);
 
-  loading      = signal(true);
-  saving       = signal(false);
-  exams        = signal<ExamResponse[]>([]);
-  questions    = signal<QuestionResponse[]>([]);
-  showForm     = signal(false);
-  selectedExam = signal<ExamResponse | null>(null);
-  showQr       = signal<ExamResponse | null>(null);
+  loading       = signal(true);
+  saving        = signal(false);
+  exams         = signal<ExamResponse[]>([]);
+  questions     = signal<QuestionResponse[]>([]);
+  tags          = signal<TagResponse[]>([]);
+  showForm      = signal(false);
+  showRandomForm = signal(false);
+  selectedExam  = signal<ExamResponse | null>(null);
+  showQr        = signal<ExamResponse | null>(null);
   editingConfig = signal(false);
+  publishError  = signal<string | null>(null);
 
   pickerSearch = signal('');
   pickerDiff   = signal<Difficulty | ''>('');
@@ -73,6 +79,23 @@ export class ExamsComponent implements OnInit {
     if (search) list = list.filter(q => q.text.toLowerCase().includes(search));
     if (this.pickerDiff()) list = list.filter(q => q.difficulty === this.pickerDiff());
     return list;
+  });
+
+  canPublish = computed(() => {
+    const exam = this.selectedExam();
+    if (!exam) return false;
+    const n = this.selectedQuestionIds().length;
+    return n >= 5 && n === exam.config.numberOfQuestions;
+  });
+
+  publishBlockReason = computed(() => {
+    const exam = this.selectedExam();
+    if (!exam) return '';
+    const n = this.selectedQuestionIds().length;
+    if (n < 5) return `Necesitas al menos 5 preguntas (tienes ${n})`;
+    if (n !== exam.config.numberOfQuestions)
+      return `Tienes ${n} preguntas seleccionadas pero el examen requiere ${exam.config.numberOfQuestions}. Ajusta la configuración o selecciona más preguntas.`;
+    return '';
   });
 
   statusLabel: Record<ExamStatus, string> = {
@@ -92,6 +115,16 @@ export class ExamsComponent implements OnInit {
     showScore:              [true],
     randomizeOptions:       [false],
     randomizeQuestionOrder: [false]
+  });
+
+  randomForm = this.fb.group({
+    title:                  ['', [Validators.required, Validators.minLength(3)]],
+    numberOfQuestions:      [10, [Validators.required, Validators.min(5), Validators.max(50)]],
+    timeLimitMinutes:       [60],
+    showScore:              [true],
+    randomizeOptions:       [true],
+    randomizeQuestionOrder: [true],
+    requiredAnyOfTagIds:    [[] as number[]]
   });
 
   publishForm = this.fb.group({
@@ -117,11 +150,11 @@ export class ExamsComponent implements OnInit {
   load(): void {
     this.loading.set(true);
     this.questionSvc.getAll().subscribe(q => this.questions.set(q));
+    this.tagSvc.getAll().subscribe(t => this.tags.set(t));
     this.examSvc.getMine().subscribe({
       next: e => {
         this.exams.set(e);
         this.loading.set(false);
-        // Leer query param ?select=id desde el dashboard
         const selectId = this.route.snapshot.queryParamMap.get('select');
         if (selectId) {
           const exam = e.find(ex => ex.id === Number(selectId));
@@ -132,6 +165,7 @@ export class ExamsComponent implements OnInit {
     });
   }
 
+  // ── Formulario manual ─────────────────────────────
   openCreateForm(): void {
     this.draftForm.reset({
       title: '', numberOfQuestions: 10,
@@ -139,6 +173,7 @@ export class ExamsComponent implements OnInit {
       randomizeOptions: false, randomizeQuestionOrder: false
     });
     this.showForm.set(true);
+    this.showRandomForm.set(false);
     this.selectedExam.set(null);
   }
 
@@ -168,11 +203,56 @@ export class ExamsComponent implements OnInit {
     });
   }
 
+  // ── Formulario aleatorio ──────────────────────────
+  openRandomForm(): void {
+    this.randomForm.reset({
+      title: '', numberOfQuestions: 10,
+      timeLimitMinutes: 60, showScore: true,
+      randomizeOptions: true, randomizeQuestionOrder: true,
+      requiredAnyOfTagIds: []
+    });
+    this.showRandomForm.set(true);
+    this.showForm.set(false);
+    this.selectedExam.set(null);
+  }
+
+  cancelRandomForm(): void {
+    this.showRandomForm.set(false);
+  }
+
+  createRandom(): void {
+    if (this.randomForm.invalid || this.saving()) return;
+    this.saving.set(true);
+    const v = this.randomForm.value as any;
+    this.examSvc.preGenerate({
+      title: v.title,
+      numberOfQuestions: v.numberOfQuestions,
+      timeLimitMinutes: v.timeLimitMinutes || null,
+      showScore: v.showScore,
+      randomizeOptions: v.randomizeOptions,
+      randomizeQuestionOrder: v.randomizeQuestionOrder,
+      requiredAnyOfTagIds: v.requiredAnyOfTagIds ?? []
+    }).subscribe({
+      next: exam => {
+        this.exams.update(list => [exam, ...list]);
+        this.saving.set(false);
+        this.showRandomForm.set(false);
+        this.selectExam(exam);
+      },
+      error: (err) => {
+        this.saving.set(false);
+        alert(err?.error?.message || 'No hay suficientes preguntas con los filtros seleccionados');
+      }
+    });
+  }
+
+  // ── Selección de examen ───────────────────────────
   selectExam(exam: ExamResponse): void {
     this.selectedExam.set(exam);
     this.selectedQuestionIds.set([...exam.questionIds]);
     this.showQr.set(null);
     this.editingConfig.set(false);
+    this.publishError.set(null);
     this.pickerSearch.set('');
     this.pickerDiff.set('');
   }
@@ -226,7 +306,9 @@ export class ExamsComponent implements OnInit {
     };
 
     if (titleChanged) {
-      this.examSvc.rename(exam.id, { newTitle: v.title }).subscribe({ next: done, error: () => this.saving.set(false) });
+      this.examSvc.rename(exam.id, { newTitle: v.title }).subscribe({
+        next: done, error: () => this.saving.set(false)
+      });
     }
     if (configChanged) {
       this.examSvc.changeConfig(exam.id, {
@@ -262,12 +344,15 @@ export class ExamsComponent implements OnInit {
       next: updated => {
         this.exams.update(list => list.map(e => e.id === updated.id ? updated : e));
         this.selectedExam.set(updated);
+        this.publishError.set(null);
       }
     });
   }
 
   // ── Estado ────────────────────────────────────────
   publish(exam: ExamResponse): void {
+    if (!this.canPublish()) return;
+    this.publishError.set(null);
     const v = this.publishForm.value as any;
     this.examSvc.publish(exam.id, {
       visibility: v.visibility,
@@ -277,6 +362,9 @@ export class ExamsComponent implements OnInit {
         this.exams.update(list => list.map(e => e.id === updated.id ? updated : e));
         this.selectedExam.set(updated);
         this.showQr.set(updated);
+      },
+      error: (err) => {
+        this.publishError.set(err?.error?.message || 'Error al publicar el examen');
       }
     });
   }

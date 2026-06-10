@@ -5,16 +5,23 @@
       <h1>Mis exámenes</h1>
       <p class="subtitle">{{ exams().length }} exámenes</p>
     </div>
-    <button mat-flat-button color="primary" (click)="openCreateForm()">
-      <mat-icon>add</mat-icon>
-      Nuevo examen
-    </button>
+    <div class="header-actions">
+      <button mat-stroked-button color="primary" (click)="openRandomForm()">
+        <mat-icon>auto_awesome</mat-icon>
+        Generar aleatorio
+      </button>
+      <button mat-flat-button color="primary" (click)="openCreateForm()">
+        <mat-icon>add</mat-icon>
+        Nuevo examen
+      </button>
+    </div>
   </div>
 
+  <!-- Formulario manual -->
   @if (showForm()) {
     <mat-card class="form-card">
       <mat-card-header>
-        <mat-card-title>Nuevo examen</mat-card-title>
+        <mat-card-title>Nuevo examen manual</mat-card-title>
       </mat-card-header>
       <mat-card-content>
         <form [formGroup]="draftForm">
@@ -25,7 +32,7 @@
               <mat-error>Campo obligatorio</mat-error>
             }
           </mat-form-field>
-          <div class="row-3" style="grid-template-columns: 1fr 1fr;">
+          <div class="row-2">
             <mat-form-field appearance="outline">
               <mat-label>Nº preguntas</mat-label>
               <input matInput type="number" formControlName="numberOfQuestions" />
@@ -52,6 +59,77 @@
     </mat-card>
   }
 
+  <!-- Formulario aleatorio -->
+  @if (showRandomForm()) {
+    <mat-card class="form-card random-card">
+      <mat-card-header>
+        <mat-card-title>
+          <mat-icon>auto_awesome</mat-icon>
+          Generar examen aleatorio
+        </mat-card-title>
+        <mat-card-subtitle>
+          El sistema seleccionará preguntas aleatoriamente de tu banco
+        </mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <form [formGroup]="randomForm">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Título del examen</mat-label>
+            <input matInput formControlName="title" />
+            @if (randomForm.get('title')?.hasError('required') && randomForm.get('title')?.touched) {
+              <mat-error>Campo obligatorio</mat-error>
+            }
+          </mat-form-field>
+
+          <div class="row-2">
+            <mat-form-field appearance="outline">
+              <mat-label>Nº preguntas</mat-label>
+              <input matInput type="number" formControlName="numberOfQuestions" />
+              <mat-hint>Mín. 5, máx. 50</mat-hint>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Tiempo límite (min)</mat-label>
+              <input matInput type="number" formControlName="timeLimitMinutes" />
+              <mat-hint>0 = sin límite</mat-hint>
+            </mat-form-field>
+          </div>
+
+          @if (tags().length > 0) {
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Filtrar por tags (opcional)</mat-label>
+              <mat-select formControlName="requiredAnyOfTagIds" multiple>
+                @for (tag of tags(); track tag.id) {
+                  <mat-option [value]="tag.id">
+                    <span class="tag-dot" [style.background]="tag.color"></span>
+                    {{ tag.name }}
+                  </mat-option>
+                }
+              </mat-select>
+              <mat-hint>Solo se usarán preguntas con alguno de estos tags. Vacío = todos los tags.</mat-hint>
+            </mat-form-field>
+          } @else {
+            <p class="hint">Sin tags disponibles — se usarán todas las preguntas del banco.</p>
+          }
+
+          <div class="toggles">
+            <mat-slide-toggle formControlName="showScore" color="primary">Mostrar puntuación al estudiante</mat-slide-toggle>
+            <mat-slide-toggle formControlName="randomizeOptions" color="primary">Opciones en orden aleatorio</mat-slide-toggle>
+            <mat-slide-toggle formControlName="randomizeQuestionOrder" color="primary">Preguntas en orden aleatorio</mat-slide-toggle>
+          </div>
+        </form>
+      </mat-card-content>
+      <mat-card-actions align="end">
+        <button mat-button (click)="cancelRandomForm()">Cancelar</button>
+        <button mat-flat-button color="primary" (click)="createRandom()" [disabled]="randomForm.invalid || saving()">
+          @if (saving()) { <mat-spinner diameter="18" /> } @else {
+            <mat-icon>auto_awesome</mat-icon>
+            Generar examen
+          }
+        </button>
+      </mat-card-actions>
+    </mat-card>
+  }
+
   <div class="content-grid">
 
     @if (loading()) {
@@ -60,7 +138,10 @@
       <div class="empty">
         <mat-icon>assignment_late</mat-icon>
         <p>No tienes exámenes todavía.</p>
-        <button mat-flat-button color="primary" (click)="openCreateForm()">Crear primer examen</button>
+        <div style="display:flex;gap:8px;">
+          <button mat-stroked-button color="primary" (click)="openRandomForm()">Generar aleatorio</button>
+          <button mat-flat-button color="primary" (click)="openCreateForm()">Crear manualmente</button>
+        </div>
       </div>
     } @else {
       <div class="exams-list">
@@ -113,14 +194,13 @@
 
         <mat-card-content>
 
-          <!-- Editar configuración -->
           @if (editingConfig()) {
             <form [formGroup]="configForm" class="config-edit-form">
               <mat-form-field appearance="outline" class="full-width">
                 <mat-label>Título</mat-label>
                 <input matInput formControlName="title" />
               </mat-form-field>
-              <div class="row-3" style="grid-template-columns: 1fr 1fr;">
+              <div class="row-2">
                 <mat-form-field appearance="outline">
                   <mat-label>Nº preguntas</mat-label>
                   <input matInput type="number" formControlName="numberOfQuestions" />
@@ -128,7 +208,6 @@
                 <mat-form-field appearance="outline">
                   <mat-label>Tiempo límite (min)</mat-label>
                   <input matInput type="number" formControlName="timeLimitMinutes" />
-                  <mat-hint>0 = sin límite</mat-hint>
                 </mat-form-field>
               </div>
               <div class="toggles">
@@ -154,15 +233,15 @@
                 <mat-icon>{{ selectedExam()!.config.showScore ? 'visibility' : 'visibility_off' }}</mat-icon>
                 {{ selectedExam()!.config.showScore ? 'Muestra score' : 'Oculta score' }}
               </span>
-              <button mat-stroked-button (click)="openEditConfig()" style="margin-left:auto;">
-                <mat-icon>edit</mat-icon>
-                Editar
-              </button>
+              @if (selectedExam()!.status === 'DRAFT') {
+                <button mat-stroked-button (click)="openEditConfig()" style="margin-left:auto;">
+                  <mat-icon>edit</mat-icon>Editar
+                </button>
+              }
             </div>
             <mat-divider style="margin: 12px 0;" />
           }
 
-          <!-- QR -->
           @if (showQr() && selectedExam()!.code) {
             <div class="qr-section">
               <img [src]="getQrUrl(selectedExam()!.code!)" alt="QR del examen" class="qr-image" />
@@ -187,9 +266,14 @@
 
           <mat-divider />
 
-          <!-- Preguntas -->
           <div class="questions-section">
-            <p class="section-title">Preguntas asignadas ({{ selectedQuestionIds().length }})</p>
+            <p class="section-title">
+              Preguntas asignadas
+              <span [class.count-ok]="selectedQuestionIds().length === selectedExam()!.config.numberOfQuestions"
+                    [class.count-warn]="selectedQuestionIds().length !== selectedExam()!.config.numberOfQuestions">
+                {{ selectedQuestionIds().length }} / {{ selectedExam()!.config.numberOfQuestions }}
+              </span>
+            </p>
             @if (questions().length === 0) {
               <p class="hint">No tienes preguntas en tu banco todavía.</p>
             } @else {
@@ -211,7 +295,7 @@
                   </mat-select>
                 </mat-form-field>
               </div>
-              <p class="picker-count hint">{{ filteredQuestions().length }} de {{ questions().length }} preguntas</p>
+              <p class="hint">{{ filteredQuestions().length }} de {{ questions().length }} preguntas</p>
               <div class="questions-picker">
                 @for (q of filteredQuestions(); track q.id) {
                   <div class="question-pick-row" [class.picked]="isSelected(q.id)" (click)="toggleQuestion(q.id)">
@@ -220,7 +304,7 @@
                   </div>
                 }
                 @if (filteredQuestions().length === 0) {
-                  <p class="hint" style="padding: 12px;">Sin resultados.</p>
+                  <p class="hint" style="padding:12px;">Sin resultados.</p>
                 }
               </div>
               <button mat-stroked-button color="primary" (click)="saveQuestions()">
@@ -231,7 +315,6 @@
 
           <mat-divider />
 
-          <!-- Acciones de estado -->
           <div class="actions-section">
             @if (selectedExam()!.status === 'DRAFT') {
               <form [formGroup]="publishForm" class="publish-options">
@@ -247,18 +330,29 @@
                   <input matInput type="datetime-local" formControlName="expiresAt" />
                 </mat-form-field>
               </form>
+
+              @if (publishBlockReason()) {
+                <p class="hint-warn">
+                  <mat-icon style="font-size:16px;vertical-align:middle;">warning</mat-icon>
+                  {{ publishBlockReason() }}
+                </p>
+              }
+
               <button mat-flat-button color="primary"
                       (click)="publish(selectedExam()!)"
-                      [disabled]="selectedQuestionIds().length < 5">
+                      [disabled]="!canPublish() || saving()">
                 <mat-icon>publish</mat-icon>Publicar examen
               </button>
-              @if (selectedQuestionIds().length < 5) {
-                <p class="hint-warn">Necesitas al menos 5 preguntas para publicar</p>
+
+              @if (publishError()) {
+                <p class="hint-warn">{{ publishError() }}</p>
               }
+
               <button mat-button color="warn" (click)="deleteDraft(selectedExam()!)">
                 <mat-icon>delete</mat-icon>Eliminar borrador
               </button>
             }
+
             @if (selectedExam()!.status === 'PUBLISHED') {
               <button mat-stroked-button color="warn" (click)="close(selectedExam()!)">
                 <mat-icon>stop_circle</mat-icon>Cerrar examen

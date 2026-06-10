@@ -54,6 +54,7 @@
 
     <mat-divider />
 
+    <!-- Mis exámenes -->
     <div class="exams-section">
       <h2>Mis exámenes</h2>
       @if (loading()) {
@@ -92,6 +93,48 @@
                 @if (exam.code) {
                   <span class="exam-code">{{ exam.code }}</span>
                 }
+              </mat-card-content>
+            </mat-card>
+          }
+        </div>
+      }
+    </div>
+
+    <mat-divider />
+
+    <!-- Cursos de arbitraje ITF -->
+    <div class="cursos-section">
+      <div class="cursos-header">
+        <mat-icon class="cursos-icon">sports_martial_arts</mat-icon>
+        <div>
+          <h2>Próximos cursos de arbitraje</h2>
+          <p class="cursos-fuente">Fuente: taekwondoitf.es</p>
+        </div>
+      </div>
+
+      @if (loadingCursos()) {
+        <div class="loading"><mat-spinner diameter="32" /></div>
+      } @else if (cursos().length === 0 || isCursoError(cursos()[0])) {
+        <p class="hint">No se pudieron cargar los cursos del calendario de la federación.</p>
+      } @else {
+        <div class="cursos-grid">
+          @for (curso of cursos(); track $index) {
+            <mat-card class="curso-card">
+              <mat-card-content>
+                <div class="curso-mes">{{ curso.mes }}</div>
+                <p class="curso-titulo">{{ curso.titulo }}</p>
+                <div class="curso-footer">
+                  @if (curso.fecha) {
+                    <span class="curso-fecha">
+                      <mat-icon>event</mat-icon>{{ curso.fecha }}
+                    </span>
+                  }
+                  @if (curso.lugar) {
+                    <span class="curso-lugar">
+                      <mat-icon>place</mat-icon>{{ curso.lugar }}
+                    </span>
+                  }
+                </div>
               </mat-card-content>
             </mat-card>
           }

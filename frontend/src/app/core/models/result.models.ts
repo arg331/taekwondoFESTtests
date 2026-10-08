@@ -1,35 +1,37 @@
-export interface AnswerSubmissionRequest {
-  questionId: number;
-  chosenOption: number;
-}
-
 export interface SubmitExamRequest {
   examCode: string;
+  attemptToken: string;
   studentName: string;
   studentClub: string | null;
   studentEmail: string | null;
-  answers: AnswerSubmissionRequest[];
-  timeSpentSeconds: number;
+  /** chosenOption null = sin responder. */
+  answers: { questionId: number; chosenOption: number | null }[];
 }
 
 export interface AnswerResponse {
   questionId: number;
-  studentAnswer: number;
+  studentAnswer: number | null;
   correctAnswer: number;
   correct: boolean;
 }
 
+/**
+ * Si el examen oculta la nota y quien consulta es el alumno,
+ * scoreVisible es false y score/passed/correctAnswers/answers llegan a null.
+ */
 export interface ResultResponse {
   id: number;
   examId: number;
+  examTitle: string | null;
   studentName: string;
   studentClub: string | null;
   studentEmail: string | null;
-  answers: AnswerResponse[];
-  correctAnswers: number;
+  scoreVisible: boolean;
+  answers: AnswerResponse[] | null;
+  correctAnswers: number | null;
   totalQuestions: number;
-  score: number;
-  passed: boolean;
+  score: number | null;
+  passed: boolean | null;
   timeSpentSeconds: number;
   completedAt: string;
 }

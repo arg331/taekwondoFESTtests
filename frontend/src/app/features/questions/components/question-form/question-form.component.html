@@ -1,0 +1,80 @@
+<mat-card class="form-card">
+  <mat-card-header>
+    <mat-card-title>{{ question() ? 'Editar pregunta' : 'Nueva pregunta' }}</mat-card-title>
+  </mat-card-header>
+
+  <mat-card-content>
+    <form [formGroup]="form" (ngSubmit)="save()">
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Texto de la pregunta</mat-label>
+        <textarea matInput formControlName="text" rows="3"></textarea>
+        @if (form.controls.text.hasError('required') && form.controls.text.touched) {
+          <mat-error>Campo obligatorio</mat-error>
+        }
+        @if (form.controls.text.hasError('minlength')) {
+          <mat-error>Mínimo 10 caracteres</mat-error>
+        }
+      </mat-form-field>
+
+      <p class="section-label">Opciones de respuesta</p>
+      <p class="hint">Entre {{ minOptions }} y 4 opciones. Marca la correcta.</p>
+      <mat-radio-group formControlName="correctAnswer" class="options-grid" color="primary">
+        @for (ctrl of form.controls.options.controls; track $index) {
+          <div class="option-row">
+            <mat-radio-button [value]="$index" />
+            <mat-form-field appearance="outline" class="option-field">
+              <mat-label>Opción {{ $index + 1 }}</mat-label>
+              <input matInput [formControl]="ctrl" />
+            </mat-form-field>
+          </div>
+        }
+      </mat-radio-group>
+      @if (optionsError()) {
+        <p class="hint-warn">{{ optionsError() }}</p>
+      }
+
+      <div class="row-2">
+        <mat-form-field appearance="outline">
+          <mat-label>Dificultad</mat-label>
+          <mat-select formControlName="difficulty">
+            @for (d of difficulties; track d) {
+              <mat-option [value]="d">{{ diffLabel[d] }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Tags</mat-label>
+          <mat-select formControlName="tagIds" multiple>
+            @for (tag of tags(); track tag.id) {
+              <mat-option [value]="tag.id">{{ tag.name }}</mat-option>
+            } @empty {
+              <mat-option disabled>Sin tags: créalos en "Gestión de tags"</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Explicación de la respuesta</mat-label>
+        <textarea matInput formControlName="explanation" rows="2"></textarea>
+        @if (form.controls.explanation.hasError('required') && form.controls.explanation.touched) {
+          <mat-error>Campo obligatorio</mat-error>
+        }
+      </mat-form-field>
+
+      @if (error()) {
+        <p class="hint-warn">{{ error() }}</p>
+      }
+    </form>
+  </mat-card-content>
+
+  <mat-card-actions align="end">
+    <button mat-button (click)="cancelled.emit()">Cancelar</button>
+    <button mat-flat-button color="primary" (click)="save()"
+            [disabled]="form.invalid || !!optionsError() || saving()">
+      @if (saving()) { <mat-spinner diameter="18" /> }
+      {{ question() ? 'Guardar cambios' : 'Crear pregunta' }}
+    </button>
+  </mat-card-actions>
+</mat-card>

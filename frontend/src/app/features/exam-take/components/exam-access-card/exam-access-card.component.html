@@ -1,0 +1,67 @@
+<mat-card class="access-card">
+  <div class="brand-header">
+    <span class="brand-icon">🥋</span>
+    <span class="brand-name">FEST Taekwondo</span>
+  </div>
+  <mat-card-header>
+    <mat-card-title>{{ exam().title }}</mat-card-title>
+    <mat-card-subtitle>
+      {{ exam().config.numberOfQuestions }} preguntas
+      @if (exam().config.timeLimitMinutes) {
+        · {{ exam().config.timeLimitMinutes }} min
+      }
+    </mat-card-subtitle>
+  </mat-card-header>
+
+  @if (needsLogin()) {
+    <mat-card-content>
+      <p class="access-intro">
+        <mat-icon class="inline-icon">lock</mat-icon>
+        Este examen solo puede hacerse con una cuenta registrada.
+      </p>
+    </mat-card-content>
+    <mat-card-actions align="end">
+      <a mat-stroked-button routerLink="/auth/register">Crear cuenta</a>
+      <a mat-flat-button color="primary" routerLink="/auth/login" [queryParams]="loginQueryParams()">
+        <mat-icon>login</mat-icon>
+        Iniciar sesión
+      </a>
+    </mat-card-actions>
+  } @else {
+    <mat-card-content>
+      <p class="access-intro">Introduce tus datos para comenzar el examen.</p>
+      @if (exam().config.timeLimitMinutes) {
+        <p class="access-intro">
+          <mat-icon class="inline-icon">timer</mat-icon>
+          Al terminar el tiempo el examen se enviará automáticamente.
+        </p>
+      }
+      <form [formGroup]="form" (ngSubmit)="submit()">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Nombre completo *</mat-label>
+          <input matInput formControlName="studentName" />
+          @if (form.controls.studentName.hasError('required') && form.controls.studentName.touched) {
+            <mat-error>Campo obligatorio</mat-error>
+          }
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Club (opcional)</mat-label>
+          <input matInput formControlName="studentClub" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Email (opcional)</mat-label>
+          <input matInput type="email" formControlName="studentEmail" />
+          @if (form.controls.studentEmail.hasError('email')) {
+            <mat-error>Email no válido</mat-error>
+          }
+        </mat-form-field>
+      </form>
+    </mat-card-content>
+    <mat-card-actions align="end">
+      <button mat-flat-button color="primary" (click)="submit()" [disabled]="form.invalid || starting()">
+        @if (starting()) { <mat-spinner diameter="18" /> } @else { <mat-icon>play_arrow</mat-icon> }
+        Comenzar examen
+      </button>
+    </mat-card-actions>
+  }
+</mat-card>

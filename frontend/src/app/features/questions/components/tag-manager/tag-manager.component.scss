@@ -1,0 +1,14 @@
+.tags-panel { border-left: 4px solid #C62828; }
+.title-icon { margin-right: 8px; }
+.tags-content { padding: 8px 0; }
+.new-btn { margin-bottom: 12px; }
+.tag-form-inline {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px;
+  .tag-name-field { flex: 1; min-width: 160px; }
+  .tag-color-field { width: 100px; }
+}
+.tags-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.tag-item { display: flex; align-items: center; gap: 4px; }
+.tag-chip { color: white; padding: 4px 12px; border-radius: 16px; font-size: 0.8rem; font-weight: 500; }
+.hint { font-size: 0.8rem; color: #999; margin: 0; }
+.hint-warn { font-size: 0.8rem; color: #f44336; margin: 0 0 8px; }

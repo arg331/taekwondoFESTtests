@@ -1,0 +1,82 @@
+<div class="exams-list">
+  <p class="list-title">Selecciona un examen</p>
+  @if (loadingExams()) {
+    <mat-spinner diameter="32" />
+  } @else {
+    @for (exam of publishedExams(); track exam.id) {
+      <mat-card class="exam-item" [class.selected]="selectedExam()?.id === exam.id" (click)="select(exam)">
+        <mat-card-content>
+          <p class="exam-name">{{ exam.title }}</p>
+          <p class="exam-meta">
+            <span class="status-dot" [style.background]="statusColor[exam.status]"></span>
+            {{ statusLabel[exam.status] }}
+          </p>
+        </mat-card-content>
+      </mat-card>
+    } @empty {
+      <p class="hint">No tienes exámenes publicados todavía.</p>
+    }
+  }
+</div>
+
+<div class="results-panel">
+  @if (!selectedExam()) {
+    <div class="empty">
+      <mat-icon>bar_chart</mat-icon>
+      <p>Selecciona un examen para ver sus resultados.</p>
+    </div>
+  } @else if (loadingResults()) {
+    <div class="empty"><mat-spinner diameter="40" /></div>
+  } @else {
+    @if (stats(); as s) {
+      <app-exam-stats [stats]="s" />
+      <mat-divider />
+    }
+
+    @if (results().length === 0) {
+      <div class="empty">
+        <mat-icon>people_outline</mat-icon>
+        <p>Nadie ha realizado este examen todavía.</p>
+      </div>
+    } @else {
+      <p class="section-title">Participantes ({{ results().length }})</p>
+      <div class="table-wrapper">
+        <table mat-table [dataSource]="results()" class="results-table">
+          <ng-container matColumnDef="studentName">
+            <th mat-header-cell *matHeaderCellDef>Nombre</th>
+            <td mat-cell *matCellDef="let r">{{ r.studentName }}</td>
+          </ng-container>
+          <ng-container matColumnDef="studentClub">
+            <th mat-header-cell *matHeaderCellDef>Club</th>
+            <td mat-cell *matCellDef="let r">{{ r.studentClub ?? '—' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="score">
+            <th mat-header-cell *matHeaderCellDef>Nota</th>
+            <td mat-cell *matCellDef="let r">
+              <span class="score-badge" [class.passed]="r.passed">{{ r.score }}</span>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="passed">
+            <th mat-header-cell *matHeaderCellDef>Resultado</th>
+            <td mat-cell *matCellDef="let r">
+              <span class="result-label" [class.passed]="r.passed">
+                <mat-icon>{{ r.passed ? 'check_circle' : 'cancel' }}</mat-icon>
+                {{ r.passed ? 'Aprobado' : 'Suspenso' }}
+              </span>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="time">
+            <th mat-header-cell *matHeaderCellDef>Tiempo</th>
+            <td mat-cell *matCellDef="let r">{{ formatDuration(r.timeSpentSeconds) }}</td>
+          </ng-container>
+          <ng-container matColumnDef="date">
+            <th mat-header-cell *matHeaderCellDef>Fecha</th>
+            <td mat-cell *matCellDef="let r">{{ r.completedAt | date:'dd/MM/yy HH:mm' }}</td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="columns"></tr>
+          <tr mat-row *matRowDef="let row; columns: columns;"></tr>
+        </table>
+      </div>
+    }
+  }
+</div>

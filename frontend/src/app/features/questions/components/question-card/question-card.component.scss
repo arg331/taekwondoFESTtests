@@ -1,0 +1,30 @@
+.question-card {
+  transition: box-shadow 0.2s;
+  &:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+}
+.question-header {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px;
+  .question-text { margin: 0; font-size: 1rem; font-weight: 500; flex: 1; line-height: 1.4; }
+  .question-actions { display: flex; gap: 4px; flex-shrink: 0; }
+}
+.options-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.option-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 8px; border-radius: 4px; font-size: 0.9rem; color: #555;
+  .option-icon { font-size: 18px; height: 18px; width: 18px; color: #999; }
+  &.correct {
+    background: #e8f5e9; color: #2e7d32; font-weight: 500;
+    .option-icon { color: #4caf50; }
+  }
+}
+.explanation {
+  display: flex; align-items: flex-start; gap: 6px; margin: 8px 0; padding: 8px 12px;
+  background: #fff8e1; border-radius: 4px; font-size: 0.85rem; color: #666;
+  mat-icon { font-size: 16px; height: 16px; width: 16px; color: #ff9800; flex-shrink: 0; margin-top: 2px; }
+}
+.question-footer { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.difficulty-badge {
+  color: white; padding: 2px 10px; border-radius: 12px;
+  font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+}
+.tag-chip-small { color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 500; }

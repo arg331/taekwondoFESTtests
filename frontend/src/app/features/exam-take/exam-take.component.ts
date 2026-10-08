@@ -1,151 +1,130 @@
-import { Component, inject, signal, computed, OnInit, OnDestroy } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { FormBuilder, Validators, ReactiveFormsModule } from '@angular/forms';
+import { Component, inject, signal, computed, OnInit, OnDestroy, input } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatRadioModule } from '@angular/material/radio';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatDividerModule } from '@angular/material/divider';
-import { MatChipsModule } from '@angular/material/chips';
 import { ExamService } from '../../core/services/exam.service';
+import { ResultService } from '../../core/services/result.service';
+import { AuthService } from '../../core/services/auth.service';
 import { ExamResponse, PublicQuestionResponse } from '../../core/models/exam.models';
 import { ResultResponse } from '../../core/models/result.models';
+import { ExamAccessCardComponent, StudentInfo } from './components/exam-access-card/exam-access-card.component';
+import { ExamResultCardComponent } from './components/exam-result-card/exam-result-card.component';
 
 type Phase = 'loading' | 'error' | 'access' | 'exam' | 'result';
 
+const OPTION_LETTERS = ['A', 'B', 'C', 'D'];
+
+/**
+ * Flujo del alumno desde el QR: portada → preguntas → resultado.
+ * El servidor baraja preguntas/opciones y controla el tiempo con el token del intento.
+ */
 @Component({
   selector: 'app-exam-take',
-  standalone: true,
   imports: [
-    CommonModule,
-    ReactiveFormsModule,
     RouterLink,
     MatCardModule,
     MatButtonModule,
     MatIconModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatRadioModule,
     MatProgressSpinnerModule,
-    MatDividerModule,
-    MatChipsModule
+    ExamAccessCardComponent,
+    ExamResultCardComponent
   ],
   templateUrl: './exam-take.component.html',
   styleUrl: './exam-take.component.scss'
 })
 export class ExamTakeComponent implements OnInit, OnDestroy {
-  private route      = inject(ActivatedRoute);
-  private router     = inject(Router);
-  private examSvc    = inject(ExamService);
-  private fb         = inject(FormBuilder);
+  private examSvc   = inject(ExamService);
+  private resultSvc = inject(ResultService);
+  private auth      = inject(AuthService);
 
-  // ── Estado general ────────────────────────────────
-  phase      = signal<Phase>('loading');
-  errorMsg   = signal('');
-  code       = signal('');
-  exam       = signal<ExamResponse | null>(null);
-  questions  = signal<PublicQuestionResponse[]>([]);
-  result     = signal<ResultResponse | null>(null);
+  /** Parámetro de ruta :code. */
+  code = input.required<string>();
 
-  // ── Fase acceso ───────────────────────────────────
-  accessForm = this.fb.group({
-    studentName:  ['', [Validators.required, Validators.minLength(2)]],
-    studentClub:  [''],
-    studentEmail: ['', Validators.email]
-  });
+  readonly letters = OPTION_LETTERS;
+  user = this.auth.currentUser;
 
-  // ── Fase examen ───────────────────────────────────
-  currentIndex  = signal(0);
-  answers       = signal<Record<number, number>>({});  // questionId -> chosenOption
-  submitting    = signal(false);
-  startTime     = 0;
+  phase       = signal<Phase>('loading');
+  errorMsg    = signal('');
+  exam        = signal<ExamResponse | null>(null);
+  questions   = signal<PublicQuestionResponse[]>([]);
+  result      = signal<ResultResponse | null>(null);
+  starting    = signal(false);
+  submitting  = signal(false);
+  submitError = signal<string | null>(null);
 
-  // Temporizador
-  timeLeft      = signal(0);
+  private student: StudentInfo | null = null;
+  private attemptToken = '';
+
+  currentIndex = signal(0);
+  /** questionId → índice original de la opción elegida. */
+  answers      = signal<Record<number, number>>({});
+
+  timeLeft = signal(0);
+  private deadline = 0;
   private timerInterval: ReturnType<typeof setInterval> | null = null;
 
   currentQuestion = computed(() => this.questions()[this.currentIndex()]);
+  answeredCount   = computed(() => Object.keys(this.answers()).length);
   progress        = computed(() => {
     const total = this.questions().length;
-    return total ? Math.round((Object.keys(this.answers()).length / total) * 100) : 0;
+    return total ? Math.round((this.answeredCount() / total) * 100) : 0;
   });
-  answeredCount   = computed(() => Object.keys(this.answers()).length);
-  hasAnswer       = computed(() =>
-    this.currentQuestion() !== undefined &&
-    this.answers()[this.currentQuestion().id] !== undefined
-  );
   allAnswered     = computed(() =>
-    this.questions().length > 0 &&
-    Object.keys(this.answers()).length === this.questions().length
-  );
-
-  // ── Fase resultado ────────────────────────────────
-  get passedLabel(): string {
-    return this.result()?.passed ? 'APROBADO' : 'SUSPENSO';
-  }
-  get passedColor(): string {
-    return this.result()?.passed ? '#4caf50' : '#f44336';
-  }
+    this.questions().length > 0 && this.answeredCount() === this.questions().length);
+  timerDisplay    = computed(() => {
+    const t = this.timeLeft();
+    return `${Math.floor(t / 60).toString().padStart(2, '0')}:${(t % 60).toString().padStart(2, '0')}`;
+  });
+  timerWarning    = computed(() => this.timeLeft() > 0 && this.timeLeft() <= 60);
 
   ngOnInit(): void {
-    const c = this.route.snapshot.paramMap.get('code') ?? '';
-    this.code.set(c);
-    this.loadExam(c);
+    this.examSvc.getByCode(this.code()).subscribe({
+      next: exam => {
+        this.exam.set(exam);
+        this.phase.set('access');
+      },
+      error: err => this.fail(err?.error?.message ?? 'Examen no encontrado o no disponible.')
+    });
   }
 
   ngOnDestroy(): void {
     this.clearTimer();
   }
 
-  private loadExam(code: string): void {
-    this.phase.set('loading');
-    this.examSvc.getByCode(code).subscribe({
-      next: exam => {
-        this.exam.set(exam);
-        this.phase.set('access');
-      },
-      error: err => {
-        this.errorMsg.set(err.error?.message ?? 'Examen no encontrado o no disponible.');
-        this.phase.set('error');
-      }
-    });
-  }
-
-  // ── Acciones fase acceso ──────────────────────────
-  startExam(): void {
-    if (this.accessForm.invalid) return;
-    this.phase.set('loading');
-    this.examSvc.getQuestionsByCode(this.code()).subscribe({
-      next: qs => {
-        // Aleatorizar si el examen lo requiere
-        const shuffled = this.exam()!.config.randomizeQuestionOrder
-          ? [...qs].sort(() => Math.random() - 0.5)
-          : qs;
-        this.questions.set(shuffled);
+  // ── Portada ───────────────────────────────────────
+  startExam(student: StudentInfo): void {
+    this.student = student;
+    this.starting.set(true);
+    this.examSvc.startAttempt(this.code()).subscribe({
+      next: attempt => {
+        this.attemptToken = attempt.attemptToken;
+        this.questions.set(attempt.questions);
         this.answers.set({});
         this.currentIndex.set(0);
-        this.startTime = Date.now();
-        this.initTimer();
+        this.starting.set(false);
+        this.startTimer();
         this.phase.set('exam');
       },
-      error: () => {
-        this.errorMsg.set('Error al cargar las preguntas.');
-        this.phase.set('error');
+      error: err => {
+        this.starting.set(false);
+        this.fail(err?.error?.message ?? 'Error al cargar las preguntas.');
       }
     });
   }
 
-  // ── Acciones fase examen ──────────────────────────
+  // ── Examen ────────────────────────────────────────
   selectAnswer(questionId: number, optionIndex: number): void {
     this.answers.update(a => ({ ...a, [questionId]: optionIndex }));
   }
 
-  getAnswer(questionId: number): number | undefined {
-    return this.answers()[questionId];
+  isChosen(questionId: number, optionIndex: number): boolean {
+    return this.answers()[questionId] === optionIndex;
+  }
+
+  isAnswered(questionId: number): boolean {
+    return this.answers()[questionId] !== undefined;
   }
 
   goTo(index: number): void {
@@ -154,55 +133,59 @@ export class ExamTakeComponent implements OnInit, OnDestroy {
     }
   }
 
-  submitExam(): void {
-    if (this.submitting()) return;
-    if (!confirm('¿Enviar el examen? No podrás modificar las respuestas.')) return;
+  /** Envío manual: pide confirmación. Al agotarse el tiempo se envía sin preguntar. */
+  confirmSubmit(): void {
+    const pending = this.questions().length - this.answeredCount();
+    const message = pending > 0
+      ? `Tienes ${pending} pregunta(s) sin responder. ¿Enviar el examen igualmente?`
+      : '¿Enviar el examen? No podrás modificar las respuestas.';
+    if (confirm(message)) this.submit();
+  }
+
+  private submit(): void {
+    if (this.submitting() || !this.student) return;
     this.submitting.set(true);
-    this.clearTimer();
+    this.submitError.set(null);
 
-    const timeSpent = Math.round((Date.now() - this.startTime) / 1000);
-    const v = this.accessForm.value as any;
-
-    const answersPayload = this.questions().map(q => ({
-      questionId: q.id,
-      chosenOption: this.answers()[q.id] ?? 0
-    }));
-
-    this.examSvc.submitExam({
+    this.resultSvc.submit({
       examCode: this.code(),
-      studentName: v.studentName,
-      studentClub: v.studentClub || null,
-      studentEmail: v.studentEmail || null,
-      answers: answersPayload,
-      timeSpentSeconds: timeSpent
+      attemptToken: this.attemptToken,
+      ...this.student,
+      answers: this.questions().map(q => ({
+        questionId: q.id,
+        chosenOption: this.answers()[q.id] ?? null
+      }))
     }).subscribe({
       next: result => {
+        this.clearTimer();
         this.result.set(result);
-        this.phase.set('result');
         this.submitting.set(false);
+        this.phase.set('result');
       },
       error: err => {
-        this.errorMsg.set(err.error?.message ?? 'Error al enviar el examen.');
         this.submitting.set(false);
+        this.submitError.set(err?.error?.message ?? 'Error al enviar el examen. Inténtalo de nuevo.');
       }
     });
   }
 
   // ── Temporizador ──────────────────────────────────
-  private initTimer(): void {
+  private startTimer(): void {
     const limit = this.exam()!.config.timeLimitMinutes;
     if (!limit) return;
-    this.timeLeft.set(limit * 60);
-    this.timerInterval = setInterval(() => {
-      const left = this.timeLeft() - 1;
-      if (left <= 0) {
-        this.timeLeft.set(0);
-        this.clearTimer();
-        this.submitExam();
-      } else {
-        this.timeLeft.set(left);
-      }
-    }, 1000);
+    // Se calcula contra una hora fija para no acumular desfase si la pestaña se ralentiza
+    this.deadline = Date.now() + limit * 60_000;
+    this.tick();
+    this.timerInterval = setInterval(() => this.tick(), 1000);
+  }
+
+  private tick(): void {
+    const left = Math.max(0, Math.ceil((this.deadline - Date.now()) / 1000));
+    this.timeLeft.set(left);
+    if (left === 0) {
+      this.clearTimer();
+      this.submit();
+    }
   }
 
   private clearTimer(): void {
@@ -212,14 +195,8 @@ export class ExamTakeComponent implements OnInit, OnDestroy {
     }
   }
 
-  get timerDisplay(): string {
-    const t = this.timeLeft();
-    const m = Math.floor(t / 60).toString().padStart(2, '0');
-    const s = (t % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
-  }
-
-  get timerWarning(): boolean {
-    return this.timeLeft() > 0 && this.timeLeft() <= 60;
+  private fail(message: string): void {
+    this.errorMsg.set(message);
+    this.phase.set('error');
   }
 }

@@ -1,0 +1,31 @@
+@if (questions().length === 0) {
+  <p class="hint">No tienes preguntas en tu banco todavía.</p>
+} @else {
+  <div class="picker-filters">
+    <mat-form-field appearance="outline" class="picker-search">
+      <mat-label>Buscar</mat-label>
+      <input matInput [value]="search()" (input)="search.set($any($event.target).value)" placeholder="Texto..." />
+      <mat-icon matPrefix>search</mat-icon>
+    </mat-form-field>
+    <mat-form-field appearance="outline" class="picker-diff">
+      <mat-label>Dificultad</mat-label>
+      <mat-select [value]="difficulty()" (selectionChange)="difficulty.set($event.value)">
+        <mat-option value="">Todas</mat-option>
+        @for (d of difficulties; track d) {
+          <mat-option [value]="d">{{ diffLabel[d] }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </div>
+  <p class="hint">{{ filtered().length }} de {{ questions().length }} preguntas</p>
+  <div class="questions-picker">
+    @for (q of filtered(); track q.id) {
+      <div class="question-pick-row" [class.picked]="isSelected(q.id)" (click)="toggle(q.id)">
+        <mat-icon>{{ isSelected(q.id) ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+        <span class="question-pick-text">{{ q.text }}</span>
+      </div>
+    } @empty {
+      <p class="hint empty">Sin resultados.</p>
+    }
+  </div>
+}

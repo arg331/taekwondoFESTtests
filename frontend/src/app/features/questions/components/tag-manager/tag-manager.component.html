@@ -1,0 +1,51 @@
+<mat-expansion-panel class="tags-panel">
+  <mat-expansion-panel-header>
+    <mat-panel-title>
+      <mat-icon class="title-icon">label</mat-icon>
+      Gestión de tags ({{ tags().length }})
+    </mat-panel-title>
+    <mat-panel-description>Crear y renombrar etiquetas para clasificar preguntas</mat-panel-description>
+  </mat-expansion-panel-header>
+
+  <div class="tags-content">
+    @if (showForm()) {
+      <form [formGroup]="form" class="tag-form-inline" (ngSubmit)="save()">
+        <mat-form-field appearance="outline" class="tag-name-field">
+          <mat-label>Nombre del tag</mat-label>
+          <input matInput formControlName="name" />
+        </mat-form-field>
+        @if (!editingId()) {
+          <mat-form-field appearance="outline" class="tag-color-field">
+            <mat-label>Color</mat-label>
+            <input matInput type="color" formControlName="color" />
+          </mat-form-field>
+        }
+        <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || saving()">
+          {{ editingId() ? 'Renombrar' : 'Crear' }}
+        </button>
+        <button mat-button type="button" (click)="cancel()">Cancelar</button>
+      </form>
+      @if (error()) {
+        <p class="hint-warn">{{ error() }}</p>
+      }
+    } @else {
+      <button mat-stroked-button color="primary" class="new-btn" (click)="openCreate()">
+        <mat-icon>add</mat-icon>
+        Nuevo tag
+      </button>
+    }
+
+    <div class="tags-list">
+      @for (tag of tags(); track tag.id) {
+        <div class="tag-item">
+          <span class="tag-chip" [style.background]="tag.color">{{ tag.name }}</span>
+          <button mat-icon-button (click)="openEdit(tag)" matTooltip="Renombrar">
+            <mat-icon>edit</mat-icon>
+          </button>
+        </div>
+      } @empty {
+        <p class="hint">No hay tags todavía. Créalos para clasificar las preguntas.</p>
+      }
+    </div>
+  </div>
+</mat-expansion-panel>

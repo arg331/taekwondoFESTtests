@@ -10,7 +10,7 @@ import { MatDividerModule } from '@angular/material/divider';
 import { AuthService } from '../../core/services/auth.service';
 import { ExamService } from '../../core/services/exam.service';
 import { ScraperService } from '../../core/services/scraper.service';
-import { ExamResponse } from '../../core/models/exam.models';
+import { EXAM_STATUS_LABEL, ExamResponse, ExamStatus } from '../../core/models/exam.models';
 import { CursoArbitrajeResponse } from '../../core/models/scraper.models';
 
 @Component({
@@ -67,12 +67,12 @@ export class DashboardComponent implements OnInit {
     }
   }
 
-  getStatusColor(status: string): string {
-    return { DRAFT: 'accent', PUBLISHED: 'primary', EXPIRED: 'warn' }[status] ?? 'primary';
+  getStatusColor(status: ExamStatus): string {
+    return { DRAFT: 'accent', PUBLISHED: 'primary', EXPIRED: 'warn' }[status];
   }
 
-  getStatusLabel(status: string): string {
-    return { DRAFT: 'Borrador', PUBLISHED: 'Publicado', EXPIRED: 'Expirado' }[status] ?? status;
+  getStatusLabel(status: ExamStatus): string {
+    return EXAM_STATUS_LABEL[status];
   }
 
   goToExam(id: number): void {

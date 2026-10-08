@@ -1,0 +1,44 @@
+@if (loading()) {
+  <div class="empty"><mat-spinner diameter="40" /></div>
+} @else if (attempts().length === 0) {
+  <div class="empty">
+    <mat-icon>assignment_late</mat-icon>
+    <p>Todavía no has realizado ningún examen.</p>
+  </div>
+} @else {
+  <div class="table-wrapper">
+    <table mat-table [dataSource]="attempts()" class="results-table">
+      <ng-container matColumnDef="exam">
+        <th mat-header-cell *matHeaderCellDef>Examen</th>
+        <td mat-cell *matCellDef="let r">{{ r.examTitle ?? 'Examen eliminado' }}</td>
+      </ng-container>
+      <ng-container matColumnDef="correct">
+        <th mat-header-cell *matHeaderCellDef>Aciertos</th>
+        <td mat-cell *matCellDef="let r">
+          @if (r.scoreVisible) { {{ r.correctAnswers }}/{{ r.totalQuestions }} } @else { — }
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="score">
+        <th mat-header-cell *matHeaderCellDef>Nota</th>
+        <td mat-cell *matCellDef="let r">
+          @if (r.scoreVisible) {
+            <span class="score-badge" [class.passed]="r.passed">{{ r.score }}</span>
+            {{ r.passed ? 'Aprobado' : 'Suspenso' }}
+          } @else {
+            <span class="hidden-score">Pendiente de revisión</span>
+          }
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="time">
+        <th mat-header-cell *matHeaderCellDef>Tiempo</th>
+        <td mat-cell *matCellDef="let r">{{ formatDuration(r.timeSpentSeconds) }}</td>
+      </ng-container>
+      <ng-container matColumnDef="date">
+        <th mat-header-cell *matHeaderCellDef>Fecha</th>
+        <td mat-cell *matCellDef="let r">{{ r.completedAt | date:'dd/MM/yy HH:mm' }}</td>
+      </ng-container>
+      <tr mat-header-row *matHeaderRowDef="columns"></tr>
+      <tr mat-row *matRowDef="let row; columns: columns;"></tr>
+    </table>
+  </div>
+}

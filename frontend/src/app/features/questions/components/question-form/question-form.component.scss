@@ -1,0 +1,11 @@
+.form-card { border-left: 4px solid #C62828; }
+.full-width { width: 100%; }
+.section-label { font-weight: 500; color: #444; margin: 8px 0 4px; }
+.hint { font-size: 0.8rem; color: #999; margin: 0 0 12px; }
+.hint-warn { font-size: 0.8rem; color: #f44336; margin: 0 0 8px; }
+.options-grid { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
+.option-row {
+  display: flex; align-items: center; gap: 8px;
+  .option-field { flex: 1; }
+}
+.row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 8px; }

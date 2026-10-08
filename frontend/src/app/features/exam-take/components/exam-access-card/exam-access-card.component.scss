@@ -1,0 +1,14 @@
+:host { display: block; width: 100%; max-width: 480px; }
+
+.access-card { border-top: 4px solid #C62828; }
+.brand-header {
+  display: flex; align-items: center; gap: 8px; padding: 16px 16px 0;
+  .brand-icon { font-size: 1.5rem; }
+  .brand-name { font-weight: 700; color: #C62828; font-size: 1rem; }
+}
+.access-intro {
+  color: #666; margin: 8px 0 16px; font-size: 0.9rem;
+  display: flex; align-items: center; gap: 6px;
+}
+.inline-icon { font-size: 18px; height: 18px; width: 18px; }
+.full-width { width: 100%; margin-bottom: 4px; }

@@ -1,6 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, Validators, ReactiveFormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -31,6 +31,7 @@ export class LoginComponent {
   private fb     = inject(FormBuilder);
   private auth   = inject(AuthService);
   private router = inject(Router);
+  private route  = inject(ActivatedRoute);
 
   loading  = signal(false);
   error    = signal<string | null>(null);
@@ -48,7 +49,7 @@ export class LoginComponent {
     this.error.set(null);
 
     this.auth.login(this.form.value as any).subscribe({
-      next: () => this.router.navigate(['/dashboard']),
+      next: () => this.router.navigateByUrl(this.returnUrl()),
       error: (err) => {
         this.error.set(
           err.status === 401
@@ -58,5 +59,11 @@ export class LoginComponent {
         this.loading.set(false);
       }
     });
+  }
+
+  /** Vuelve a la página que pidió el login (p. ej. un examen); solo rutas internas. */
+  private returnUrl(): string {
+    const url = this.route.snapshot.queryParamMap.get('returnUrl');
+    return url && url.startsWith('/') && !url.startsWith('//') ? url : '/dashboard';
   }
 }

@@ -1,0 +1,59 @@
+<mat-card class="result-card">
+  <div class="brand-header">
+    <span class="brand-icon">🥋</span>
+    <span class="brand-name">FEST Taekwondo</span>
+  </div>
+
+  @if (result().scoreVisible) {
+    <div class="score-circle" [style.border-color]="passedColor()">
+      <span class="score-value">{{ result().score }}</span>
+      <span class="score-label">/ 100</span>
+    </div>
+    <div class="passed-badge" [style.background]="passedColor()">
+      {{ result().passed ? 'APROBADO' : 'SUSPENSO' }}
+    </div>
+    <div class="result-stats">
+      <div class="stat">
+        <span class="stat-value">{{ result().correctAnswers }}</span>
+        <span class="stat-label">Correctas</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">{{ result().totalQuestions - (result().correctAnswers ?? 0) }}</span>
+        <span class="stat-label">Incorrectas</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">{{ result().totalQuestions }}</span>
+        <span class="stat-label">Total</span>
+      </div>
+    </div>
+    <mat-divider />
+    <div class="answers-detail">
+      <p class="detail-title">Detalle de respuestas</p>
+      @for (row of rows(); track row.number) {
+        <div class="answer-row" [class.answer-correct]="row.correct" [class.answer-wrong]="!row.correct">
+          <mat-icon>{{ row.correct ? 'check_circle' : 'cancel' }}</mat-icon>
+          <div class="answer-body">
+            <span class="answer-label">{{ row.number }}. {{ row.text }}</span>
+            <span class="answer-chosen">Tu respuesta: {{ row.chosen ?? 'Sin responder' }}</span>
+            @if (!row.correct) {
+              <span class="answer-correct-label">Correcta: {{ row.correctOption }}</span>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  } @else {
+    <div class="no-score">
+      <mat-icon class="done-icon">check_circle</mat-icon>
+      <h2>Examen completado</h2>
+      <p>El profesor revisará tu resultado.</p>
+    </div>
+  }
+
+  <mat-card-actions align="end">
+    <a mat-flat-button color="primary" routerLink="/dashboard">
+      <mat-icon>home</mat-icon>
+      Ir al inicio
+    </a>
+  </mat-card-actions>
+</mat-card>

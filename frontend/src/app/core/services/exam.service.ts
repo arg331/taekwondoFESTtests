@@ -4,53 +4,35 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
   ExamResponse,
-  CreateExamDraftRequest,
-  PreGenerateExamDraftRequest,
+  ExamDraftRequest,
+  ExamConfig,
   PublishExamRequest,
   RenameExamRequest,
-  ChangeExamConfigRequest,
   UpdateExamQuestionsRequest,
   ChangeExamVisibilityRequest,
-  ExtendExamExpirationRequest,
-  ReopenExamRequest,
-  PublicQuestionResponse
+  ExpirationRequest,
+  ExamAttemptResponse
 } from '../models/exam.models';
-import { ResultResponse, SubmitExamRequest } from '../models/result.models';
 
 @Injectable({ providedIn: 'root' })
 export class ExamService {
   private http = inject(HttpClient);
   private api = `${environment.apiUrl}/exams`;
 
+  // ── Profesor ──────────────────────────────────────
   getMine(): Observable<ExamResponse[]> {
     return this.http.get<ExamResponse[]>(`${this.api}/mine`);
-  }
-
-  getPublic(): Observable<ExamResponse[]> {
-    return this.http.get<ExamResponse[]>(`${this.api}/public`);
   }
 
   getById(id: number): Observable<ExamResponse> {
     return this.http.get<ExamResponse>(`${this.api}/${id}`);
   }
 
-  getByCode(code: string): Observable<ExamResponse> {
-    return this.http.get<ExamResponse>(`${this.api}/by-code/${code}`);
-  }
-
-  getQuestionsByCode(code: string): Observable<PublicQuestionResponse[]> {
-    return this.http.get<PublicQuestionResponse[]>(`${this.api}/by-code/${code}/questions`);
-  }
-
-  getFavorites(): Observable<ExamResponse[]> {
-    return this.http.get<ExamResponse[]>(`${environment.apiUrl}/favorites`);
-  }
-
-  createDraft(request: CreateExamDraftRequest): Observable<ExamResponse> {
+  createDraft(request: ExamDraftRequest): Observable<ExamResponse> {
     return this.http.post<ExamResponse>(`${this.api}/drafts`, request);
   }
 
-  preGenerate(request: PreGenerateExamDraftRequest): Observable<ExamResponse> {
+  preGenerate(request: ExamDraftRequest): Observable<ExamResponse> {
     return this.http.post<ExamResponse>(`${this.api}/drafts/pre-generated`, request);
   }
 
@@ -58,7 +40,7 @@ export class ExamService {
     return this.http.patch<ExamResponse>(`${this.api}/${id}/title`, request);
   }
 
-  changeConfig(id: number, request: ChangeExamConfigRequest): Observable<ExamResponse> {
+  changeConfig(id: number, request: ExamConfig): Observable<ExamResponse> {
     return this.http.patch<ExamResponse>(`${this.api}/${id}/config`, request);
   }
 
@@ -78,16 +60,21 @@ export class ExamService {
     return this.http.post<ExamResponse>(`${this.api}/${id}/close`, {});
   }
 
-  reopen(id: number, request: ReopenExamRequest): Observable<ExamResponse> {
+  reopen(id: number, request: ExpirationRequest): Observable<ExamResponse> {
     return this.http.post<ExamResponse>(`${this.api}/${id}/reopen`, request);
   }
 
-  extendExpiration(id: number, request: ExtendExamExpirationRequest): Observable<ExamResponse> {
+  changeExpiration(id: number, request: ExpirationRequest): Observable<ExamResponse> {
     return this.http.patch<ExamResponse>(`${this.api}/${id}/expiration`, request);
   }
 
   deleteDraft(id: number): Observable<void> {
     return this.http.delete<void>(`${this.api}/${id}`);
+  }
+
+  // ── Favoritos ─────────────────────────────────────
+  getFavorites(): Observable<ExamResponse[]> {
+    return this.http.get<ExamResponse[]>(`${environment.apiUrl}/favorites`);
   }
 
   favorite(id: number): Observable<void> {
@@ -98,7 +85,18 @@ export class ExamService {
     return this.http.delete<void>(`${this.api}/${id}/favorite`);
   }
 
-  submitExam(request: SubmitExamRequest): Observable<ResultResponse> {
-    return this.http.post<ResultResponse>(`${environment.apiUrl}/results`, request);
+  // ── Cualquier usuario con sesión ──────────────────
+  getPublic(): Observable<ExamResponse[]> {
+    return this.http.get<ExamResponse[]>(`${this.api}/public`);
+  }
+
+  // ── Alumno (público) ──────────────────────────────
+  getByCode(code: string): Observable<ExamResponse> {
+    return this.http.get<ExamResponse>(`${this.api}/by-code/${encodeURIComponent(code)}`);
+  }
+
+  /** Empieza un intento: preguntas sin solución + token con la hora de inicio. */
+  startAttempt(code: string): Observable<ExamAttemptResponse> {
+    return this.http.post<ExamAttemptResponse>(`${this.api}/by-code/${encodeURIComponent(code)}/attempts`, {});
   }
 }

@@ -1,0 +1,23 @@
+@for (exam of exams(); track exam.id) {
+  <mat-card class="exam-card" [class.selected]="selectedId() === exam.id" (click)="selected.emit(exam)">
+    <mat-card-content>
+      <div class="exam-card-header">
+        <mat-icon [style.color]="statusColor[exam.status]">{{ statusIcon[exam.status] }}</mat-icon>
+        <div class="exam-card-info">
+          <p class="exam-title">{{ exam.title }}</p>
+          <p class="exam-meta">
+            {{ exam.config.numberOfQuestions }} preguntas
+            @if (exam.config.timeLimitMinutes) { · {{ exam.config.timeLimitMinutes }} min }
+          </p>
+        </div>
+        @if (exam.status !== 'DRAFT') {
+          <mat-icon class="visibility-icon" [class.public]="exam.visibility === 'PUBLIC'"
+                    [matTooltip]="exam.visibility === 'PUBLIC' ? 'Público' : 'Privado'">
+            {{ exam.visibility === 'PUBLIC' ? 'public' : 'lock' }}
+          </mat-icon>
+        }
+      </div>
+      @if (exam.code) { <p class="exam-code">{{ exam.code }}</p> }
+    </mat-card-content>
+  </mat-card>
+}

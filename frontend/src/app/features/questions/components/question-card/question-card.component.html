@@ -1,0 +1,42 @@
+<mat-card class="question-card">
+  <mat-card-content>
+    <div class="question-header">
+      <p class="question-text">{{ question().text }}</p>
+      <div class="question-actions">
+        <button mat-icon-button (click)="edit.emit()" matTooltip="Editar">
+          <mat-icon>edit</mat-icon>
+        </button>
+        <button mat-icon-button color="warn" (click)="remove.emit()" matTooltip="Eliminar">
+          <mat-icon>delete</mat-icon>
+        </button>
+      </div>
+    </div>
+
+    <div class="options-list">
+      @for (opt of question().options; track $index) {
+        <div class="option-item" [class.correct]="$index === question().correctAnswer">
+          <mat-icon class="option-icon">
+            {{ $index === question().correctAnswer ? 'check_circle' : 'radio_button_unchecked' }}
+          </mat-icon>
+          <span>{{ opt }}</span>
+        </div>
+      }
+    </div>
+
+    @if (question().explanation) {
+      <p class="explanation">
+        <mat-icon>lightbulb</mat-icon>
+        {{ question().explanation }}
+      </p>
+    }
+
+    <div class="question-footer">
+      <span class="difficulty-badge" [style.background]="diffColor[question().difficulty]">
+        {{ diffLabel[question().difficulty] }}
+      </span>
+      @for (tag of question().tags; track tag.id) {
+        <span class="tag-chip-small" [style.background]="tag.color">{{ tag.name }}</span>
+      }
+    </div>
+  </mat-card-content>
+</mat-card>

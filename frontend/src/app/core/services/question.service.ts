@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { QuestionResponse, CreateQuestionRequest, EditQuestionRequest } from '../models/question.models';
+import { QuestionResponse, QuestionRequest } from '../models/question.models';
 
 @Injectable({ providedIn: 'root' })
 export class QuestionService {
@@ -24,11 +24,11 @@ export class QuestionService {
     return this.http.get<QuestionResponse[]>(`${this.api}/search`, { params });
   }
 
-  create(request: CreateQuestionRequest): Observable<QuestionResponse> {
+  create(request: QuestionRequest): Observable<QuestionResponse> {
     return this.http.post<QuestionResponse>(this.api, request);
   }
 
-  edit(id: number, request: EditQuestionRequest): Observable<QuestionResponse> {
+  edit(id: number, request: QuestionRequest): Observable<QuestionResponse> {
     return this.http.put<QuestionResponse>(`${this.api}/${id}`, request);
   }
 

@@ -1,0 +1,64 @@
+<div class="stats-row">
+  <mat-card class="stat-mini">
+    <mat-card-content>
+      <p class="stat-n">{{ stats().totalAttempts }}</p>
+      <p class="stat-l">Intentos</p>
+    </mat-card-content>
+  </mat-card>
+  <mat-card class="stat-mini">
+    <mat-card-content>
+      <p class="stat-n">{{ stats().averageScore | number:'1.0-0' }}</p>
+      <p class="stat-l">Nota media</p>
+    </mat-card-content>
+  </mat-card>
+  <mat-card class="stat-mini">
+    <mat-card-content>
+      <p class="stat-n passed">{{ stats().passedCount }}</p>
+      <p class="stat-l">Aprobados</p>
+    </mat-card-content>
+  </mat-card>
+  <mat-card class="stat-mini">
+    <mat-card-content>
+      <p class="stat-n failed">{{ stats().failedCount }}</p>
+      <p class="stat-l">Suspensos</p>
+    </mat-card-content>
+  </mat-card>
+  <mat-card class="stat-mini">
+    <mat-card-content>
+      <p class="stat-n">{{ stats().highestScore }}</p>
+      <p class="stat-l">Mejor nota</p>
+    </mat-card-content>
+  </mat-card>
+  <mat-card class="stat-mini">
+    <mat-card-content>
+      <p class="stat-n">{{ stats().lowestScore }}</p>
+      <p class="stat-l">Peor nota</p>
+    </mat-card-content>
+  </mat-card>
+</div>
+
+@if (stats().totalAttempts > 0) {
+  <div class="pie-row">
+    <svg class="pie-chart" viewBox="-1.1 -1.1 2.2 2.2" role="img"
+         [attr.aria-label]="'Aprobados ' + (passedPct() * 100 | number:'1.0-0') + '%'">
+      @switch (passedPct()) {
+        @case (1) { <circle cx="0" cy="0" r="1" class="passed-fill" /> }
+        @case (0) { <circle cx="0" cy="0" r="1" class="failed-fill" /> }
+        @default {
+          <path [attr.d]="passedPath()" class="passed-fill" />
+          <path [attr.d]="failedPath()" class="failed-fill" />
+        }
+      }
+    </svg>
+    <div class="pie-legend">
+      <div class="legend-item">
+        <span class="legend-dot passed-bg"></span>
+        Aprobados: {{ stats().passedCount }} ({{ passedPct() * 100 | number:'1.0-0' }}%)
+      </div>
+      <div class="legend-item">
+        <span class="legend-dot failed-bg"></span>
+        Suspensos: {{ stats().failedCount }} ({{ (1 - passedPct()) * 100 | number:'1.0-0' }}%)
+      </div>
+    </div>
+  </div>
+}

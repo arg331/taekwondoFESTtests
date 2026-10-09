@@ -1,0 +1,32 @@
+# Servicios de apoyo para desarrollo local.
+#
+#   docker compose up -d     arranca PostgreSQL en segundo plano
+#   docker compose stop      lo para (los datos se conservan en el volumen)
+#   docker compose down -v   lo borra TODO, datos incluidos
+#
+# Las credenciales son solo para desarrollo y coinciden con los valores por
+# defecto de backend/src/main/resources/application.properties. Se pueden
+# cambiar con un fichero .env junto a este (ver .env.example).
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: taekwondo-postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME:-taekwondo}
+      POSTGRES_USER: ${DB_USERNAME:-taekwondo}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-taekwondo}
+    ports:
+      # Solo accesible desde este equipo
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+    name: taekwondo-pgdata

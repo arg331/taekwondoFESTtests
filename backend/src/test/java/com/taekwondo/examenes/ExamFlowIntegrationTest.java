@@ -8,9 +8,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
-import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -21,6 +21,7 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -33,7 +34,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
+@Import(TestcontainersConfiguration.class)
 class ExamFlowIntegrationTest {
 
     @TestConfiguration
@@ -51,13 +52,18 @@ class ExamFlowIntegrationTest {
     String adminToken;
     String studentToken;
 
+    /**
+     * Los tests comparten base de datos, así que cada uno usa su propio alumno
+     * y crea sus propios exámenes: no dependen del orden ni de lo que dejen los demás.
+     */
     @BeforeEach
     void setUp() throws Exception {
         adminToken = login("admin", "admin123");
-        post("/api/auth/register", null, """
-                {"username":"alumno1","email":"alumno1@test.com","plainPassword":"secreto1","displayName":"Alumno Uno"}
-                """).andExpect(status().isCreated());
-        studentToken = login("alumno1", "secreto1");
+        String username = "alumno_" + UUID.randomUUID().toString().substring(0, 8);
+        post("/api/auth/register", null, json(Map.of("username", username, "email", username + "@test.com",
+                "plainPassword", "secreto1", "displayName", "Alumno Uno")))
+                .andExpect(status().isCreated());
+        studentToken = login(username, "secreto1");
     }
 
     @Test

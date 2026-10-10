@@ -9,6 +9,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../../core/services/auth.service';
+import { ExamCodeEntryComponent } from '../../../shared/components/exam-code-entry/exam-code-entry.component';
 
 @Component({
   selector: 'app-login',
@@ -22,7 +23,8 @@ import { AuthService } from '../../../core/services/auth.service';
     MatInputModule,
     MatButtonModule,
     MatIconModule,
-    MatProgressSpinnerModule
+    MatProgressSpinnerModule,
+    ExamCodeEntryComponent
   ],
   templateUrl: './login.component.html',
   styleUrl: './login.component.scss',

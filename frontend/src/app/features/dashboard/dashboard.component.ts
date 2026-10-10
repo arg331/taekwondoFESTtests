@@ -9,6 +9,7 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDividerModule } from '@angular/material/divider';
 import { AuthService } from '../../core/services/auth.service';
+import { ExamCodeEntryComponent } from '../../shared/components/exam-code-entry/exam-code-entry.component';
 import { ExamService } from '../../core/services/exam.service';
 import { ScraperService } from '../../core/services/scraper.service';
 import { EXAM_STATUS_LABEL, ExamResponse, ExamStatus } from '../../core/models/exam.models';
@@ -25,7 +26,8 @@ import { CursoArbitrajeResponse } from '../../core/models/scraper.models';
     MatIconModule,
     MatChipsModule,
     MatProgressSpinnerModule,
-    MatDividerModule
+    MatDividerModule,
+    ExamCodeEntryComponent
   ],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',

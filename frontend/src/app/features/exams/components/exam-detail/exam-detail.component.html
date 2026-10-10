@@ -74,10 +74,17 @@
 
     <!-- Código y QR -->
     @if (exam().code) {
+      @if (closedForSubmissions()) {
+        <p class="hint-warn qr-closed">
+          <mat-icon class="inline-icon">block</mat-icon>
+          Este examen no admite entregas ahora mismo: está cerrado o fuera de plazo.
+        </p>
+      }
       @if (showQr()) {
         <div class="qr-section">
           <img [src]="qrUrl()" alt="QR del examen" class="qr-image" />
           <p class="qr-code">{{ exam().code }}</p>
+          <p class="qr-url">{{ examUrl() }}</p>
           <button mat-stroked-button (click)="copy(examUrl())">
             <mat-icon>link</mat-icon>Copiar enlace
           </button>

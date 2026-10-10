@@ -102,6 +102,20 @@ describe('ExamTakeComponent', () => {
     expect(el.textContent).toContain('3 preguntas');
   });
 
+  it('un código escrito en minúsculas en la URL se busca en mayúsculas (DE-17)', async () => {
+    TestBed.configureTestingModule({
+      imports: [ExamTakeComponent],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
+    });
+    http = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(ExamTakeComponent);
+    fixture.componentRef.setInput('code', ' exm-abc ');
+    el = fixture.nativeElement;
+    await stable();
+
+    http.expectOne(`${API}/exams/by-code/EXM-ABC`).flush(exam());
+  });
+
   it('examen no disponible: muestra el mensaje del servidor', async () => {
     TestBed.configureTestingModule({
       imports: [ExamTakeComponent],

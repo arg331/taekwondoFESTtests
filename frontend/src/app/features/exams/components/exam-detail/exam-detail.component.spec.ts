@@ -127,6 +127,114 @@ describe('ExamDetailComponent', () => {
     expect(decodeURIComponent(src)).toContain(`data=${window.location.origin}/exam/EXM-1234ABCD`);
   });
 
+  describe('copiar el enlace y avisos del QR (DE-20)', () => {
+    function stubClipboard(clipboard: Partial<Clipboard> | undefined): void {
+      Object.defineProperty(navigator, 'clipboard', { value: clipboard, configurable: true });
+    }
+
+    afterEach(() => stubClipboard(undefined));
+
+    it('avisa de que el enlace se ha copiado', async () => {
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      stubClipboard({ writeText });
+      await render(exam('PUBLISHED', [1, 2]));
+
+      button('link').click();
+      await stable();
+      await stable();
+
+      expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/exam/EXM-1234ABCD`);
+      expect(document.body.textContent).toContain('Enlace copiado');
+    });
+
+    it('sin portapapeles avisa y muestra el enlace para copiarlo a mano', async () => {
+      stubClipboard(undefined);
+      await render(exam('PUBLISHED', [1, 2]));
+
+      button('link').click();
+      await stable();
+
+      expect(document.body.textContent).toContain('No se pudo copiar el enlace');
+      expect(el.querySelector('.qr-url')?.textContent).toContain(`${window.location.origin}/exam/EXM-1234ABCD`);
+    });
+
+    it('si el portapapeles falla, también avisa', async () => {
+      stubClipboard({ writeText: vi.fn().mockRejectedValue(new Error('denegado')) });
+      await render(exam('PUBLISHED', [1, 2]));
+
+      button('link').click();
+      await stable();
+      await stable();
+
+      expect(document.body.textContent).toContain('No se pudo copiar el enlace');
+    });
+
+    it('un examen cerrado avisa junto al QR de que no admite entregas', async () => {
+      await render(exam('EXPIRED', [1, 2]));
+      button('qr_code').click();
+      await stable();
+
+      expect(el.querySelector('.qr-closed')?.textContent).toContain('no admite entregas');
+    });
+
+    it('un examen publicado y en plazo no muestra ese aviso', async () => {
+      await render(exam('PUBLISHED', [1, 2]));
+      button('qr_code').click();
+      await stable();
+
+      expect(el.querySelector('.qr-closed')).toBeNull();
+    });
+  });
+
+  describe('al cambiar a otro examen (DE-15)', () => {
+    function other(status: ExamStatus): ExamResponse {
+      return { ...exam(status, [1, 2]), id: 8, title: 'Otro examen', code: status === 'DRAFT' ? null : 'EXM-8888AAAA' };
+    }
+
+    it('cierra la edición de configuración: guardar ya no puede tocar el examen nuevo', async () => {
+      await render(exam('DRAFT'));
+      button('Editar').click();
+      await stable();
+      expect(button('Guardar cambios')).toBeTruthy();
+
+      fixture.componentRef.setInput('exam', other('DRAFT'));
+      await stable();
+
+      expect(button('Guardar cambios')).toBeUndefined();
+      expect(el.querySelector('.config-summary')).not.toBeNull();
+    });
+
+    it('oculta el QR del examen anterior', async () => {
+      await render(exam('PUBLISHED', [1, 2]));
+      button('qr_code').click();
+      await stable();
+      expect(el.querySelector('.qr-image')).not.toBeNull();
+
+      fixture.componentRef.setInput('exam', other('PUBLISHED'));
+      await stable();
+
+      expect(el.querySelector('.qr-image')).toBeNull();
+    });
+
+    it('borra el error y el plazo escrito para el examen anterior', async () => {
+      await render(exam('PUBLISHED', [1, 2]));
+      const deadline = el.querySelector('.inline-form input') as HTMLInputElement;
+      deadline.value = '2026-12-31T10:00';
+      deadline.dispatchEvent(new Event('input'));
+      button('Cambiar plazo').click();
+      http.expectOne(`${API}/exams/7/expiration`)
+        .flush({ message: 'Fecha no válida' }, { status: 400, statusText: 'Bad Request' });
+      await stable();
+      expect(el.textContent).toContain('Fecha no válida');
+
+      fixture.componentRef.setInput('exam', other('PUBLISHED'));
+      await stable();
+
+      expect(el.textContent).not.toContain('Fecha no válida');
+      expect((el.querySelector('.inline-form input') as HTMLInputElement).value).toBe('');
+    });
+  });
+
   it('un error del servidor se muestra en el panel', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     await render(exam('PUBLISHED', [1, 2]));

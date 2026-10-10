@@ -42,8 +42,8 @@ export class ExamTakeComponent implements OnInit, OnDestroy {
   private auth      = inject(AuthService);
   private readonly destroyRef = inject(DestroyRef);
 
-  /** Parámetro de ruta :code. */
-  code = input.required<string>();
+  /** Parámetro de ruta :code, en mayúsculas: los códigos se guardan así y alguien puede teclearlo en minúsculas. */
+  code = input.required<string, string>({ transform: (value: string) => value.trim().toUpperCase() });
 
   readonly letters = OPTION_LETTERS;
   user = this.auth.currentUser;

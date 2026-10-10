@@ -28,6 +28,10 @@
   padding: 16px; background: #fafafa; border-radius: 8px; margin: 12px 0;
   .qr-image { width: 200px; height: 200px; border: 1px solid #eee; border-radius: 4px; }
   .qr-code { font-family: monospace; font-size: 1.1rem; font-weight: 600; margin: 0; color: #333; }
+  .qr-url {
+    font-family: monospace; font-size: 0.8rem; color: #555; margin: 0;
+    word-break: break-all; text-align: center; user-select: all;
+  }
 }
 .code-row {
   display: flex; align-items: center; gap: 8px; margin: 12px 0;

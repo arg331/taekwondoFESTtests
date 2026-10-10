@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { NavbarComponent } from '../navbar/navbar.component';
 
@@ -18,6 +18,7 @@ import { NavbarComponent } from '../navbar/navbar.component';
       max-width: 1200px;
       margin: 0 auto;
     }
-  `]
+  `],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PrivateLayoutComponent {}

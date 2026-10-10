@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, linkedSignal, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal, output, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Observable, of, switchMap } from 'rxjs';
@@ -45,7 +45,8 @@ import { ExamQuestionPickerComponent } from '../exam-question-picker/exam-questi
     ExamQuestionPickerComponent
   ],
   templateUrl: './exam-detail.component.html',
-  styleUrl: './exam-detail.component.scss'
+  styleUrl: './exam-detail.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ExamDetailComponent {
   private fb = inject(FormBuilder);

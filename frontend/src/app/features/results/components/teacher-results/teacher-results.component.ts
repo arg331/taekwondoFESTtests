@@ -1,4 +1,5 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -27,11 +28,13 @@ import { ExamStatsComponent } from '../exam-stats/exam-stats.component';
     ExamStatsComponent
   ],
   templateUrl: './teacher-results.component.html',
-  styleUrl: './teacher-results.component.scss'
+  styleUrl: './teacher-results.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TeacherResultsComponent implements OnInit {
   private examSvc = inject(ExamService);
   private resultSvc = inject(ResultService);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly statusLabel = EXAM_STATUS_LABEL;
   readonly statusColor = EXAM_STATUS_COLOR;
@@ -48,7 +51,7 @@ export class TeacherResultsComponent implements OnInit {
   publishedExams = computed(() => this.exams().filter(e => e.status !== 'DRAFT'));
 
   ngOnInit(): void {
-    this.examSvc.getMine().subscribe({
+    this.examSvc.getMine().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: exams => { this.exams.set(exams); this.loadingExams.set(false); },
       error: () => this.loadingExams.set(false)
     });
@@ -60,10 +63,10 @@ export class TeacherResultsComponent implements OnInit {
     this.results.set([]);
     this.stats.set(null);
 
-    this.resultSvc.getByExam(exam.id).subscribe({
+    this.resultSvc.getByExam(exam.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: r => { this.results.set(r); this.loadingResults.set(false); },
       error: () => this.loadingResults.set(false)
     });
-    this.resultSvc.getStatistics(exam.id).subscribe(s => this.stats.set(s));
+    this.resultSvc.getStatistics(exam.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(s => this.stats.set(s));
   }
 }

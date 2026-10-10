@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
@@ -33,7 +33,8 @@ export interface StudentInfo {
     MatProgressSpinnerModule
   ],
   templateUrl: './exam-access-card.component.html',
-  styleUrl: './exam-access-card.component.scss'
+  styleUrl: './exam-access-card.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ExamAccessCardComponent {
   private fb = inject(FormBuilder);

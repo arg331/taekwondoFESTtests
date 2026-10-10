@@ -20,7 +20,7 @@ export const routes: Routes = [
   // Privadas con layout
   {
     path: '',
-    canActivate: [authGuard],
+    canMatch: [authGuard],
     loadComponent: () =>
       import('./shared/components/private-layout/private-layout.component')
         .then(m => m.PrivateLayoutComponent),
@@ -32,13 +32,13 @@ export const routes: Routes = [
       },
       {
         path: 'questions',
-        canActivate: [adminGuard],
+        canMatch: [adminGuard],
         loadChildren: () =>
           import('./features/questions/questions.routes').then(m => m.QUESTIONS_ROUTES)
       },
       {
         path: 'exams',
-        canActivate: [adminGuard],
+        canMatch: [adminGuard],
         loadChildren: () =>
           import('./features/exams/exams.routes').then(m => m.EXAMS_ROUTES)
       },
@@ -49,7 +49,7 @@ export const routes: Routes = [
       },
       {
         path: 'users',
-        canActivate: [adminGuard],
+        canMatch: [adminGuard],
         loadChildren: () =>
           import('./features/users/users.routes').then(m => m.USERS_ROUTES)
       }

@@ -1,4 +1,5 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal, OnInit, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -25,11 +26,13 @@ import { UserResponse } from '../../core/models/auth.models';
     MatDividerModule
   ],
   templateUrl: './users.component.html',
-  styleUrl: './users.component.scss'
+  styleUrl: './users.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class UsersComponent implements OnInit {
   private userSvc = inject(UserService);
   auth            = inject(AuthService);
+  private readonly destroyRef = inject(DestroyRef);
 
   loading = signal(true);
   users   = signal<UserResponse[]>([]);
@@ -39,7 +42,7 @@ export class UsersComponent implements OnInit {
   }
 
   load(): void {
-    this.userSvc.getAll().subscribe({
+    this.userSvc.getAll().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: u => { this.users.set(u); this.loading.set(false); },
       error: () => this.loading.set(false)
     });

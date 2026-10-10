@@ -1,4 +1,4 @@
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 import { Router } from '@angular/router';
@@ -23,17 +23,17 @@ const USER_KEY  = 'fest_user';
 @Injectable({ providedIn: 'root' })
 export class AuthService {
 
+  private readonly http = inject(HttpClient);
+  private readonly router = inject(Router);
   private readonly apiUrl = `${environment.apiUrl}/auth`;
 
   // Signal con el usuario actual (null si no autenticado)
-  private _currentUser = signal<UserResponse | null>(this.loadUserFromStorage());
+  private readonly _currentUser = signal<UserResponse | null>(this.loadUserFromStorage());
 
   // Computed públicos para los componentes
   readonly currentUser = this._currentUser.asReadonly();
   readonly isAuthenticated = computed(() => this._currentUser() !== null);
   readonly isAdmin = computed(() => this._currentUser()?.role === 'ADMIN');
-
-  constructor(private http: HttpClient, private router: Router) {}
 
   // ──────────────────────────────────────────────────
   // Endpoints públicos

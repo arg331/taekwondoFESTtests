@@ -1,4 +1,5 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal, OnInit, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -28,13 +29,15 @@ import { ExamDetailComponent } from './components/exam-detail/exam-detail.compon
     ExamDetailComponent
   ],
   templateUrl: './exams.component.html',
-  styleUrl: './exams.component.scss'
+  styleUrl: './exams.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ExamsComponent implements OnInit {
   private examSvc     = inject(ExamService);
   private questionSvc = inject(QuestionService);
   private tagSvc      = inject(TagService);
   private route       = inject(ActivatedRoute);
+  private readonly destroyRef = inject(DestroyRef);
 
   loading      = signal(true);
   exams        = signal<ExamResponse[]>([]);
@@ -44,9 +47,9 @@ export class ExamsComponent implements OnInit {
   selectedExam = signal<ExamResponse | null>(null);
 
   ngOnInit(): void {
-    this.questionSvc.getAll().subscribe(q => this.questions.set(q));
-    this.tagSvc.getAll().subscribe(t => this.tags.set(t));
-    this.examSvc.getMine().subscribe({
+    this.questionSvc.getAll().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(q => this.questions.set(q));
+    this.tagSvc.getAll().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(t => this.tags.set(t));
+    this.examSvc.getMine().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: exams => {
         this.exams.set(exams);
         this.loading.set(false);

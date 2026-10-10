@@ -1,4 +1,5 @@
-import { Component, inject, signal, computed, OnInit, OnDestroy, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal, computed, OnInit, OnDestroy, input, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -32,12 +33,14 @@ const OPTION_LETTERS = ['A', 'B', 'C', 'D'];
     ExamResultCardComponent
   ],
   templateUrl: './exam-take.component.html',
-  styleUrl: './exam-take.component.scss'
+  styleUrl: './exam-take.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ExamTakeComponent implements OnInit, OnDestroy {
   private examSvc   = inject(ExamService);
   private resultSvc = inject(ResultService);
   private auth      = inject(AuthService);
+  private readonly destroyRef = inject(DestroyRef);
 
   /** Parámetro de ruta :code. */
   code = input.required<string>();
@@ -80,7 +83,7 @@ export class ExamTakeComponent implements OnInit, OnDestroy {
   timerWarning    = computed(() => this.timeLeft() > 0 && this.timeLeft() <= 60);
 
   ngOnInit(): void {
-    this.examSvc.getByCode(this.code()).subscribe({
+    this.examSvc.getByCode(this.code()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: exam => {
         this.exam.set(exam);
         this.phase.set('access');

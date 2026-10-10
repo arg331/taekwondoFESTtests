@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormBuilder, Validators, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
@@ -25,7 +25,8 @@ import { AuthService } from '../../../core/services/auth.service';
     MatProgressSpinnerModule
   ],
   templateUrl: './login.component.html',
-  styleUrl: './login.component.scss'
+  styleUrl: './login.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class LoginComponent {
   private fb     = inject(FormBuilder);
@@ -37,7 +38,7 @@ export class LoginComponent {
   error    = signal<string | null>(null);
   showPass = signal(false);
 
-  form = this.fb.group({
+  form = this.fb.nonNullable.group({
     usernameOrEmail: ['', [Validators.required]],
     plainPassword:   ['', [Validators.required, Validators.minLength(6)]]
   });
@@ -48,7 +49,7 @@ export class LoginComponent {
     this.loading.set(true);
     this.error.set(null);
 
-    this.auth.login(this.form.value as any).subscribe({
+    this.auth.login(this.form.getRawValue()).subscribe({
       next: () => this.router.navigateByUrl(this.returnUrl()),
       error: (err) => {
         this.error.set(

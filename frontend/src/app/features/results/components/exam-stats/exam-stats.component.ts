@@ -1,4 +1,4 @@
-import { Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { ExamStatisticsResponse } from '../../../../core/models/result.models';
@@ -10,7 +10,8 @@ import { ExamStatisticsResponse } from '../../../../core/models/result.models';
   selector: 'app-exam-stats',
   imports: [DecimalPipe, MatCardModule],
   templateUrl: './exam-stats.component.html',
-  styleUrl: './exam-stats.component.scss'
+  styleUrl: './exam-stats.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ExamStatsComponent {
   stats = input.required<ExamStatisticsResponse>();

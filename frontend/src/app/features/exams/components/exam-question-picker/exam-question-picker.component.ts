@@ -1,4 +1,4 @@
-import { Component, computed, input, model, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, model, signal } from '@angular/core';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
@@ -18,7 +18,8 @@ import {
   selector: 'app-exam-question-picker',
   imports: [MatFormFieldModule, MatInputModule, MatSelectModule, MatIconModule],
   templateUrl: './exam-question-picker.component.html',
-  styleUrl: './exam-question-picker.component.scss'
+  styleUrl: './exam-question-picker.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ExamQuestionPickerComponent {
   questions = input.required<QuestionResponse[]>();

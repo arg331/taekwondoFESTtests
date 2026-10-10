@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormBuilder, Validators, ReactiveFormsModule, AbstractControl, ValidationErrors } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
@@ -9,6 +9,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { AuthService } from '../../../core/services/auth.service';
+import { RegisterRequest } from '../../../core/models/auth.models';
 
 function passwordMatchValidator(control: AbstractControl): ValidationErrors | null {
   const password = control.get('plainPassword');
@@ -41,7 +42,8 @@ function passwordMatchValidator(control: AbstractControl): ValidationErrors | nu
     MatProgressSpinnerModule
   ],
   templateUrl: './register.component.html',
-  styleUrl: './register.component.scss'
+  styleUrl: './register.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class RegisterComponent {
   private fb     = inject(FormBuilder);
@@ -53,7 +55,7 @@ export class RegisterComponent {
   showPass   = signal(false);
   registered = signal(false);
 
-  form = this.fb.group({
+  form = this.fb.nonNullable.group({
     displayName:     ['', [Validators.required, Validators.minLength(2)]],
     username:        ['', [Validators.required, Validators.minLength(3), Validators.pattern(/^[a-zA-Z0-9_]+$/)]],
     email:           ['', [Validators.required, Validators.email]],
@@ -65,7 +67,8 @@ export class RegisterComponent {
     if (this.form.invalid || this.loading()) return;
     this.loading.set(true);
     this.error.set(null);
-    const { confirmPassword, ...request } = this.form.value as any;
+    const { displayName, username, email, plainPassword } = this.form.getRawValue();
+    const request: RegisterRequest = { displayName, username, email, plainPassword };
     this.auth.register(request).subscribe({
       next: () => {
         this.registered.set(true);

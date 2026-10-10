@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, linkedSignal, output, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
@@ -37,7 +37,8 @@ import { TagResponse } from '../../../../core/models/tag.models';
     MatProgressSpinnerModule
   ],
   templateUrl: './question-form.component.html',
-  styleUrl: './question-form.component.scss'
+  styleUrl: './question-form.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class QuestionFormComponent {
   private fb = inject(FormBuilder);
@@ -53,7 +54,8 @@ export class QuestionFormComponent {
   readonly minOptions = MIN_OPTIONS;
 
   saving = signal(false);
-  error = signal<string | null>(null);
+  /** Se limpia sola al cambiar de pregunta. */
+  error = linkedSignal<QuestionResponse | null, string | null>({ source: this.question, computation: () => null });
 
   form = this.fb.nonNullable.group({
     text:          ['', [Validators.required, Validators.minLength(10), Validators.maxLength(1000)]],
@@ -81,7 +83,6 @@ export class QuestionFormComponent {
     // Rellena el formulario cada vez que cambia la pregunta (o lo vacía si es nueva)
     effect(() => {
       const q = this.question();
-      this.error.set(null);
       this.form.reset({
         text: q?.text ?? '',
         options: Array.from({ length: MAX_OPTIONS }, (_, i) => q?.options[i] ?? ''),

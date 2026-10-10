@@ -1,4 +1,5 @@
-import { Component, inject, signal, computed, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal, computed, OnInit, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
@@ -27,13 +28,15 @@ import { CursoArbitrajeResponse } from '../../core/models/scraper.models';
     MatDividerModule
   ],
   templateUrl: './dashboard.component.html',
-  styleUrl: './dashboard.component.scss'
+  styleUrl: './dashboard.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class DashboardComponent implements OnInit {
   auth       = inject(AuthService);
   examSvc    = inject(ExamService);
   scraperSvc = inject(ScraperService);
   router     = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
 
   loading        = signal(false);
   exams          = signal<ExamResponse[]>([]);
@@ -49,18 +52,18 @@ export class DashboardComponent implements OnInit {
   ngOnInit(): void {
     if (this.auth.isAdmin()) {
       this.loading.set(true);
-      this.examSvc.getMine().subscribe({
+      this.examSvc.getMine().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: exams => { this.exams.set(exams); this.loading.set(false); },
         error: () => this.loading.set(false)
       });
       this.loadingCursos.set(true);
-      this.scraperSvc.getCursosArbitraje().subscribe({
+      this.scraperSvc.getCursosArbitraje().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: cursos => { this.cursos.set(cursos); this.loadingCursos.set(false); },
         error: () => this.loadingCursos.set(false)
       });
     } else {
       this.loadingPublic.set(true);
-      this.examSvc.getPublic().subscribe({
+      this.examSvc.getPublic().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: exams => { this.publicExams.set(exams); this.loadingPublic.set(false); },
         error: () => this.loadingPublic.set(false)
       });

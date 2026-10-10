@@ -1,7 +1,7 @@
 package com.taekwondo.examenes.security;
 
-import com.taekwondo.examenes.entity.User;
-import com.taekwondo.examenes.repository.UserRepository;
+import com.taekwondo.examenes.user.User;
+import com.taekwondo.examenes.user.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

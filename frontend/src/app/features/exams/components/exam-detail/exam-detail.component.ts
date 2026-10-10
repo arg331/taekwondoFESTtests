@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, linkedSignal, output, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, linkedSignal, output, resource, signal, untracked } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Observable, of, switchMap } from 'rxjs';
@@ -12,8 +12,10 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDividerModule } from '@angular/material/divider';
+import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ExamService } from '../../../../core/services/exam.service';
+import { QR_PANEL_SIZE_PX, QrCodeService } from '../../../../core/services/qr-code.service';
 import {
   EXAM_STATUS_COLOR,
   EXAM_STATUS_LABEL,
@@ -22,6 +24,7 @@ import {
 } from '../../../../core/models/exam.models';
 import { QuestionResponse } from '../../../../core/models/question.models';
 import { ExamQuestionPickerComponent } from '../exam-question-picker/exam-question-picker.component';
+import { ExamQrDialogComponent, ExamQrDialogData } from '../exam-qr-dialog/exam-qr-dialog.component';
 
 /** Cuánto se ve un aviso breve (enlace copiado, etc.). */
 const NOTICE_DURATION_MS = 3000;
@@ -56,6 +59,8 @@ export class ExamDetailComponent {
   private fb = inject(FormBuilder);
   private examSvc = inject(ExamService);
   private snackBar = inject(MatSnackBar);
+  private dialog = inject(MatDialog);
+  private qrCode = inject(QrCodeService);
 
   exam = input.required<ExamResponse>();
   questions = input<QuestionResponse[]>([]);
@@ -102,8 +107,11 @@ export class ExamDetailComponent {
     const { status, expiresAt } = this.exam();
     return status === 'EXPIRED' || (status === 'PUBLISHED' && !!expiresAt && new Date(expiresAt) <= new Date());
   });
-  qrUrl = computed(() =>
-    `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(this.examUrl())}`);
+  /** QR del panel: se genera en el navegador y solo mientras se muestra. */
+  qrImage = resource({
+    params: () => (this.showQr() ? this.examUrl() : undefined),
+    loader: ({ params: url }) => this.qrCode.toDataUrl(url, QR_PANEL_SIZE_PX)
+  });
 
   configForm = this.fb.nonNullable.group({
     title:                  ['', [Validators.required, Validators.minLength(3), Validators.maxLength(200)]],
@@ -215,6 +223,18 @@ export class ExamDetailComponent {
         this.deleted.emit(exam.id);
       },
       error: err => this.handleError(err)
+    });
+  }
+
+  /** QR grande para proyectar en el aula. */
+  project(): void {
+    const { title, code } = this.exam();
+    this.dialog.open<ExamQrDialogComponent, ExamQrDialogData>(ExamQrDialogComponent, {
+      data: { title, code: code ?? '', url: this.examUrl() },
+      width: '100vw',
+      height: '100vh',
+      maxWidth: '100vw',
+      maxHeight: '100vh'
     });
   }
 

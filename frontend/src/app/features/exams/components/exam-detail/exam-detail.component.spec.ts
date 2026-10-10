@@ -4,8 +4,11 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ExamDetailComponent } from './exam-detail.component';
 import { ExamResponse, ExamStatus } from '../../../../core/models/exam.models';
 import { QuestionResponse } from '../../../../core/models/question.models';
+import { QrCodeService } from '../../../../core/services/qr-code.service';
 
 const API = 'http://localhost:8080/api';
+/** QR falso: el data URL indica el tamaño pedido para poder comprobarlo. */
+const fakeQr = (_text: string, size: number): Promise<string> => Promise.resolve(`data:image/png;base64,QR-${size}`);
 
 function exam(status: ExamStatus, questionIds: number[] = []): ExamResponse {
   return {
@@ -30,11 +33,13 @@ describe('ExamDetailComponent', () => {
   let http: HttpTestingController;
   let el: HTMLElement;
   let changed: ExamResponse[];
+  let qr: { toDataUrl: ReturnType<typeof vi.fn> };
 
   async function render(examResponse: ExamResponse): Promise<void> {
+    qr = { toDataUrl: vi.fn(fakeQr) };
     TestBed.configureTestingModule({
       imports: [ExamDetailComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting()]
+      providers: [provideHttpClient(), provideHttpClientTesting(), { provide: QrCodeService, useValue: qr }]
     });
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(ExamDetailComponent);
@@ -118,13 +123,51 @@ describe('ExamDetailComponent', () => {
       .toEqual(['Pregunta 2', 'Pregunta 1']);
   });
 
-  it('el QR codifica el enlace completo al examen', async () => {
-    await render(exam('PUBLISHED', [1, 2]));
-    button('qr_code').click();
-    await stable();
+  describe('QR generado en el navegador (DE-14, DE-18)', () => {
+    it('codifica el enlace completo al examen sin enviarlo a ningún servicio externo', async () => {
+      await render(exam('PUBLISHED', [1, 2]));
+      button('qr_code').click();
+      await stable();
 
-    const src = (el.querySelector('.qr-image') as HTMLImageElement).src;
-    expect(decodeURIComponent(src)).toContain(`data=${window.location.origin}/exam/EXM-1234ABCD`);
+      const src = (el.querySelector('.qr-image') as HTMLImageElement).src;
+      expect(qr.toDataUrl).toHaveBeenCalledWith(`${window.location.origin}/exam/EXM-1234ABCD`, expect.any(Number));
+      expect(src).toMatch(/^data:image\/png;base64,/);
+    });
+
+    it('no genera el QR hasta que se muestra', async () => {
+      await render(exam('PUBLISHED', [1, 2]));
+
+      expect(qr.toDataUrl).not.toHaveBeenCalled();
+    });
+
+    it('si no se puede generar, lo dice', async () => {
+      await render(exam('PUBLISHED', [1, 2]));
+      qr.toDataUrl.mockRejectedValue(new Error('sin canvas'));
+      button('qr_code').click();
+      await stable();
+
+      expect(el.querySelector('.qr-image')).toBeNull();
+      expect(el.querySelector('.qr-section')?.textContent).toContain('No se pudo generar el QR');
+    });
+
+    it('«Proyectar» abre el QR grande con el título y el código', async () => {
+      await render(exam('PUBLISHED', [1, 2]));
+
+      button('Proyectar').click();
+      await stable();
+
+      const dialog = document.querySelector('app-exam-qr-dialog') as HTMLElement;
+      expect(dialog.textContent).toContain('Examen');
+      expect(dialog.textContent).toContain('EXM-1234ABCD');
+      expect(qr.toDataUrl).toHaveBeenCalledWith(`${window.location.origin}/exam/EXM-1234ABCD`, 1024);
+    });
+
+    it('un borrador no tiene QR ni botón de proyectar', async () => {
+      await render(exam('DRAFT'));
+
+      expect(button('Proyectar')).toBeUndefined();
+      expect(button('qr_code')).toBeUndefined();
+    });
   });
 
   describe('copiar el enlace y avisos del QR (DE-20)', () => {

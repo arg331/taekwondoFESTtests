@@ -25,19 +25,14 @@ public class UserService {
                 .toList();
     }
 
-    public UserResponse promote(Long userId) {
-        User user = getUser(userId);
-        user.promoteToAdmin();
-        return UserResponse.from(user);
-    }
-
-    public UserResponse demote(Long userId, Long requesterId) {
+    /** Solo el administrador cambia roles (RF-36); ver SecurityConfig. */
+    public UserResponse changeRole(Long userId, UserRole newRole, Long requesterId) {
         if (userId.equals(requesterId)) {
             // Evita que el último admin se quite el rol a sí mismo y nadie pueda gestionar la app
-            throw new BusinessRuleException("No puedes quitarte el rol de ADMIN a ti mismo");
+            throw new BusinessRuleException("No puedes cambiar tu propio rol");
         }
         User user = getUser(userId);
-        user.demoteToStudent();
+        user.changeRole(newRole);
         return UserResponse.from(user);
     }
 

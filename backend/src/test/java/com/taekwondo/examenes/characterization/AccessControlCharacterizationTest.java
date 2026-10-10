@@ -13,20 +13,25 @@ import java.util.stream.Stream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Matriz de permisos: quién puede llamar a cada endpoint (anónimo, alumno, profesor).
+ * Matriz de permisos: quién puede llamar a cada endpoint (anónimo, alumno, profesor, admin).
  * Se comprueba solo el acceso, no el resultado de negocio: los ids no existen a
- * propósito, así que un profesor recibe 4xx de negocio pero nunca 401 ni 403.
+ * propósito, así que quien tiene permiso recibe 4xx de negocio pero nunca 401 ni 403.
  */
 @DisplayName("Caracterización: control de acceso por rol")
 class AccessControlCharacterizationTest extends ApiCharacterizationTest {
 
     private static final String MISSING = "999999";
 
-    static Stream<Arguments> teacherOnlyEndpoints() {
+    /** Solo el administrador gestiona usuarios y roles (RF-36). */
+    static Stream<Arguments> adminOnlyEndpoints() {
         return Stream.of(
                 Arguments.of(HttpMethod.GET, "/api/users", null),
-                Arguments.of(HttpMethod.PATCH, "/api/users/" + MISSING + "/promote", null),
-                Arguments.of(HttpMethod.PATCH, "/api/users/" + MISSING + "/demote", null),
+                Arguments.of(HttpMethod.PATCH, "/api/users/" + MISSING + "/role", "{}"));
+    }
+
+    /** Preparar exámenes: profesor y administrador. */
+    static Stream<Arguments> teacherEndpoints() {
+        return Stream.of(
                 Arguments.of(HttpMethod.GET, "/api/tags", null),
                 Arguments.of(HttpMethod.POST, "/api/tags", "{}"),
                 Arguments.of(HttpMethod.GET, "/api/tags/" + MISSING, null),
@@ -75,28 +80,41 @@ class AccessControlCharacterizationTest extends ApiCharacterizationTest {
     }
 
     @ParameterizedTest(name = "{0} {1}")
-    @MethodSource("teacherOnlyEndpoints")
-    @DisplayName("Endpoints de profesor: anónimo 401, alumno 403, profesor pasa")
-    void teacherOnlyEndpoint_byRole_onlyTeacherGetsThrough(HttpMethod method, String url, String body) {
+    @MethodSource("adminOnlyEndpoints")
+    @DisplayName("Endpoints de administrador: anónimo 401, alumno y profesor 403, admin pasa")
+    void adminOnlyEndpoint_byRole_onlyAdminGetsThrough(HttpMethod method, String url, String body) {
         Session student = newStudent();
+        Session teacher = newTeacher();
 
-        HttpResult anonymous = send(method, url, null, body);
-        HttpResult asStudent = send(method, url, student.token(), body);
-        HttpResult asTeacher = send(method, url, adminToken(), body);
+        assertThat(send(method, url, null, body).status()).isEqualTo(401);
+        assertThat(send(method, url, student.token(), body).status()).isEqualTo(403);
+        assertThat(send(method, url, teacher.token(), body).status()).isEqualTo(403);
+        assertThat(send(method, url, adminToken(), body).status()).isNotIn(401, 403);
+    }
 
-        assertThat(anonymous.status()).isEqualTo(401);
-        assertThat(asStudent.status()).isEqualTo(403);
-        assertThat(asTeacher.status()).isNotIn(401, 403);
+    @ParameterizedTest(name = "{0} {1}")
+    @MethodSource("teacherEndpoints")
+    @DisplayName("Endpoints de profesor: anónimo 401, alumno 403, profesor y admin pasan")
+    void teacherEndpoint_byRole_teacherAndAdminGetThrough(HttpMethod method, String url, String body) {
+        Session student = newStudent();
+        Session teacher = newTeacher();
+
+        assertThat(send(method, url, null, body).status()).isEqualTo(401);
+        assertThat(send(method, url, student.token(), body).status()).isEqualTo(403);
+        assertThat(send(method, url, teacher.token(), body).status()).isNotIn(401, 403);
+        assertThat(send(method, url, adminToken(), body).status()).isNotIn(401, 403);
     }
 
     @ParameterizedTest(name = "{0} {1}")
     @MethodSource("anyUserEndpoints")
-    @DisplayName("Endpoints con sesión: anónimo 401, alumno y profesor 200")
+    @DisplayName("Endpoints con sesión: anónimo 401, alumno, profesor y admin 200")
     void anyUserEndpoint_byRole_requiresSession(HttpMethod method, String url) {
         Session student = newStudent();
+        Session teacher = newTeacher();
 
         assertThat(send(method, url, null, null).status()).isEqualTo(401);
         assertThat(send(method, url, student.token(), null).status()).isEqualTo(200);
+        assertThat(send(method, url, teacher.token(), null).status()).isEqualTo(200);
         assertThat(send(method, url, adminToken(), null).status()).isEqualTo(200);
     }
 

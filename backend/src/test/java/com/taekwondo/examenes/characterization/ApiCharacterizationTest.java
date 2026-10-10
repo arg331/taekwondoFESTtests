@@ -138,10 +138,15 @@ abstract class ApiCharacterizationTest {
         return new Session(id, username, login(username, STUDENT_PASSWORD));
     }
 
-    /** Hoy un "profesor" es un usuario con rol ADMIN: se registra y el admin lo asciende. */
+    /** Profesor (rol TEACHER): se registra como alumno y el admin le cambia el rol. */
     Session newTeacher() {
+        return newUserWithRole("TEACHER");
+    }
+
+    /** Usuario con el rol indicado: se registra como alumno y el admin le cambia el rol. */
+    Session newUserWithRole(String role) {
         Session student = newStudent();
-        patch("/api/users/" + student.id() + "/promote", adminToken(), null).expectStatus(200);
+        patch("/api/users/" + student.id() + "/role", adminToken(), obj("role", role)).expectStatus(200);
         return new Session(student.id(), student.username(), login(student.username(), STUDENT_PASSWORD));
     }
 

@@ -213,11 +213,13 @@ class ExamFlowIntegrationTest {
     }
 
     @Test
-    void adminCannotDemoteThemselves() throws Exception {
+    void adminCannotChangeOwnRole() throws Exception {
         String me = mvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + adminToken))
                 .andReturn().getResponse().getContentAsString();
         Integer adminId = JsonPath.read(me, "$.id");
-        patch("/api/users/" + adminId + "/demote", adminToken, "").andExpect(status().isConflict());
+        patch("/api/users/" + adminId + "/role", adminToken, """
+                {"role": "STUDENT"}
+                """).andExpect(status().isConflict());
     }
 
     // ───── Auxiliares ─────

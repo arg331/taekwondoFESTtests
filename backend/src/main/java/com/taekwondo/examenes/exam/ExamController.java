@@ -39,6 +39,12 @@ public class ExamController {
         return examService.preGenerateDraft(request, userId);
     }
 
+    @PostMapping("/{id}/copy")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ExamResponse copy(@PathVariable Long id, @AuthenticationPrincipal Long userId) {
+        return examService.copy(id, userId);
+    }
+
     @PatchMapping("/{id}/title")
     public ExamResponse rename(@PathVariable Long id, @Valid @RequestBody RenameExamRequest request,
                                @AuthenticationPrincipal Long userId) {

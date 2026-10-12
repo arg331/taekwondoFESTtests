@@ -363,6 +363,52 @@ class ExamLifecycleCharacterizationTest extends ApiCharacterizationTest {
                 .isEqualTo("Solo se pueden eliminar exámenes en borrador (estado actual: PUBLISHED)");
     }
 
+    // ───── Copiar ─────
+
+    @Test
+    @DisplayName("Copiar: un examen publicado se copia como borrador nuevo con su configuración y sus preguntas (RF-18)")
+    void copy_publishedExam_newDraft() {
+        Session teacher = newTeacher();
+        PublishedExam original = publishedExam(teacher.token(), 5, 20, false);
+        String title = get("/api/exams/" + original.id(), teacher.token()).expectStatus(200).read("$.title");
+
+        HttpResult copy = post("/api/exams/" + original.id() + "/copy", teacher.token(), null).expectStatus(201);
+
+        assertThat(copy.id()).isNotEqualTo(original.id());
+        assertThat((String) copy.read("$.title")).isEqualTo("Copia de " + title);
+        assertThat((String) copy.read("$.status")).isEqualTo("DRAFT");
+        assertThat((Object) copy.read("$.code")).isNull();
+        assertThat((Object) copy.read("$.expiresAt")).isNull();
+        assertThat((List<Integer>) copy.read("$.questionIds"))
+                .containsExactlyElementsOf(original.questionIds().stream().map(Long::intValue).toList());
+        assertThat((Integer) copy.read("$.config.timeLimitMinutes")).isEqualTo(20);
+        assertThat((Boolean) copy.read("$.config.showScore")).isFalse();
+    }
+
+    @Test
+    @DisplayName("Copiar: la copia se puede ampliar sin tocar el original")
+    void copy_isIndependent() {
+        Session teacher = newTeacher();
+        PublishedExam original = publishedExam(teacher.token(), 5, null, true);
+        long copyId = post("/api/exams/" + original.id() + "/copy", teacher.token(), null).expectStatus(201).id();
+        List<Long> more = createQuestions(teacher.token(), 2);
+        List<Long> extended = new java.util.ArrayList<>(original.questionIds());
+        extended.addAll(more);
+
+        setQuestions(teacher.token(), copyId, extended);
+
+        assertThat((List<?>) get("/api/exams/" + copyId, teacher.token()).read("$.questionIds")).hasSize(7);
+        assertThat((List<?>) get("/api/exams/" + original.id(), teacher.token()).read("$.questionIds")).hasSize(5);
+    }
+
+    @Test
+    @DisplayName("Copiar: un examen ajeno no se puede copiar (404)")
+    void copy_foreignExam_notFound() {
+        PublishedExam foreign = publishedExam(newTeacher().token(), 5, null, true);
+
+        post("/api/exams/" + foreign.id() + "/copy", newTeacher().token(), null).expectStatus(404);
+    }
+
     // ───── Listados ─────
 
     @Test

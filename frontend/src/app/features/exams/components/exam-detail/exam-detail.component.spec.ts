@@ -25,7 +25,7 @@ function exam(status: ExamStatus, questionIds: number[] = []): ExamResponse {
 
 function question(id: number): QuestionResponse {
   return {
-    id, text: `Pregunta ${id}`, options: ['A', 'B'], correctAnswer: 0, explanation: '', difficulty: 'FACIL',
+    id, text: `Pregunta ${id}`, options: ['A', 'B'], correctAnswer: 0, explanation: '', grade: 'BLANCO', type: null,
     tags: [], createdAt: '2026-10-08T10:00:00', updatedAt: '2026-10-08T10:00:00'
   };
 }
@@ -436,6 +436,27 @@ describe('ExamDetailComponent', () => {
 
       expect(el.textContent).not.toContain('Fecha no válida');
       expect((el.querySelector('.inline-form input') as HTMLInputElement).value).toBe('');
+    });
+  });
+
+  describe('hacer una copia (RF-18)', () => {
+    it('crea un borrador nuevo a partir del examen y se lo pasa al padre', async () => {
+      await render(exam('PUBLISHED', [1, 2]));
+      const copies: ExamResponse[] = [];
+      fixture.componentInstance.copied.subscribe(e => copies.push(e));
+
+      button('Hacer una copia').click();
+      http.expectOne(`${API}/exams/7/copy`).flush({ ...exam('DRAFT', [1, 2]), id: 8, title: 'Copia de Examen' });
+      await stable();
+
+      expect(copies.map(c => c.id)).toEqual([8]);
+      expect(document.body.textContent).toContain('Copia creada como borrador');
+    });
+
+    it('también se puede copiar un borrador', async () => {
+      await render(exam('DRAFT'));
+
+      expect(button('Hacer una copia')).toBeTruthy();
     });
   });
 

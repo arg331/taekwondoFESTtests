@@ -2,16 +2,16 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { QuestionsComponent } from './questions.component';
-import { QuestionResponse } from '../../core/models/question.models';
+import { QuestionResponse, QuestionType } from '../../core/models/question.models';
 import { TagResponse } from '../../core/models/tag.models';
 
 const API = 'http://localhost:8080/api';
 const COMBATE: TagResponse = { id: 1, name: 'Combate', color: '#C62828', createdAt: '2026-10-12T10:00:00' };
 const FORMAS: TagResponse = { id: 2, name: 'Formas', color: '#1565C0', createdAt: '2026-10-12T10:00:00' };
 
-function question(id: number, tags: TagResponse[] = []): QuestionResponse {
+function question(id: number, tags: TagResponse[] = [], type: QuestionType | null = null): QuestionResponse {
   return {
-    id, text: `Pregunta número ${id}`, options: ['Sí', 'No'], correctAnswer: 0, explanation: '', difficulty: 'FACIL',
+    id, text: `Pregunta número ${id}`, options: ['Sí', 'No'], correctAnswer: 0, explanation: '', grade: 'BLANCO', type,
     tags, createdAt: '2026-10-12T10:00:00', updatedAt: '2026-10-12T10:00:00'
   };
 }
@@ -32,7 +32,7 @@ describe('QuestionsComponent', () => {
     el = fixture.nativeElement;
     await stable();
     http.expectOne(`${API}/tags`).flush([COMBATE, FORMAS]);
-    http.expectOne(`${API}/questions`).flush([question(1, [COMBATE, FORMAS]), question(2, [FORMAS]), question(3)]);
+    http.expectOne(`${API}/questions`).flush([question(1, [COMBATE, FORMAS]), question(2, [FORMAS], 'C'), question(3)]);
     await stable();
   });
 
@@ -158,6 +158,35 @@ describe('QuestionsComponent', () => {
       await stable();
 
       expect(visibleTexts().length).toBe(3);
+    });
+  });
+
+  describe('filtro por tipo (RF-44)', () => {
+    function typeToggle(label: string): HTMLButtonElement {
+      return Array.from(el.querySelectorAll('.type-filter button')).find(b => b.textContent?.trim() === label) as HTMLButtonElement;
+    }
+
+    it('«C» deja solo las de tipo C', async () => {
+      typeToggle('C').click();
+      await stable();
+
+      expect(visibleTexts()).toEqual(['Pregunta número 2']);
+    });
+
+    it('«Sin tipo» deja las que no tienen tipo y «Limpiar filtros» lo quita', async () => {
+      typeToggle('Sin tipo').click();
+      await stable();
+      expect(visibleTexts()).toEqual(['Pregunta número 1', 'Pregunta número 3']);
+
+      clearButton().click();
+      await stable();
+      expect(visibleTexts().length).toBe(3);
+    });
+
+    it('la tarjeta muestra el grado y el tipo', () => {
+      const card = cards()[1];
+      expect(card.textContent).toContain('Blanco');
+      expect(card.textContent).toContain('Tipo C');
     });
   });
 

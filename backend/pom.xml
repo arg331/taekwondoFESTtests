@@ -30,6 +30,7 @@
         <java.version>17</java.version>
         <jjwt.version>0.12.6</jjwt.version>
         <jacoco.version>0.8.15</jacoco.version>
+        <poi.version>5.4.1</poi.version>
     </properties>
     <dependencies>
         <dependency>
@@ -57,6 +58,12 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webmvc</artifactId>
+        </dependency>
+        <!-- Exportar resultados a Excel (.xlsx) -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>${poi.version}</version>
         </dependency>
         <dependency>
             <groupId>org.postgresql</groupId>

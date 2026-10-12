@@ -81,6 +81,8 @@ export class ExamDetailComponent {
   openExamCodes = input<string[]>([]);
   changed = output<ExamResponse>();
   deleted = output<number>();
+  /** Copia creada como borrador (RF-18): el padre la añade a la lista y la abre. */
+  copied = output<ExamResponse>();
   /** Pregunta creada desde el selector: el padre la añade al banco que muestra. */
   questionCreated = output<QuestionResponse>();
 
@@ -265,6 +267,20 @@ export class ExamDetailComponent {
       next: () => {
         this.busy.set(false);
         this.deleted.emit(exam.id);
+      },
+      error: err => this.handleError(err)
+    });
+  }
+
+  /** Copia el examen, en cualquier estado, como borrador nuevo para ampliarlo (RF-18). */
+  copyExam(): void {
+    this.busy.set(true);
+    this.error.set(null);
+    this.examSvc.copy(this.exam().id).subscribe({
+      next: copy => {
+        this.busy.set(false);
+        this.copied.emit(copy);
+        this.notify('Copia creada como borrador');
       },
       error: err => this.handleError(err)
     });

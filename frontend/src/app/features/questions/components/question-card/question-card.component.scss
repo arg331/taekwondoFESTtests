@@ -44,9 +44,9 @@
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
   padding-top: 10px; margin-top: 8px; border-top: 1px solid #eee;
 }
-.difficulty-badge {
-  color: white; padding: 2px 10px; border-radius: 12px;
-  font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+.type-chip {
+  background: #37474f; color: white; padding: 2px 10px; border-radius: 12px;
+  font-size: 0.75rem; font-weight: 600; letter-spacing: 0.03em;
 }
 .tag-chip-small { color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 500; }
 

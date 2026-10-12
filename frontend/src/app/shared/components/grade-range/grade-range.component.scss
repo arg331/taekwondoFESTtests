@@ -1,0 +1,34 @@
+:host { display: block; }
+
+// La regla va justo debajo de la pista y con su mismo ancho
+.grade-slider { display: block; width: 100%; margin: 0; }
+
+.ruler {
+  position: relative;
+  height: 28px;
+  margin-top: -12px;
+}
+
+.tick {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  height: 6px;
+  background: #aaa;
+  transform: translateX(-50%);
+
+  &.whole { height: 11px; width: 2px; background: #555; }
+}
+
+.tick-label {
+  position: absolute;
+  top: 13px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.7rem;
+  color: #666;
+  white-space: nowrap;
+}
+// Los extremos no se salen del ancho de la barra
+.tick:first-child .tick-label { left: 0; transform: none; }
+.tick:last-child .tick-label { left: auto; right: 0; transform: none; }

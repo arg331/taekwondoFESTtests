@@ -1,4 +1,5 @@
-import { DIFFICULTIES, QuestionResponse } from '../../../../core/models/question.models';
+import { GRADES, QuestionResponse, QuestionTypeFilter } from '../../../../core/models/question.models';
+import { FULL_GRADE_RANGE, GradeRange } from '../../../../shared/components/grade-range/grade-range.component';
 
 /** Filtros del selector de preguntas que se recuerdan entre exámenes (la búsqueda no). */
 export interface SavedQuestionFilters {
@@ -6,8 +7,9 @@ export interface SavedQuestionFilters {
   selectedTagIds: number[];
   /** «Sin tag» marcado: suma las preguntas sin tags. */
   untaggedSelected: boolean;
-  /** Índices de DIFFICULTIES: [desde, hasta], ambos incluidos. */
-  difficultyRange: [number, number];
+  /** Índices de GRADES: [desde, hasta], ambos incluidos. */
+  gradeRange: GradeRange;
+  typeFilter: QuestionTypeFilter;
 }
 
 export interface QuestionFilters extends SavedQuestionFilters {
@@ -17,11 +19,12 @@ export interface QuestionFilters extends SavedQuestionFilters {
 export const DEFAULT_FILTERS: SavedQuestionFilters = {
   selectedTagIds: [],
   untaggedSelected: false,
-  difficultyRange: [0, DIFFICULTIES.length - 1]
+  gradeRange: FULL_GRADE_RANGE,
+  typeFilter: ''
 };
 
-// v2: los tags pasaron de «desmarcados» a «marcados»; lo guardado antes no vale
-const STORAGE_KEY = 'fest_exam_picker_filters_v2';
+// v3: la dificultad pasó a grado (RF-43) y se añadió el tipo (RF-44); lo guardado antes no vale
+const STORAGE_KEY = 'fest_exam_picker_filters_v3';
 
 /**
  * Filtro de tags del banco y del selector: sin nada marcado pasan todas; si no, las que
@@ -33,16 +36,25 @@ export function matchesTags(question: QuestionResponse, selectedTagIds: Readonly
   return question.tags.some(tag => selectedTagIds.has(tag.id));
 }
 
-/** Una pregunta se ve si cumple la búsqueda, su dificultad está en el rango y pasa el filtro de tags. */
+/** El grado de la pregunta está entre los dos extremos de la barra, ambos incluidos. */
+export function matchesGrade(question: QuestionResponse, [from, to]: GradeRange): boolean {
+  const index = GRADES.indexOf(question.grade);
+  return index >= from && index <= to;
+}
+
+/** Todas (''), las de un tipo, o las que no tienen tipo ('NONE'). */
+export function matchesType(question: QuestionResponse, filter: QuestionTypeFilter): boolean {
+  if (!filter) return true;
+  return filter === 'NONE' ? question.type === null : question.type === filter;
+}
+
+/** Una pregunta se ve si cumple la búsqueda, el grado, el tipo y el filtro de tags. */
 export function matchesFilters(question: QuestionResponse, filters: QuestionFilters): boolean {
   const text = filters.search.toLowerCase().trim();
   if (text && !question.text.toLowerCase().includes(text)) return false;
-
-  const level = DIFFICULTIES.indexOf(question.difficulty);
-  const [from, to] = filters.difficultyRange;
-  if (level < from || level > to) return false;
-
-  return matchesTags(question, new Set(filters.selectedTagIds), filters.untaggedSelected);
+  return matchesGrade(question, filters.gradeRange)
+    && matchesType(question, filters.typeFilter)
+    && matchesTags(question, new Set(filters.selectedTagIds), filters.untaggedSelected);
 }
 
 /** Cuántas preguntas tienen cada tag (id → número). */

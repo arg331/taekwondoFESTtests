@@ -12,14 +12,15 @@ public record QuestionResponse(
         List<String> options,
         int correctAnswer,
         String explanation,
-        Difficulty difficulty,
+        Grade grade,
+        QuestionType type,
         Set<TagResponse> tags,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
     public static QuestionResponse from(Question q) {
         return new QuestionResponse(q.getId(), q.getText(), List.copyOf(q.getOptions()),
-                q.getCorrectAnswer(), q.getExplanation(), q.getDifficulty(),
+                q.getCorrectAnswer(), q.getExplanation(), q.getGrade(), q.getType(),
                 q.getTags().stream().map(TagResponse::from).collect(Collectors.toSet()),
                 q.getCreatedAt(), q.getUpdatedAt());
     }

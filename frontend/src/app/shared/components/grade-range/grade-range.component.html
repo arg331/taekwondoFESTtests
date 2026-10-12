@@ -1,0 +1,15 @@
+<mat-slider class="grade-slider" min="0" [max]="max" step="1" discrete [displayWith]="gradeLabel">
+  <input matSliderStartThumb [value]="range()[0]"
+         (change)="setFrom(+$any($event.target).value)" aria-label="Grado desde" />
+  <input matSliderEndThumb [value]="range()[1]"
+         (change)="setTo(+$any($event.target).value)" aria-label="Grado hasta" />
+</mat-slider>
+<div class="ruler" aria-hidden="true">
+  @for (tick of ticks; track tick.grade) {
+    <span class="tick" [class.whole]="tick.whole" [style.left]="tick.left">
+      @if (tick.label) {
+        <span class="tick-label">{{ tick.label }}</span>
+      }
+    </span>
+  }
+</div>

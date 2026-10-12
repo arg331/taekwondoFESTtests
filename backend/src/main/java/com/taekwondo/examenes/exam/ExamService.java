@@ -86,6 +86,17 @@ public class ExamService {
         return ExamResponse.from(examRepository.save(exam));
     }
 
+    /** Copia un examen propio, en cualquier estado, como borrador nuevo para ampliarlo. */
+    public ExamResponse copy(Long examId, Long ownerId) {
+        Exam original = getOwned(examId, ownerId);
+        return ExamResponse.from(examRepository.save(original.copyAs(copyTitle(original.getTitle()))));
+    }
+
+    private static String copyTitle(String title) {
+        String copyTitle = "Copia de " + title;
+        return copyTitle.length() <= Exam.MAX_TITLE_LENGTH ? copyTitle : copyTitle.substring(0, Exam.MAX_TITLE_LENGTH);
+    }
+
     // ───── Edición ─────
 
     public ExamResponse rename(Long examId, String newTitle, Long ownerId) {

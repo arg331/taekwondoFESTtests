@@ -14,6 +14,12 @@
   mat-form-field { margin: 0; }
   .clear-filters { height: 56px; }
 }
+.filters-secondary {
+  display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px 40px; margin-bottom: 8px;
+  .grade-filter { flex: 0 1 380px; min-width: 260px; display: flex; flex-direction: column; gap: 2px; }
+  .type-filter-block { display: flex; flex-direction: column; gap: 6px; }
+}
+.type-filter { --mat-standard-button-toggle-height: 32px; font-size: 0.8rem; }
 .tag-filters {
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
   margin-top: 4px; padding-top: 8px; border-top: 1px solid #eee;
@@ -27,9 +33,11 @@
 .tags-row {
   position: relative;
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: 12px;
-  .tags-manager { flex: 1; min-width: 0; }
+  // En pantallas estrechas el selector baja debajo de «Gestión de tags»
+  .tags-manager { flex: 1 1 280px; min-width: 0; }
 }
 
 .view-switch {

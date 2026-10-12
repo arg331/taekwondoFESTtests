@@ -64,9 +64,10 @@
 </ng-template>
 
 <ng-template #badges>
-  <span class="difficulty-badge" [style.background]="diffColor[question().difficulty]">
-    {{ diffLabel[question().difficulty] }}
-  </span>
+  <app-grade-badge [grade]="question().grade" />
+  @if (question().type; as type) {
+    <span class="type-chip">{{ typeLabel[type] }}</span>
+  }
   @for (tag of question().tags; track tag.id) {
     <span class="tag-chip-small" [style.background]="tag.color">{{ tag.name }}</span>
   }

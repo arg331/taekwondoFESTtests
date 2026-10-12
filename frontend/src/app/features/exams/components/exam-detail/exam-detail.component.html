@@ -227,6 +227,10 @@
         }
       }
 
+      <button mat-stroked-button class="copy-btn" (click)="copyExam()" [disabled]="busy()">
+        <mat-icon>content_copy</mat-icon>Hacer una copia
+      </button>
+
       @if (error()) {
         <p class="hint-warn">{{ error() }}</p>
       }

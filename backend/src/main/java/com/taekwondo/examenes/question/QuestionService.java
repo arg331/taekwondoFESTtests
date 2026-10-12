@@ -88,7 +88,8 @@ public class QuestionService {
                 request.options().stream().map(String::trim).toList(),
                 request.correctAnswer(),
                 request.explanation(),
-                request.difficulty(),
+                request.grade(),
+                request.type(),
                 tagService.findOwnedTags(request.tagIds(), ownerId));
     }
 

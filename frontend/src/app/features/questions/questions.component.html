@@ -43,18 +43,25 @@
                  placeholder="Texto de la pregunta..." />
           <mat-icon matPrefix>search</mat-icon>
         </mat-form-field>
-        <mat-form-field appearance="outline" class="filter-select">
-          <mat-label>Dificultad</mat-label>
-          <mat-select [value]="filterDiff()" (selectionChange)="filterDiff.set($event.value)">
-            <mat-option value="">Todas</mat-option>
-            @for (d of difficulties; track d) {
-              <mat-option [value]="d">{{ diffLabel[d] }}</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
         <button mat-stroked-button type="button" class="clear-filters" (click)="clearFilters()" [disabled]="!hasFilters()">
           <mat-icon>filter_alt_off</mat-icon>Limpiar filtros
         </button>
+      </div>
+      <div class="filters-secondary">
+        <div class="grade-filter">
+          <span class="filter-title">Grado</span>
+          <app-grade-range [(range)]="gradeRange" />
+        </div>
+        <div class="type-filter-block">
+          <span class="filter-title">Tipo</span>
+          <mat-button-toggle-group class="type-filter" hideSingleSelectionIndicator aria-label="Filtrar por tipo"
+                                   [value]="typeFilter()" (change)="typeFilter.set($event.value)">
+            <mat-button-toggle value="">Todos</mat-button-toggle>
+            <mat-button-toggle value="C">C</mat-button-toggle>
+            <mat-button-toggle value="D">D</mat-button-toggle>
+            <mat-button-toggle value="NONE">Sin tipo</mat-button-toggle>
+          </mat-button-toggle-group>
+        </div>
       </div>
       <div class="tag-filters" role="group" aria-label="Filtrar por tags">
         <span class="filter-title">Tags</span>

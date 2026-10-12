@@ -29,11 +29,13 @@ import java.util.Set;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Exam {
 
+    public static final int MAX_TITLE_LENGTH = 200;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 200)
+    @Column(nullable = false, length = MAX_TITLE_LENGTH)
     private String title;
 
     @Column(name = "owner_id", nullable = false)
@@ -110,6 +112,18 @@ public class Exam {
     public void removeQuestion(Long questionId) {
         requireDraft("quitar preguntas");
         questionIds.remove(questionId);
+    }
+
+    /**
+     * Borrador nuevo con la misma configuración, preguntas y tags de generación (RF-18).
+     * No hereda estado, código, visibilidad ni plazo: se publica como cualquier borrador.
+     */
+    public Exam copyAs(String newTitle) {
+        ExamConfig configCopy = new ExamConfig(config.getNumberOfQuestions(), config.getTimeLimitMinutes(),
+                config.isShowScore(), config.isRandomizeOptions(), config.isRandomizeQuestionOrder());
+        Exam copy = new Exam(newTitle, ownerId, configCopy, generationTags);
+        copy.questionIds.addAll(questionIds);
+        return copy;
     }
 
     // ───── Transiciones de estado ─────

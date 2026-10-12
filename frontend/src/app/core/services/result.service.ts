@@ -21,6 +21,11 @@ export class ResultService {
     return this.http.get<ExamStatisticsResponse>(`${this.api}/exam/${examId}/statistics`);
   }
 
+  /** Excel con las entregas del examen, ordenadas por club (RF-27). */
+  exportExcel(examId: number): Observable<Blob> {
+    return this.http.get(`${this.api}/exam/${examId}/export`, { responseType: 'blob' });
+  }
+
   getMyAttempts(): Observable<ResultResponse[]> {
     return this.http.get<ResultResponse[]>(`${this.api}/me`);
   }

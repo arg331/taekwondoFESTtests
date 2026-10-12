@@ -11,16 +11,16 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { QuestionService } from '../../core/services/question.service';
 import { TagService } from '../../core/services/tag.service';
 import {
-  DIFFICULTIES,
-  DIFFICULTY_LABEL,
-  Difficulty,
+  QuestionTypeFilter,
   QuestionResponse
 } from '../../core/models/question.models';
 import { TagResponse } from '../../core/models/tag.models';
 import { QuestionFormComponent } from './components/question-form/question-form.component';
 import { QuestionCardComponent, QuestionCardVariant } from './components/question-card/question-card.component';
 import { TagManagerComponent } from './components/tag-manager/tag-manager.component';
-import { countByTag, matchesTags } from '../exams/components/exam-question-picker/question-filters';
+import { countByTag, matchesGrade, matchesTags, matchesType } from '../exams/components/exam-question-picker/question-filters';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { FULL_GRADE_RANGE, GradeRange, GradeRangeComponent } from '../../shared/components/grade-range/grade-range.component';
 
 type QuestionsView = 'cards' | 'list';
 const VIEW_STORAGE_KEY = 'questions-view';
@@ -36,6 +36,8 @@ const VIEW_STORAGE_KEY = 'questions-view';
     MatInputModule,
     MatSelectModule,
     MatCheckboxModule,
+    MatButtonToggleModule,
+    GradeRangeComponent,
     MatProgressSpinnerModule,
     QuestionFormComponent,
     QuestionCardComponent,
@@ -50,8 +52,6 @@ export class QuestionsComponent implements OnInit {
   private tagSvc      = inject(TagService);
   private readonly destroyRef = inject(DestroyRef);
 
-  readonly difficulties = DIFFICULTIES;
-  readonly diffLabel = DIFFICULTY_LABEL;
 
   loading     = signal(true);
   questions   = signal<QuestionResponse[]>([]);
@@ -64,7 +64,8 @@ export class QuestionsComponent implements OnInit {
   cardVariant = computed<QuestionCardVariant>(() => (this.view() === 'list' ? 'row' : 'card'));
 
   filterText   = signal('');
-  filterDiff   = signal<Difficulty | ''>('');
+  gradeRange   = signal<GradeRange>(FULL_GRADE_RANGE);
+  typeFilter   = signal<QuestionTypeFilter>('');
   /** Tags marcados. Ninguno = todas las preguntas; si no, las que tengan alguno de ellos. */
   selectedTagIds = signal<ReadonlySet<number>>(new Set());
   /** «Sin tag» marcado: suma las preguntas que no tienen tags. */
@@ -73,16 +74,19 @@ export class QuestionsComponent implements OnInit {
   tagCounts     = computed(() => countByTag(this.questions()));
   untaggedCount = computed(() => this.questions().filter(q => q.tags.length === 0).length);
   hasFilters    = computed(() =>
-    !!this.filterText().trim() || !!this.filterDiff() || this.selectedTagIds().size > 0 || this.untaggedSelected());
+    !!this.filterText().trim() || !!this.typeFilter() || this.selectedTagIds().size > 0 || this.untaggedSelected() ||
+    this.gradeRange()[0] !== FULL_GRADE_RANGE[0] || this.gradeRange()[1] !== FULL_GRADE_RANGE[1]);
 
   filtered = computed(() => {
     const text = this.filterText().toLowerCase().trim();
-    const diff = this.filterDiff();
+    const grades = this.gradeRange();
+    const type = this.typeFilter();
     const selected = this.selectedTagIds();
     const untagged = this.untaggedSelected();
     return this.questions().filter(q =>
       (!text || q.text.toLowerCase().includes(text)) &&
-      (!diff || q.difficulty === diff) &&
+      matchesGrade(q, grades) &&
+      matchesType(q, type) &&
       matchesTags(q, selected, untagged));
   });
 
@@ -112,7 +116,8 @@ export class QuestionsComponent implements OnInit {
 
   clearFilters(): void {
     this.filterText.set('');
-    this.filterDiff.set('');
+    this.gradeRange.set(FULL_GRADE_RANGE);
+    this.typeFilter.set('');
     this.selectedTagIds.set(new Set());
     this.untaggedSelected.set(false);
   }

@@ -6,7 +6,7 @@ import { MatCheckboxHarness } from '@angular/material/checkbox/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { of } from 'rxjs';
 import { ExamQuestionPickerComponent } from './exam-question-picker.component';
-import { Difficulty, QuestionResponse } from '../../../../core/models/question.models';
+import { Grade, QuestionResponse, QuestionType } from '../../../../core/models/question.models';
 import { TagResponse } from '../../../../core/models/tag.models';
 
 const tag = (id: number, name: string): TagResponse => ({ id, name, color: '#123456', createdAt: '2026-10-10T10:00:00' });
@@ -14,19 +14,19 @@ const COMBATE = tag(1, 'Combate');
 const FORMAS = tag(2, 'Formas');
 const ITF = tag(3, 'ITF');
 
-function question(id: number, difficulty: Difficulty, tags: TagResponse[], text = `Pregunta ${id}`): QuestionResponse {
+function question(id: number, grade: Grade, tags: TagResponse[], text = `Pregunta ${id}`, type: QuestionType | null = null): QuestionResponse {
   return {
-    id, text, options: ['Sí', 'No'], correctAnswer: 1, explanation: `Explicación ${id}`, difficulty, tags,
+    id, text, options: ['Sí', 'No'], correctAnswer: 1, explanation: `Explicación ${id}`, grade, type, tags,
     createdAt: '2026-10-10T10:00:00', updatedAt: '2026-10-10T10:00:00'
   };
 }
 
 const QUESTIONS = [
-  question(1, 'FACIL', [COMBATE, ITF]),
-  question(2, 'MEDIO', [COMBATE]),
-  question(3, 'DIFICIL', [FORMAS]),
-  question(4, 'FACIL', []),
-  question(5, 'MEDIO', [FORMAS, ITF])
+  question(1, 'BLANCO', [COMBATE, ITF]),
+  question(2, 'VERDE', [COMBATE]),
+  question(3, 'ROJO', [FORMAS], 'Pregunta 3', 'C'),
+  question(4, 'BLANCO', []),
+  question(5, 'VERDE', [FORMAS, ITF])
 ];
 
 describe('ExamQuestionPickerComponent', () => {
@@ -82,11 +82,13 @@ describe('ExamQuestionPickerComponent', () => {
   });
 
   describe('filas', () => {
-    it('cada fila muestra su dificultad y sus tags', async () => {
+    it('cada fila muestra su grado, su tipo y sus tags', async () => {
       await render();
 
       const row = el.querySelector('.question-pick-row[data-id="1"]') as HTMLElement;
-      expect(row.textContent).toContain('Fácil');
+      expect(row.textContent).toContain('Blanco');
+      expect(row.textContent).not.toContain('Tipo');
+      expect(el.querySelector('.question-pick-row[data-id="3"]')?.textContent).toContain('Tipo C');
       expect(row.textContent).toContain('Combate');
       expect(row.textContent).toContain('ITF');
     });
@@ -161,18 +163,18 @@ describe('ExamQuestionPickerComponent', () => {
     });
   });
 
-  describe('barra de dificultad', () => {
-    it('al mover el inicio a «Medio» se ocultan las fáciles', async () => {
+  describe('barra de grados (RF-43)', () => {
+    it('al mover el inicio a «Verde» se ocultan las de cinturón blanco', async () => {
       await render();
       const slider = await loader.getHarness(MatSliderHarness);
 
-      await (await slider.getStartThumb()).setValue(1);
+      await (await slider.getStartThumb()).setValue(4);
       await stable();
 
       expect(visibleIds()).toEqual([2, 3, 5]);
     });
 
-    it('al mover el final a «Fácil» solo quedan las fáciles', async () => {
+    it('al mover el final a «Blanco» solo quedan las de cinturón blanco', async () => {
       await render();
       const slider = await loader.getHarness(MatSliderHarness);
 
@@ -180,6 +182,36 @@ describe('ExamQuestionPickerComponent', () => {
       await stable();
 
       expect(visibleIds()).toEqual([1, 4]);
+    });
+  });
+
+  describe('filtro por tipo (RF-44)', () => {
+    function typeToggle(label: string): HTMLButtonElement {
+      return Array.from(el.querySelectorAll('.type-filter button')).find(b => b.textContent?.trim() === label) as HTMLButtonElement;
+    }
+
+    it('por defecto se ven todos los tipos', async () => {
+      await render();
+
+      expect(visibleIds()).toEqual([1, 2, 3, 4, 5]);
+    });
+
+    it('«C» deja solo las de tipo C', async () => {
+      await render();
+
+      typeToggle('C').click();
+      await stable();
+
+      expect(visibleIds()).toEqual([3]);
+    });
+
+    it('«Sin tipo» deja las que no tienen tipo', async () => {
+      await render();
+
+      typeToggle('Sin tipo').click();
+      await stable();
+
+      expect(visibleIds()).toEqual([1, 2, 4, 5]);
     });
   });
 
@@ -254,7 +286,7 @@ describe('ExamQuestionPickerComponent', () => {
   });
 
   it('«Nueva pregunta» abre el formulario en un diálogo y la pregunta creada queda seleccionada', async () => {
-    const nueva = question(99, 'MEDIO', [FORMAS], 'Pregunta nueva');
+    const nueva = question(99, 'VERDE', [FORMAS], 'Pregunta nueva');
     dialogOpen.mockReturnValue({ afterClosed: () => of(nueva) });
     await render([3], 3);
 
@@ -277,10 +309,10 @@ describe('ExamQuestionPickerComponent', () => {
     expect(selected()).toEqual([3]);
   });
 
-  it('recuerda los filtros de tags y dificultad entre exámenes', async () => {
+  it('recuerda los filtros de tags y grado entre exámenes', async () => {
     await render();
     await (await checkbox('Combate')).check();
-    await (await (await loader.getHarness(MatSliderHarness)).getStartThumb()).setValue(1);
+    await (await (await loader.getHarness(MatSliderHarness)).getStartThumb()).setValue(4);
     await stable();
     TestBed.resetTestingModule();
 

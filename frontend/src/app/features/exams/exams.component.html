@@ -45,7 +45,7 @@
 
       @if (selectedExam(); as exam) {
         <app-exam-detail [exam]="exam" [questions]="questions()" [tags]="tags()" [openExamCodes]="openExamCodes()"
-                         (changed)="onChanged($event)" (deleted)="onDeleted($event)"
+                         (changed)="onChanged($event)" (deleted)="onDeleted($event)" (copied)="onCreated($event)"
                          (questionCreated)="onQuestionCreated($event)" />
       }
     </div>

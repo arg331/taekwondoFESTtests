@@ -9,12 +9,14 @@ import com.taekwondo.examenes.security.JwtService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.text.Normalizer;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.IntSummaryStatistics;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
@@ -112,6 +114,25 @@ public class ResultService {
         return resultRepository.findAllByExamIdOrderByCompletedAtDesc(examId).stream()
                 .map(r -> ResultResponse.from(r, exam.getTitle()))
                 .toList();
+    }
+
+    /** Excel con las entregas de un examen propio, ordenadas por club (RF-27). */
+    @Transactional(readOnly = true)
+    public ExportedFile exportByExam(Long examId, Long ownerId) {
+        Exam exam = examService.getOwned(examId, ownerId);
+        List<Result> results = resultRepository.findAllByExamIdOrderByCompletedAtDesc(examId);
+        return new ExportedFile("resultados-" + asciiSlug(exam.getTitle()) + ".xlsx",
+                ResultSpreadsheet.CONTENT_TYPE, ResultSpreadsheet.build(results));
+    }
+
+    /** «Examen de Árbitros 2026» → «examen-de-arbitros-2026»: seguro como nombre de fichero. */
+    private static String asciiSlug(String text) {
+        String slug = Normalizer.normalize(text, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("[^a-z0-9]+", "-")
+                .replaceAll("(^-|-$)", "");
+        return slug.isEmpty() ? "examen" : slug;
     }
 
     @Transactional(readOnly = true)

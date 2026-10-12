@@ -92,6 +92,16 @@ abstract class ApiCharacterizationTest {
         return send(HttpMethod.DELETE, url, token, null);
     }
 
+    /** GET de un fichero: la respuesta entera, para leer sus bytes y cabeceras. */
+    MockHttpServletResponse download(String url, String token) {
+        try {
+            return mvc.perform(MockMvcRequestBuilders.get(url).header("Authorization", "Bearer " + token))
+                    .andReturn().getResponse();
+        } catch (Exception ex) {
+            throw new IllegalStateException("Fallo al descargar " + url, ex);
+        }
+    }
+
     /** Envía una petición; body puede ser un Map/List (se serializa) o un String con JSON literal. */
     HttpResult send(HttpMethod method, String url, String token, Object body) {
         MockHttpServletRequestBuilder request = MockMvcRequestBuilders.request(method, url);
@@ -157,7 +167,7 @@ abstract class ApiCharacterizationTest {
                 "options", options,
                 "correctAnswer", correctAnswer,
                 "explanation", "Explicación de " + text,
-                "difficulty", "MEDIO",
+                "grade", "VERDE",
                 "tagIds", tagIds))
                 .expectStatus(201)
                 .id();

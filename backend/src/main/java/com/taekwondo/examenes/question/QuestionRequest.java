@@ -13,11 +13,12 @@ import java.util.Set;
 public record QuestionRequest(
         @NotBlank @Size(max = 1000) String text,
         @NotNull @Size(min = Question.MIN_OPTIONS, max = Question.MAX_OPTIONS,
-                message = "debe tener entre 2 y 4 opciones")
+                message = "debe tener entre " + Question.MIN_OPTIONS + " y " + Question.MAX_OPTIONS + " opciones")
         List<@NotBlank @Size(max = 500) String> options,
         @Min(0) int correctAnswer,
         @Size(max = 2000) String explanation,
-        @NotNull Difficulty difficulty,
+        @NotNull Grade grade,
+        QuestionType type,
         Set<Long> tagIds
 ) {
     @AssertTrue(message = "debe señalar una de las opciones")

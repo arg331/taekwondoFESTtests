@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Pregunta tipo test de 2 a 4 opciones. Pertenece al profesor que la crea.
+ * Pregunta tipo test de al menos 2 opciones. Pertenece al profesor que la crea.
  */
 @Entity
 @Table(name = "questions")
@@ -23,7 +23,8 @@ import java.util.Set;
 public class Question {
 
     public static final int MIN_OPTIONS = 2;
-    public static final int MAX_OPTIONS = 4;
+    /** Sin máximo para el profesor (RF-09); este tope solo evita peticiones desmesuradas. */
+    public static final int MAX_OPTIONS = 20;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -47,7 +48,12 @@ public class Question {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private Difficulty difficulty;
+    private Grade grade;
+
+    /** C, D o ninguno (null). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "question_type", length = 10)
+    private QuestionType type;
 
     @Column(name = "owner_id", nullable = false)
     private Long ownerId;
@@ -80,13 +86,14 @@ public class Question {
     }
 
     public void update(String text, List<String> options, int correctAnswer,
-                       String explanation, Difficulty difficulty, Set<Tag> tags) {
+                       String explanation, Grade grade, QuestionType type, Set<Tag> tags) {
         this.text = text;
         this.options.clear();
         this.options.addAll(options);
         this.correctAnswer = correctAnswer;
         this.explanation = explanation;
-        this.difficulty = difficulty;
+        this.grade = grade;
+        this.type = type;
         this.tags.clear();
         this.tags.addAll(tags);
     }

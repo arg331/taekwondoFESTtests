@@ -82,6 +82,10 @@ export class ExamsComponent implements OnInit {
     this.selectedExam.set(updated);
   }
 
+  onQuestionCreated(question: QuestionResponse): void {
+    this.questions.update(list => [question, ...list]);
+  }
+
   onDeleted(id: number): void {
     this.exams.update(list => list.filter(e => e.id !== id));
     this.selectedExam.set(null);

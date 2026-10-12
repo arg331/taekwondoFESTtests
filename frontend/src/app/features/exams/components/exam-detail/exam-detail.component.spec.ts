@@ -5,6 +5,8 @@ import { ExamDetailComponent } from './exam-detail.component';
 import { ExamResponse, ExamStatus } from '../../../../core/models/exam.models';
 import { QuestionResponse } from '../../../../core/models/question.models';
 import { QrCodeService } from '../../../../core/services/qr-code.service';
+import { By } from '@angular/platform-browser';
+import { ExamQuestionPickerComponent } from '../exam-question-picker/exam-question-picker.component';
 
 const API = 'http://localhost:8080/api';
 /** QR falso: el data URL indica el tamaño pedido para poder comprobarlo. */
@@ -112,6 +114,31 @@ describe('ExamDetailComponent', () => {
     await stable();
 
     expect(changed.at(-1)?.status).toBe('PUBLISHED');
+  });
+
+  describe('selector de preguntas del borrador', () => {
+    it('recibe los tags y el número de preguntas que pide el examen', async () => {
+      await render(exam('DRAFT'));
+      fixture.componentRef.setInput('tags', [{ id: 9, name: 'Combate', color: '#C62828', createdAt: '2026-10-10T10:00:00' }]);
+      await stable();
+
+      expect(el.querySelector('.cart-count')?.textContent).toContain('0 / 2');
+      expect(el.querySelector('app-exam-question-picker')?.textContent).toContain('Combate');
+    });
+
+    it('una pregunta creada desde el selector se avisa al padre y queda seleccionada', async () => {
+      await render(exam('DRAFT'));
+      const createdQuestions: QuestionResponse[] = [];
+      fixture.componentInstance.questionCreated.subscribe(q => createdQuestions.push(q));
+      const picker = fixture.debugElement.query(By.directive(ExamQuestionPickerComponent)).componentInstance as ExamQuestionPickerComponent;
+
+      picker.questionCreated.emit(question(7));
+      picker.selectedIds.update(ids => [...ids, 7]);
+      await stable();
+
+      expect(createdQuestions.map(q => q.id)).toEqual([7]);
+      expect(fixture.componentInstance.selectedIds()).toEqual([7]);
+    });
   });
 
   it('publicado: muestra el código y la lista de preguntas sin selector', async () => {

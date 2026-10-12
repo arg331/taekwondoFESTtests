@@ -126,7 +126,9 @@
         </span>
       </p>
       @if (exam().status === 'DRAFT') {
-        <app-exam-question-picker [questions]="questions()" [(selectedIds)]="selectedIds" />
+        <app-exam-question-picker [questions]="questions()" [tags]="tags()"
+                                  [requiredCount]="exam().config.numberOfQuestions"
+                                  [(selectedIds)]="selectedIds" (questionCreated)="questionCreated.emit($event)" />
         @if (questionsDirty()) {
           <button mat-stroked-button color="primary" (click)="saveQuestions()" [disabled]="busy()">
             <mat-icon>save</mat-icon>Guardar selección

@@ -23,6 +23,7 @@ import {
   Visibility
 } from '../../../../core/models/exam.models';
 import { QuestionResponse } from '../../../../core/models/question.models';
+import { TagResponse } from '../../../../core/models/tag.models';
 import { ExamQuestionPickerComponent } from '../exam-question-picker/exam-question-picker.component';
 import { ExamQrDialogComponent, ExamQrDialogData } from '../exam-qr-dialog/exam-qr-dialog.component';
 
@@ -64,8 +65,12 @@ export class ExamDetailComponent {
 
   exam = input.required<ExamResponse>();
   questions = input<QuestionResponse[]>([]);
+  /** Tags del profesor, para filtrar y para crear preguntas desde el selector. */
+  tags = input<TagResponse[]>([]);
   changed = output<ExamResponse>();
   deleted = output<number>();
+  /** Pregunta creada desde el selector: el padre la añade al banco que muestra. */
+  questionCreated = output<QuestionResponse>();
 
   readonly statusLabel = EXAM_STATUS_LABEL;
   readonly statusColor = EXAM_STATUS_COLOR;

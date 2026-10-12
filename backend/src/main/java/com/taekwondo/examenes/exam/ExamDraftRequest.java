@@ -14,8 +14,8 @@ import java.util.Set;
  */
 public record ExamDraftRequest(
         @NotBlank @Size(max = 200) String title,
-        @Min(5) @Max(50) int numberOfQuestions,
-        @Min(0) @Max(180) Integer timeLimitMinutes,
+        @Min(ExamConfig.MIN_QUESTIONS) @Max(ExamConfig.MAX_QUESTIONS) int numberOfQuestions,
+        @Min(0) @Max(ExamConfig.MAX_TIME_LIMIT_MINUTES) Integer timeLimitMinutes,
         boolean showScore,
         boolean randomizeOptions,
         boolean randomizeQuestionOrder,

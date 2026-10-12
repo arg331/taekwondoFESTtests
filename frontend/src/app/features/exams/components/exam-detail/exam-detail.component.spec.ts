@@ -5,17 +5,18 @@ import { ExamDetailComponent } from './exam-detail.component';
 import { ExamResponse, ExamStatus } from '../../../../core/models/exam.models';
 import { QuestionResponse } from '../../../../core/models/question.models';
 import { QrCodeService } from '../../../../core/services/qr-code.service';
+import { QrColorService } from '../../../../core/services/qr-color.service';
 import { By } from '@angular/platform-browser';
 import { ExamQuestionPickerComponent } from '../exam-question-picker/exam-question-picker.component';
 
 const API = 'http://localhost:8080/api';
 /** QR falso: el data URL indica el tamaño pedido para poder comprobarlo. */
-const fakeQr = (_text: string, size: number): Promise<string> => Promise.resolve(`data:image/png;base64,QR-${size}`);
+const fakeQr = (_text: string, size: number, _color?: string): Promise<string> => Promise.resolve(`data:image/png;base64,QR-${size}`);
 
 function exam(status: ExamStatus, questionIds: number[] = []): ExamResponse {
   return {
     id: 7, title: 'Examen', ownerId: 1, status, visibility: 'PUBLIC', accessMode: 'OPEN',
-    config: { numberOfQuestions: 2, timeLimitMinutes: null, showScore: true, randomizeOptions: false,
+    config: { numberOfQuestions: 10, timeLimitMinutes: null, showScore: true, randomizeOptions: false,
       randomizeQuestionOrder: false },
     questionIds, generationTags: [], code: status === 'DRAFT' ? null : 'EXM-1234ABCD',
     createdAt: '2026-10-08T10:00:00', expiresAt: null
@@ -46,7 +47,7 @@ describe('ExamDetailComponent', () => {
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(ExamDetailComponent);
     fixture.componentRef.setInput('exam', examResponse);
-    fixture.componentRef.setInput('questions', [question(1), question(2), question(3)]);
+    fixture.componentRef.setInput('questions', [1, 2, 3, 4, 5, 6].map(question));
     changed = [];
     fixture.componentInstance.changed.subscribe(e => changed.push(e));
     el = fixture.nativeElement;
@@ -68,7 +69,10 @@ describe('ExamDetailComponent', () => {
     return Array.from(el.querySelectorAll('button')).find(b => b.textContent?.includes(text)) as HTMLButtonElement;
   }
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    http.verify();
+    localStorage.clear();
+  });
 
   it('acciones según el estado del examen', async () => {
     await render(exam('DRAFT'));
@@ -78,7 +82,7 @@ describe('ExamDetailComponent', () => {
     fixture.componentRef.setInput('exam', exam('PUBLISHED', [1, 2]));
     await stable();
     expect(buttonTexts().join(' | ')).toContain('Cambiar plazo');
-    expect(buttonTexts().join(' | ')).toContain('Hacer privado');
+    expect(buttonTexts().join(' | ')).toContain('Pasar a oficial (privado)');
     expect(buttonTexts().join(' | ')).toContain('Cerrar examen');
 
     fixture.componentRef.setInput('exam', exam('EXPIRED', [1, 2]));
@@ -87,18 +91,41 @@ describe('ExamDetailComponent', () => {
     expect(buttonTexts().join(' | ')).not.toContain('Cerrar examen');
   });
 
-  it('borrador: sin el número de preguntas exacto no se puede publicar', async () => {
-    await render(exam('DRAFT'));
+  function pick(...indexes: number[]): void {
+    const rows = el.querySelectorAll('.question-pick-row');
+    indexes.forEach(i => (rows[i] as HTMLElement).click());
+  }
 
-    expect(el.textContent).toContain('Tienes 0 preguntas seleccionadas y el examen requiere 2.');
-    expect(button('Publicar examen').disabled).toBe(true);
+  describe('número de preguntas = las elegidas (RF-46)', () => {
+    it('con menos de 5 elegidas no se puede publicar', async () => {
+      await render(exam('DRAFT'));
+
+      expect(el.textContent).toContain('Selecciona al menos 5 preguntas para publicar (tienes 0).');
+      expect(button('Publicar examen').disabled).toBe(true);
+    });
+
+    it('con más de 50 tampoco', async () => {
+      await render(exam('DRAFT'));
+      fixture.componentInstance.selectedIds.set(Array.from({ length: 51 }, (_, i) => i + 1));
+      await stable();
+
+      expect(el.textContent).toContain('Un examen admite como máximo 50 preguntas (tienes 51).');
+      expect(button('Publicar examen').disabled).toBe(true);
+    });
+
+    it('se puede publicar con más o menos preguntas que el objetivo', async () => {
+      await render(exam('DRAFT'));
+      pick(0, 1, 2, 3, 4, 5);
+      await stable();
+
+      expect(el.querySelector('.section-title')?.textContent).toContain('6 elegidas');
+      expect(button('Publicar examen').disabled).toBe(false);
+    });
   });
 
   it('publicar con selección sin guardar: primero guarda las preguntas y luego publica', async () => {
     await render(exam('DRAFT'));
-    const rows = el.querySelectorAll('.question-pick-row');
-    (rows[0] as HTMLElement).click();
-    (rows[2] as HTMLElement).click();
+    pick(0, 2, 3, 4, 5);
     await stable();
 
     button('Publicar examen').click();
@@ -106,23 +133,93 @@ describe('ExamDetailComponent', () => {
 
     const save = http.expectOne(`${API}/exams/7/questions`);
     expect(save.request.method).toBe('PUT');
-    expect(save.request.body).toEqual({ questionIds: [1, 3] });
-    save.flush(exam('DRAFT', [1, 3]));
+    expect(save.request.body).toEqual({ questionIds: [1, 3, 4, 5, 6] });
+    save.flush(exam('DRAFT', [1, 3, 4, 5, 6]));
     const publish = http.expectOne(`${API}/exams/7/publish`);
-    expect(publish.request.body).toEqual({ visibility: 'PUBLIC', accessMode: 'OPEN', expiresAt: null });
-    publish.flush(exam('PUBLISHED', [1, 3]));
+    expect(publish.request.body).toEqual({ visibility: 'PUBLIC', accessMode: 'OPEN', expiresAt: null, neverExpires: false });
+    publish.flush(exam('PUBLISHED', [1, 3, 4, 5, 6]));
     await stable();
 
     expect(changed.at(-1)?.status).toBe('PUBLISHED');
   });
 
+  describe('publicar sin caducidad (RF-48)', () => {
+    it('«Sin caducidad» desactiva la fecha y lo envía al publicar', async () => {
+      await render(exam('DRAFT', [1, 2, 3, 4, 5]));
+      const date = el.querySelector('.publish-options input[type=datetime-local]') as HTMLInputElement;
+      date.value = '2026-12-31T10:00';
+      date.dispatchEvent(new Event('input'));
+
+      (el.querySelector('.never-expires input[type=checkbox]') as HTMLInputElement).click();
+      await stable();
+      expect(date.disabled).toBe(true);
+
+      button('Publicar examen').click();
+      const publish = http.expectOne(`${API}/exams/7/publish`);
+      expect(publish.request.body).toEqual({ visibility: 'PUBLIC', accessMode: 'OPEN', expiresAt: null, neverExpires: true });
+      publish.flush(exam('PUBLISHED', [1, 2, 3, 4, 5]));
+    });
+
+    it('un examen publicado sin fecha lo indica en el resumen', async () => {
+      await render(exam('PUBLISHED', [1, 2]));
+
+      expect(el.querySelector('.config-summary')?.textContent).toContain('Sin caducidad');
+    });
+
+    it('«Cambiar plazo» parte de la fecha actual', async () => {
+      await render({ ...exam('PUBLISHED', [1, 2]), expiresAt: '2026-12-31T10:00:00' });
+
+      expect((el.querySelector('.inline-form input') as HTMLInputElement).value).toBe('2026-12-31T10:00');
+    });
+
+    it('tras cambiar el plazo, el campo muestra la fecha nueva', async () => {
+      await render({ ...exam('PUBLISHED', [1, 2]), expiresAt: '2026-12-31T10:00:00' });
+
+      fixture.componentRef.setInput('exam', { ...exam('PUBLISHED', [1, 2]), expiresAt: '2027-01-15T09:30:00' });
+      await stable();
+
+      expect((el.querySelector('.inline-form input') as HTMLInputElement).value).toBe('2027-01-15T09:30');
+    });
+
+    it('al reabrir un examen cerrado, la fecha empieza vacía', async () => {
+      await render({ ...exam('EXPIRED', [1, 2]), expiresAt: '2026-10-01T10:00:00' });
+
+      expect((el.querySelector('.inline-form input') as HTMLInputElement).value).toBe('');
+    });
+
+    it('con fecha muestra hasta cuándo', async () => {
+      await render({ ...exam('PUBLISHED', [1, 2]), expiresAt: '2026-12-31T10:00:00' });
+
+      expect(el.querySelector('.config-summary')?.textContent).toContain('Hasta 31/12/2026 10:00');
+      expect(el.querySelector('.config-summary')?.textContent).not.toContain('Sin caducidad');
+    });
+  });
+
+  describe('público = examen de prueba, privado = oficial (RF-49)', () => {
+    it('rotula el examen según su visibilidad', async () => {
+      await render(exam('PUBLISHED', [1, 2]));
+      expect(el.querySelector('.badges')?.textContent).toContain('De prueba');
+
+      fixture.componentRef.setInput('exam', { ...exam('PUBLISHED', [1, 2]), visibility: 'PRIVATE' });
+      await stable();
+      expect(el.querySelector('.badges')?.textContent).toContain('Oficial');
+      expect(buttonTexts().join(' | ')).toContain('Pasar a examen de prueba (público)');
+    });
+
+    it('al publicar se elige entre examen de prueba u oficial', async () => {
+      await render(exam('DRAFT'));
+
+      expect(el.querySelector('.publish-options mat-select')?.textContent).toContain('De prueba (público)');
+    });
+  });
+
   describe('selector de preguntas del borrador', () => {
-    it('recibe los tags y el número de preguntas que pide el examen', async () => {
+    it('recibe los tags y el objetivo de preguntas del examen', async () => {
       await render(exam('DRAFT'));
       fixture.componentRef.setInput('tags', [{ id: 9, name: 'Combate', color: '#C62828', createdAt: '2026-10-10T10:00:00' }]);
       await stable();
 
-      expect(el.querySelector('.cart-count')?.textContent).toContain('0 / 2');
+      expect(el.querySelector('.cart-target')?.textContent).toContain('objetivo 10');
       expect(el.querySelector('app-exam-question-picker')?.textContent).toContain('Combate');
     });
 
@@ -157,7 +254,7 @@ describe('ExamDetailComponent', () => {
       await stable();
 
       const src = (el.querySelector('.qr-image') as HTMLImageElement).src;
-      expect(qr.toDataUrl).toHaveBeenCalledWith(`${window.location.origin}/exam/EXM-1234ABCD`, expect.any(Number));
+      expect(qr.toDataUrl).toHaveBeenCalledWith(`${window.location.origin}/exam/EXM-1234ABCD`, expect.any(Number), '#000000');
       expect(src).toMatch(/^data:image\/png;base64,/);
     });
 
@@ -186,7 +283,29 @@ describe('ExamDetailComponent', () => {
       const dialog = document.querySelector('app-exam-qr-dialog') as HTMLElement;
       expect(dialog.textContent).toContain('Examen');
       expect(dialog.textContent).toContain('EXM-1234ABCD');
-      expect(qr.toDataUrl).toHaveBeenCalledWith(`${window.location.origin}/exam/EXM-1234ABCD`, 1024);
+      expect(qr.toDataUrl).toHaveBeenCalledWith(`${window.location.origin}/exam/EXM-1234ABCD`, 1024, '#000000');
+    });
+
+    it('el QR del panel usa el color de este examen (RF-50)', async () => {
+      await render(exam('PUBLISHED', [1, 2]));
+      TestBed.inject(QrColorService).setColor('EXM-1234ABCD', '#0d47a1');
+      button('qr_code').click();
+      await stable();
+
+      expect(qr.toDataUrl).toHaveBeenLastCalledWith(`${window.location.origin}/exam/EXM-1234ABCD`, expect.any(Number), '#0d47a1');
+    });
+
+    it('al publicar, el QR recibe un color que no usan los otros exámenes abiertos', async () => {
+      await render(exam('DRAFT', [1, 2, 3, 4, 5]));
+      const colors = TestBed.inject(QrColorService);
+      colors.setColor('EXM-OTRO0001', '#c62828');
+      fixture.componentRef.setInput('openExamCodes', ['EXM-OTRO0001', 'EXM-OTRO0002']);
+
+      button('Publicar examen').click();
+      http.expectOne(`${API}/exams/7/publish`).flush(exam('PUBLISHED', [1, 2, 3, 4, 5]));
+      await stable();
+
+      expect(colors.colorOf('EXM-1234ABCD')).toBe('#0d47a1');
     });
 
     it('un borrador no tiene QR ni botón de proyectar', async () => {
@@ -245,6 +364,21 @@ describe('ExamDetailComponent', () => {
       await stable();
 
       expect(el.querySelector('.qr-closed')?.textContent).toContain('no admite entregas');
+    });
+
+    it('un examen que no admite entregas no se puede proyectar', async () => {
+      await render(exam('EXPIRED', [1, 2]));
+
+      expect(button('Proyectar').disabled).toBe(true);
+      button('qr_code').click();
+      await stable();
+      expect(button('Proyectar').disabled).toBe(true);
+    });
+
+    it('fuera de plazo tampoco', async () => {
+      await render({ ...exam('PUBLISHED', [1, 2]), expiresAt: '2020-01-01T10:00:00' });
+
+      expect(button('Proyectar').disabled).toBe(true);
     });
 
     it('un examen publicado y en plazo no muestra ese aviso', async () => {

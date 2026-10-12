@@ -61,7 +61,7 @@ export class QuestionFormComponent {
     text:          ['', [Validators.required, Validators.minLength(10), Validators.maxLength(1000)]],
     options:       this.fb.nonNullable.array(Array.from({ length: MAX_OPTIONS }, () => '')),
     correctAnswer: [0],
-    explanation:   ['', [Validators.required, Validators.maxLength(2000)]],
+    explanation:   ['', [Validators.maxLength(2000)]],
     difficulty:    ['FACIL' as Difficulty],
     tagIds:        [[] as number[]]
   });

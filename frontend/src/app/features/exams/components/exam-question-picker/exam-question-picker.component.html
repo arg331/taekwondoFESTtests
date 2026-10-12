@@ -30,11 +30,12 @@
     <span class="filter-title">Tags</span>
     <div class="tag-filters">
       @for (tag of tags(); track tag.id) {
-        <mat-checkbox [checked]="isTagVisible(tag.id)" (change)="setTagVisible(tag.id, $event.checked)">
-          <span class="tag-dot" [style.background]="tag.color"></span>{{ tag.name }} ({{ tagCounts().get(tag.id) ?? 0 }})
+        <mat-checkbox class="tag-pill" [style.--tag-color]="tag.color"
+                      [checked]="isTagSelected(tag.id)" (change)="setTagSelected(tag.id, $event.checked)">
+          {{ tag.name }} ({{ tagCounts().get(tag.id) ?? 0 }})
         </mat-checkbox>
       }
-      <mat-checkbox [checked]="showUntagged()" (change)="showUntagged.set($event.checked)">
+      <mat-checkbox class="tag-pill untagged" [checked]="untaggedSelected()" (change)="untaggedSelected.set($event.checked)">
         Sin tag ({{ untaggedCount() }})
       </mat-checkbox>
     </div>
@@ -100,11 +101,12 @@
     <div class="cart-header">
       <mat-icon>shopping_cart</mat-icon>
       <span class="cart-title">Seleccionadas</span>
-      <span class="cart-count" [class.over]="overSelected()">{{ selectedIds().length }} / {{ requiredCount() }}</span>
+      <span class="cart-count" [class.over]="overMax()">{{ selectedIds().length }}</span>
+      <span class="cart-target">objetivo {{ targetCount() }}</span>
       <button mat-button type="button" class="cart-clear" (click)="clear()" [disabled]="selectedIds().length === 0">Vaciar</button>
     </div>
-    @if (overSelected()) {
-      <p class="cart-warning">Sobran {{ selectedIds().length - requiredCount() }}: el examen pide {{ requiredCount() }}.</p>
+    @if (overMax()) {
+      <p class="cart-warning">Un examen admite como máximo {{ maxQuestions }} preguntas: quita {{ selectedIds().length - maxQuestions }}.</p>
     }
     <div class="cart-items">
       @for (q of selectedQuestions(); track q.id; let i = $index) {

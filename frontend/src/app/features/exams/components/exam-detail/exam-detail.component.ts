@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, linkedSignal, output, resource, signal, untracked } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Observable, of, switchMap } from 'rxjs';
 import { MatCardModule } from '@angular/material/card';
@@ -9,6 +10,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDividerModule } from '@angular/material/divider';
@@ -16,10 +18,16 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ExamService } from '../../../../core/services/exam.service';
 import { QR_PANEL_SIZE_PX, QrCodeService } from '../../../../core/services/qr-code.service';
+import { QrColorService } from '../../../../core/services/qr-color.service';
 import {
+  EXAM_MAX_QUESTIONS,
+  EXAM_MIN_QUESTIONS,
   EXAM_STATUS_COLOR,
   EXAM_STATUS_LABEL,
   ExamResponse,
+  VISIBILITY_COLOR,
+  VISIBILITY_ICON,
+  VISIBILITY_LABEL,
   Visibility
 } from '../../../../core/models/exam.models';
 import { QuestionResponse } from '../../../../core/models/question.models';
@@ -47,6 +55,7 @@ const NOTICE_DURATION_MS = 3000;
     MatInputModule,
     MatSelectModule,
     MatSlideToggleModule,
+    MatCheckboxModule,
     MatProgressSpinnerModule,
     MatTooltipModule,
     MatDividerModule,
@@ -62,11 +71,14 @@ export class ExamDetailComponent {
   private snackBar = inject(MatSnackBar);
   private dialog = inject(MatDialog);
   private qrCode = inject(QrCodeService);
+  private qrColor = inject(QrColorService);
 
   exam = input.required<ExamResponse>();
   questions = input<QuestionResponse[]>([]);
   /** Tags del profesor, para filtrar y para crear preguntas desde el selector. */
   tags = input<TagResponse[]>([]);
+  /** Códigos de los otros exámenes abiertos: al publicar, el QR toma un color distinto (RF-50). */
+  openExamCodes = input<string[]>([]);
   changed = output<ExamResponse>();
   deleted = output<number>();
   /** Pregunta creada desde el selector: el padre la añade al banco que muestra. */
@@ -74,6 +86,9 @@ export class ExamDetailComponent {
 
   readonly statusLabel = EXAM_STATUS_LABEL;
   readonly statusColor = EXAM_STATUS_COLOR;
+  readonly visibilityLabel = VISIBILITY_LABEL;
+  readonly visibilityIcon = VISIBILITY_ICON;
+  readonly visibilityColor = VISIBILITY_COLOR;
 
   /**
    * El panel se reutiliza al elegir otro examen de la lista: todo su estado se reinicia
@@ -100,11 +115,17 @@ export class ExamDetailComponent {
       .filter((q): q is QuestionResponse => q !== undefined);
   });
 
+  /** Se publican las preguntas elegidas, coincidan o no con el objetivo (RF-46). */
   publishBlockReason = computed(() => {
     const n = this.selectedIds().length;
-    const required = this.exam().config.numberOfQuestions;
-    return n === required ? '' : `Tienes ${n} preguntas seleccionadas y el examen requiere ${required}.`;
+    if (n < EXAM_MIN_QUESTIONS) return `Selecciona al menos ${EXAM_MIN_QUESTIONS} preguntas para publicar (tienes ${n}).`;
+    if (n > EXAM_MAX_QUESTIONS) return `Un examen admite como máximo ${EXAM_MAX_QUESTIONS} preguntas (tienes ${n}).`;
+    return '';
   });
+
+  /** Botón para pasar de examen de prueba a oficial y al revés, diciendo qué cambia de verdad (RF-49). */
+  visibilityToggleLabel = computed(() =>
+    this.exam().visibility === 'PUBLIC' ? 'Pasar a oficial (privado)' : 'Pasar a examen de prueba (público)');
 
   examUrl = computed(() => `${window.location.origin}/exam/${this.exam().code}`);
   /** Cerrado a mano o fuera de plazo: quien escanee el QR no podrá entregar. */
@@ -112,15 +133,15 @@ export class ExamDetailComponent {
     const { status, expiresAt } = this.exam();
     return status === 'EXPIRED' || (status === 'PUBLISHED' && !!expiresAt && new Date(expiresAt) <= new Date());
   });
-  /** QR del panel: se genera en el navegador y solo mientras se muestra. */
+  /** QR del panel: se genera en el navegador, solo mientras se muestra y con el color del examen (RF-50). */
   qrImage = resource({
-    params: () => (this.showQr() ? this.examUrl() : undefined),
-    loader: ({ params: url }) => this.qrCode.toDataUrl(url, QR_PANEL_SIZE_PX)
+    params: () => (this.showQr() ? { url: this.examUrl(), color: this.qrColor.colorOf(this.exam().code ?? '') } : undefined),
+    loader: ({ params: { url, color } }) => this.qrCode.toDataUrl(url, QR_PANEL_SIZE_PX, color)
   });
 
   configForm = this.fb.nonNullable.group({
     title:                  ['', [Validators.required, Validators.minLength(3), Validators.maxLength(200)]],
-    numberOfQuestions:      [10, [Validators.required, Validators.min(5), Validators.max(50)]],
+    numberOfQuestions:      [10, [Validators.required, Validators.min(EXAM_MIN_QUESTIONS), Validators.max(EXAM_MAX_QUESTIONS)]],
     timeLimitMinutes:       [0, [Validators.min(0), Validators.max(180)]],
     showScore:              [true],
     randomizeOptions:       [false],
@@ -130,19 +151,33 @@ export class ExamDetailComponent {
   publishForm = this.fb.nonNullable.group({
     visibility: ['PUBLIC' as Visibility],
     accessMode: ['OPEN' as 'OPEN' | 'REGISTERED_ONLY'],
-    expiresAt:  ['']
+    expiresAt:  [''],
+    neverExpires: [false]
   });
 
   expirationForm = this.fb.nonNullable.group({ expiresAt: [''] });
 
   constructor() {
+    // «Sin caducidad» excluye la fecha (RF-48)
+    this.publishForm.controls.neverExpires.valueChanges.pipe(takeUntilDestroyed()).subscribe(neverExpires => {
+      const date = this.publishForm.controls.expiresAt;
+      if (neverExpires) {
+        date.reset();
+        date.disable();
+      } else {
+        date.enable();
+      }
+    });
     // Los formularios reactivos no son signals: se vacían al cambiar de examen
     effect(() => {
       this.examId();
-      untracked(() => {
-        this.publishForm.reset();
-        this.expirationForm.reset();
-      });
+      untracked(() => this.publishForm.reset());
+    });
+    // «Cambiar plazo» parte de la fecha vigente; al reabrir, la anterior ya pasó y se deja vacía
+    effect(() => {
+      const { status, expiresAt } = this.exam();
+      const current = status === 'PUBLISHED' && expiresAt ? toDateTimeLocal(expiresAt) : '';
+      untracked(() => this.expirationForm.reset({ expiresAt: current }));
     });
   }
 
@@ -194,8 +229,12 @@ export class ExamDetailComponent {
     this.run(save$.pipe(switchMap(() => this.examSvc.publish(exam.id, {
       visibility: v.visibility,
       accessMode: v.accessMode,
-      expiresAt: v.expiresAt || null
-    }))), () => this.showQr.set(true));
+      expiresAt: v.neverExpires ? null : v.expiresAt || null,
+      neverExpires: v.neverExpires
+    }))), published => {
+      if (published.code) this.qrColor.assignDistinct(published.code, this.openExamCodes());
+      this.showQr.set(true);
+    });
   }
 
   close(): void {
@@ -231,8 +270,9 @@ export class ExamDetailComponent {
     });
   }
 
-  /** QR grande para proyectar en el aula. */
+  /** QR grande para proyectar en el aula; no se proyecta un examen que no admite entregas. */
   project(): void {
+    if (this.closedForSubmissions()) return;
     const { title, code } = this.exam();
     this.dialog.open<ExamQrDialogComponent, ExamQrDialogData>(ExamQrDialogComponent, {
       data: { title, code: code ?? '', url: this.examUrl() },
@@ -263,14 +303,14 @@ export class ExamDetailComponent {
   }
 
   /** Ejecuta una acción que devuelve el examen actualizado y lo propaga al padre. */
-  private run(action$: Observable<ExamResponse>, onSuccess?: () => void): void {
+  private run(action$: Observable<ExamResponse>, onSuccess?: (updated: ExamResponse) => void): void {
     this.busy.set(true);
     this.error.set(null);
     action$.subscribe({
       next: updated => {
         this.busy.set(false);
         this.changed.emit(updated);
-        onSuccess?.();
+        onSuccess?.(updated);
       },
       error: err => this.handleError(err)
     });
@@ -280,4 +320,9 @@ export class ExamDetailComponent {
     this.busy.set(false);
     this.error.set(err?.error?.message ?? 'No se pudo completar la acción');
   }
+}
+
+/** '2026-12-31T10:00:00' → '2026-12-31T10:00', el formato de un <input type="datetime-local">. */
+function toDateTimeLocal(dateTime: string): string {
+  return dateTime.slice(0, 16);
 }

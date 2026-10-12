@@ -1,42 +1,73 @@
-<mat-card class="question-card">
-  <mat-card-content>
-    <div class="question-header">
-      <p class="question-text">{{ question().text }}</p>
-      <div class="question-actions">
-        <button mat-icon-button (click)="edit.emit()" matTooltip="Editar">
-          <mat-icon>edit</mat-icon>
-        </button>
-        <button mat-icon-button color="warn" (click)="remove.emit()" matTooltip="Eliminar">
-          <mat-icon>delete</mat-icon>
-        </button>
+@if (variant() === 'row') {
+  <div class="question-row" [class.expanded]="expanded()">
+    <div class="row-line">
+      <button type="button" class="row-main" (click)="expanded.update(open => !open)" [attr.aria-expanded]="expanded()">
+        <mat-icon class="row-chevron">{{ expanded() ? 'expand_less' : 'expand_more' }}</mat-icon>
+        <span class="row-text">{{ question().text }}</span>
+      </button>
+      <div class="row-meta">
+        <ng-container [ngTemplateOutlet]="badges" />
       </div>
+      <ng-container [ngTemplateOutlet]="actions" />
     </div>
-
-    <div class="options-list">
-      @for (opt of question().options; track $index) {
-        <div class="option-item" [class.correct]="$index === question().correctAnswer">
-          <mat-icon class="option-icon">
-            {{ $index === question().correctAnswer ? 'check_circle' : 'radio_button_unchecked' }}
-          </mat-icon>
-          <span>{{ opt }}</span>
-        </div>
-      }
-    </div>
-
-    @if (question().explanation) {
-      <p class="explanation">
-        <mat-icon>lightbulb</mat-icon>
-        {{ question().explanation }}
-      </p>
+    @if (expanded()) {
+      <div class="row-details">
+        <ng-container [ngTemplateOutlet]="details" />
+      </div>
     }
+  </div>
+} @else {
+  <mat-card class="question-card">
+    <mat-card-content>
+      <div class="question-header">
+        <p class="question-text">{{ question().text }}</p>
+        <ng-container [ngTemplateOutlet]="actions" />
+      </div>
+      <div class="card-body">
+        <ng-container [ngTemplateOutlet]="details" />
+      </div>
+      <div class="question-footer">
+        <ng-container [ngTemplateOutlet]="badges" />
+      </div>
+    </mat-card-content>
+  </mat-card>
+}
 
-    <div class="question-footer">
-      <span class="difficulty-badge" [style.background]="diffColor[question().difficulty]">
-        {{ diffLabel[question().difficulty] }}
-      </span>
-      @for (tag of question().tags; track tag.id) {
-        <span class="tag-chip-small" [style.background]="tag.color">{{ tag.name }}</span>
-      }
-    </div>
-  </mat-card-content>
-</mat-card>
+<ng-template #actions>
+  <div class="question-actions">
+    <button mat-icon-button (click)="edit.emit()" matTooltip="Editar">
+      <mat-icon>edit</mat-icon>
+    </button>
+    <button mat-icon-button color="warn" (click)="remove.emit()" matTooltip="Eliminar">
+      <mat-icon>delete</mat-icon>
+    </button>
+  </div>
+</ng-template>
+
+<ng-template #details>
+  <div class="options-list">
+    @for (opt of question().options; track $index) {
+      <div class="option-item" [class.correct]="$index === question().correctAnswer">
+        <mat-icon class="option-icon">
+          {{ $index === question().correctAnswer ? 'check_circle' : 'radio_button_unchecked' }}
+        </mat-icon>
+        <span>{{ opt }}</span>
+      </div>
+    }
+  </div>
+  @if (question().explanation) {
+    <p class="explanation">
+      <mat-icon>lightbulb</mat-icon>
+      {{ question().explanation }}
+    </p>
+  }
+</ng-template>
+
+<ng-template #badges>
+  <span class="difficulty-badge" [style.background]="diffColor[question().difficulty]">
+    {{ diffLabel[question().difficulty] }}
+  </span>
+  @for (tag of question().tags; track tag.id) {
+    <span class="tag-chip-small" [style.background]="tag.color">{{ tag.name }}</span>
+  }
+</ng-template>

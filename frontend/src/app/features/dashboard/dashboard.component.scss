@@ -72,6 +72,11 @@
     font-size: 1.2rem;
     font-weight: 600;
   }
+  h3 {
+    margin: 24px 0 4px;
+    font-size: 1.05rem;
+    font-weight: 600;
+  }
 }
 
 .loading, .empty {
@@ -319,4 +324,11 @@
   max-width: 480px;
   margin-bottom: 16px;
   p { margin: 0 0 8px; color: #555; font-size: 0.9rem; }
+}
+.practice-hint { margin: -4px 0 12px; color: #777; font-size: 0.85rem; }
+.kind-badge {
+  display: inline-flex; align-items: center; gap: 4px; vertical-align: middle;
+  margin-left: 6px; padding: 3px 10px; border-radius: 12px;
+  color: #fff; font-size: 0.75rem; font-weight: 600;
+  mat-icon { font-size: 14px; height: 14px; width: 14px; }
 }

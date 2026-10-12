@@ -2,9 +2,10 @@ import { DIFFICULTIES, QuestionResponse } from '../../../../core/models/question
 
 /** Filtros del selector de preguntas que se recuerdan entre exámenes (la búsqueda no). */
 export interface SavedQuestionFilters {
-  /** Tags desmarcados: así un tag nuevo aparece marcado por defecto. */
-  hiddenTagIds: number[];
-  showUntagged: boolean;
+  /** Tags marcados; ninguno = todas las preguntas. */
+  selectedTagIds: number[];
+  /** «Sin tag» marcado: suma las preguntas sin tags. */
+  untaggedSelected: boolean;
   /** Índices de DIFFICULTIES: [desde, hasta], ambos incluidos. */
   difficultyRange: [number, number];
 }
@@ -14,17 +15,25 @@ export interface QuestionFilters extends SavedQuestionFilters {
 }
 
 export const DEFAULT_FILTERS: SavedQuestionFilters = {
-  hiddenTagIds: [],
-  showUntagged: true,
+  selectedTagIds: [],
+  untaggedSelected: false,
   difficultyRange: [0, DIFFICULTIES.length - 1]
 };
 
-const STORAGE_KEY = 'fest_exam_picker_filters';
+// v2: los tags pasaron de «desmarcados» a «marcados»; lo guardado antes no vale
+const STORAGE_KEY = 'fest_exam_picker_filters_v2';
 
 /**
- * Una pregunta se ve si cumple la búsqueda, su dificultad está en el rango y tiene
- * algún tag marcado (o, si no tiene tags, si «Sin tag» está marcado).
+ * Filtro de tags del banco y del selector: sin nada marcado pasan todas; si no, las que
+ * tienen alguno de los tags marcados (y, con «Sin tag» marcado, las que no tienen tags).
  */
+export function matchesTags(question: QuestionResponse, selectedTagIds: ReadonlySet<number>, untaggedSelected: boolean): boolean {
+  if (selectedTagIds.size === 0 && !untaggedSelected) return true;
+  if (question.tags.length === 0) return untaggedSelected;
+  return question.tags.some(tag => selectedTagIds.has(tag.id));
+}
+
+/** Una pregunta se ve si cumple la búsqueda, su dificultad está en el rango y pasa el filtro de tags. */
 export function matchesFilters(question: QuestionResponse, filters: QuestionFilters): boolean {
   const text = filters.search.toLowerCase().trim();
   if (text && !question.text.toLowerCase().includes(text)) return false;
@@ -33,8 +42,7 @@ export function matchesFilters(question: QuestionResponse, filters: QuestionFilt
   const [from, to] = filters.difficultyRange;
   if (level < from || level > to) return false;
 
-  if (question.tags.length === 0) return filters.showUntagged;
-  return question.tags.some(tag => !filters.hiddenTagIds.includes(tag.id));
+  return matchesTags(question, new Set(filters.selectedTagIds), filters.untaggedSelected);
 }
 
 /** Cuántas preguntas tienen cada tag (id → número). */

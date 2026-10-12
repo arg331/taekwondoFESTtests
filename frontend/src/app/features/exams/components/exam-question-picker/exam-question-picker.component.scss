@@ -15,11 +15,7 @@
 .difficulty-scale {
   display: flex; justify-content: space-between; font-size: 0.75rem; color: #777; margin-top: -8px;
 }
-.tag-filters {
-  display: flex; flex-wrap: wrap; column-gap: 4px;
-  mat-checkbox { font-size: 0.85rem; }
-}
-.tag-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+.tag-filters { display: flex; flex-wrap: wrap; gap: 6px; }
 
 // Lista a la izquierda y carrito a la derecha; en paneles estrechos, uno debajo de otro
 .picker-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 12px; margin-bottom: 12px; }
@@ -73,6 +69,7 @@
   .cart-title { font-weight: 600; font-size: 0.9rem; }
   .cart-count { font-weight: 700; color: #4caf50; }
   .cart-count.over { color: #f44336; }
+  .cart-target { font-size: 0.75rem; color: #888; }
   .cart-clear { margin-left: auto; }
 }
 .cart-warning { font-size: 0.8rem; color: #f44336; margin: 6px 12px 0; }

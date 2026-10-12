@@ -10,6 +10,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../../core/services/auth.service';
 import { ExamCodeEntryComponent } from '../../../shared/components/exam-code-entry/exam-code-entry.component';
+import { APP_NAME } from '../../../core/app-brand';
 
 @Component({
   selector: 'app-login',
@@ -31,6 +32,7 @@ import { ExamCodeEntryComponent } from '../../../shared/components/exam-code-ent
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class LoginComponent {
+  readonly appName = APP_NAME;
   private fb     = inject(FormBuilder);
   private auth   = inject(AuthService);
   private router = inject(Router);

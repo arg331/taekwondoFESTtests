@@ -56,11 +56,8 @@
       </div>
 
       <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Explicación de la respuesta</mat-label>
+        <mat-label>Explicación de la respuesta (opcional)</mat-label>
         <textarea matInput formControlName="explanation" rows="2"></textarea>
-        @if (form.controls.explanation.hasError('required') && form.controls.explanation.touched) {
-          <mat-error>Campo obligatorio</mat-error>
-        }
       </mat-form-field>
 
       @if (error()) {

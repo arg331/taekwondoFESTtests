@@ -205,8 +205,21 @@ class ExamLifecycleCharacterizationTest extends ApiCharacterizationTest {
     }
 
     @Test
-    @DisplayName("Publicar: con un número de preguntas distinto al configurado devuelve 409")
-    void publish_wrongQuestionCount_conflict() {
+    @DisplayName("Publicar: el número de preguntas es el de las elegidas, no el configurado (RF-46)")
+    void publish_questionCountFollowsSelection() {
+        Session teacher = newTeacher();
+        long examId = createDraft(teacher.token(), 5, null, true);
+        setQuestions(teacher.token(), examId, createQuestions(teacher.token(), 7));
+
+        HttpResult result = publish(teacher.token(), examId, "PUBLIC", null, null).expectStatus(200);
+
+        assertThat((Integer) result.read("$.config.numberOfQuestions")).isEqualTo(7);
+        assertThat((List<?>) result.read("$.questionIds")).hasSize(7);
+    }
+
+    @Test
+    @DisplayName("Publicar: con menos de 5 preguntas elegidas devuelve 409")
+    void publish_tooFewQuestions_conflict() {
         Session teacher = newTeacher();
         long examId = createDraft(teacher.token(), 5, null, true);
         setQuestions(teacher.token(), examId, createQuestions(teacher.token(), 4));
@@ -214,7 +227,36 @@ class ExamLifecycleCharacterizationTest extends ApiCharacterizationTest {
         HttpResult result = publish(teacher.token(), examId, "PUBLIC", null, null);
 
         assertThat(result.expectStatus(409).message())
-                .isEqualTo("El examen debe tener 5 preguntas para publicarse (tiene 4)");
+                .isEqualTo("El examen debe tener entre 5 y 50 preguntas para publicarse (tiene 4)");
+    }
+
+    @Test
+    @DisplayName("Publicar sin caducidad: no tiene fecha de expiración y sigue abierto días después (RF-48)")
+    void publish_neverExpires() {
+        Session teacher = newTeacher();
+        long examId = createDraft(teacher.token(), 5, null, true);
+        setQuestions(teacher.token(), examId, createQuestions(teacher.token(), 5));
+
+        HttpResult result = post("/api/exams/" + examId + "/publish", teacher.token(),
+                obj("visibility", "PRIVATE", "neverExpires", true)).expectStatus(200);
+        clock.advance(Duration.ofDays(30));
+
+        assertThat((Object) result.read("$.expiresAt")).isNull();
+        get("/api/exams/by-code/" + result.read("$.code"), null).expectStatus(200);
+    }
+
+    @Test
+    @DisplayName("Publicar: pedir a la vez fecha de caducidad y «sin caducidad» devuelve 409")
+    void publish_neverExpiresWithDate_conflict() {
+        Session teacher = newTeacher();
+        long examId = createDraft(teacher.token(), 5, null, true);
+        setQuestions(teacher.token(), examId, createQuestions(teacher.token(), 5));
+
+        HttpResult result = post("/api/exams/" + examId + "/publish", teacher.token(), obj(
+                "visibility", "PRIVATE", "neverExpires", true, "expiresAt", now().plusDays(1).toString()));
+
+        assertThat(result.expectStatus(409).message())
+                .isEqualTo("Indica una fecha de caducidad o «sin caducidad», no las dos");
     }
 
     @Test

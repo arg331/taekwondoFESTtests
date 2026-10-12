@@ -13,6 +13,7 @@ import {
   QuestionResponse
 } from '../../../../core/models/question.models';
 import { TagResponse } from '../../../../core/models/tag.models';
+import { EXAM_MAX_QUESTIONS } from '../../../../core/models/exam.models';
 import {
   QuestionFormDialogComponent,
   QuestionFormDialogData
@@ -50,8 +51,8 @@ export class ExamQuestionPickerComponent {
 
   questions = input.required<QuestionResponse[]>();
   tags = input<TagResponse[]>([]);
-  /** Número de preguntas que pide el examen. */
-  requiredCount = input(0);
+  /** Objetivo de preguntas: hasta dónde rellena «Completar al azar». Se publican las elegidas (RF-46). */
+  targetCount = input(0);
   selectedIds = model.required<number[]>();
   /** Pregunta creada desde el selector: el padre la añade a su lista del banco. */
   questionCreated = output<QuestionResponse>();
@@ -62,8 +63,8 @@ export class ExamQuestionPickerComponent {
 
   private readonly saved = loadSavedFilters();
   search = signal('');
-  hiddenTagIds = signal<number[]>(this.saved.hiddenTagIds);
-  showUntagged = signal(this.saved.showUntagged);
+  selectedTagIds = signal<number[]>(this.saved.selectedTagIds);
+  untaggedSelected = signal(this.saved.untaggedSelected);
   difficultyRange = signal<[number, number]>(this.saved.difficultyRange);
 
   expandedId = signal<number | null>(null);
@@ -71,8 +72,8 @@ export class ExamQuestionPickerComponent {
 
   private filters = computed<QuestionFilters>(() => ({
     search: this.search(),
-    hiddenTagIds: this.hiddenTagIds(),
-    showUntagged: this.showUntagged(),
+    selectedTagIds: this.selectedTagIds(),
+    untaggedSelected: this.untaggedSelected(),
     difficultyRange: this.difficultyRange()
   }));
 
@@ -86,8 +87,9 @@ export class ExamQuestionPickerComponent {
       .map(id => byId.get(id))
       .filter((q): q is QuestionResponse => q !== undefined);
   });
-  overSelected = computed(() => this.selectedIds().length > this.requiredCount());
-  missing = computed(() => Math.max(0, this.requiredCount() - this.selectedIds().length));
+  readonly maxQuestions = EXAM_MAX_QUESTIONS;
+  overMax = computed(() => this.selectedIds().length > EXAM_MAX_QUESTIONS);
+  missing = computed(() => Math.max(0, this.targetCount() - this.selectedIds().length));
   candidates = computed(() => this.filtered().filter(q => !this.selectedIds().includes(q.id)));
 
   /** Etiqueta que muestra la barra de dificultad mientras se arrastra. */
@@ -96,8 +98,8 @@ export class ExamQuestionPickerComponent {
   constructor() {
     // Los filtros de tags y dificultad se recuerdan en este navegador
     effect(() => saveFilters({
-      hiddenTagIds: this.hiddenTagIds(),
-      showUntagged: this.showUntagged(),
+      selectedTagIds: this.selectedTagIds(),
+      untaggedSelected: this.untaggedSelected(),
       difficultyRange: this.difficultyRange()
     }));
   }
@@ -133,12 +135,12 @@ export class ExamQuestionPickerComponent {
   }
 
   // ── Filtros ───────────────────────────────────────
-  isTagVisible(tagId: number): boolean {
-    return !this.hiddenTagIds().includes(tagId);
+  isTagSelected(tagId: number): boolean {
+    return this.selectedTagIds().includes(tagId);
   }
 
-  setTagVisible(tagId: number, visible: boolean): void {
-    this.hiddenTagIds.update(ids => visible ? ids.filter(id => id !== tagId) : [...ids, tagId]);
+  setTagSelected(tagId: number, selected: boolean): void {
+    this.selectedTagIds.update(ids => selected ? [...ids, tagId] : ids.filter(id => id !== tagId));
   }
 
   setDifficultyFrom(level: number): void {

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal, OnInit, DestroyRef } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal, OnInit, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -45,6 +45,10 @@ export class ExamsComponent implements OnInit {
   tags         = signal<TagResponse[]>([]);
   draftMode    = signal<DraftMode | null>(null);
   selectedExam = signal<ExamResponse | null>(null);
+  /** Exámenes publicados: el QR de uno nuevo toma un color distinto al de estos. */
+  openExamCodes = computed(() => this.exams()
+    .filter(e => e.status === 'PUBLISHED' && e.code)
+    .map(e => e.code as string));
 
   ngOnInit(): void {
     this.questionSvc.getAll().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(q => this.questions.set(q));

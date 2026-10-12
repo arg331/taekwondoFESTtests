@@ -16,6 +16,14 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ExamConfig {
 
+    public static final int MIN_QUESTIONS = 5;
+    public static final int MAX_QUESTIONS = 50;
+    public static final int MAX_TIME_LIMIT_MINUTES = 180;
+
+    /**
+     * Preguntas que pide el examen. En un borrador es el objetivo (para generar al azar o
+     * completar); al publicar pasa a ser el número de preguntas elegidas.
+     */
     @Column(name = "number_of_questions", nullable = false)
     private int numberOfQuestions;
 
@@ -34,5 +42,9 @@ public class ExamConfig {
 
     public boolean hasTimeLimit() {
         return timeLimitMinutes != null && timeLimitMinutes > 0;
+    }
+
+    void matchQuestionCount(int count) {
+        numberOfQuestions = count;
     }
 }

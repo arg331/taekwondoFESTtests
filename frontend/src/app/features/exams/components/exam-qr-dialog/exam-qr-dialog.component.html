@@ -12,6 +12,21 @@
   <p class="projection-code">{{ data.code }}</p>
   <p class="projection-url">{{ data.url }}</p>
 
+  <div class="projection-colors" role="group" aria-label="Color del QR">
+    @for (preset of colorPresets; track preset.value) {
+      <button type="button" class="color-swatch" [style.background]="preset.value"
+              [attr.aria-label]="preset.name" [attr.aria-pressed]="color() === preset.value"
+              (click)="setColor(preset.value)"></button>
+    }
+    <label class="color-custom">
+      Otro
+      <input type="color" [value]="color()" (input)="setColor($any($event.target).value)" />
+    </label>
+  </div>
+  @if (lowContrast()) {
+    <p class="projection-warning">Color demasiado claro: puede que los móviles no lean el QR.</p>
+  }
+
   <div class="projection-actions">
     <button mat-stroked-button type="button" (click)="fullscreen()">
       <mat-icon>fullscreen</mat-icon>Pantalla completa

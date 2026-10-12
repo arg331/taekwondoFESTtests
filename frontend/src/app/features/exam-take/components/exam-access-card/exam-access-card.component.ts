@@ -7,8 +7,9 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { ExamResponse } from '../../../../core/models/exam.models';
+import { ExamResponse, VISIBILITY_ICON } from '../../../../core/models/exam.models';
 import { UserResponse } from '../../../../core/models/auth.models';
+import { APP_NAME } from '../../../../core/app-brand';
 
 export interface StudentInfo {
   studentName: string;
@@ -37,6 +38,7 @@ export interface StudentInfo {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ExamAccessCardComponent {
+  readonly appName = APP_NAME;
   private fb = inject(FormBuilder);
 
   exam = input.required<ExamResponse>();
@@ -44,6 +46,9 @@ export class ExamAccessCardComponent {
   starting = input(false);
   start = output<StudentInfo>();
 
+  /** Público = de prueba; privado = oficial (RF-49). */
+  isPractice = computed(() => this.exam().visibility === 'PUBLIC');
+  kindIcon = computed(() => VISIBILITY_ICON[this.exam().visibility]);
   needsLogin = computed(() => this.exam().accessMode === 'REGISTERED_ONLY' && !this.user());
   loginQueryParams = computed(() => ({ returnUrl: `/exam/${this.exam().code}` }));
 

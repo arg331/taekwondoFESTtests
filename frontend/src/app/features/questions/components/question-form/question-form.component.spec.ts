@@ -73,6 +73,19 @@ describe('QuestionFormComponent', () => {
     req.flush(null);
   });
 
+  it('la explicación es opcional (RF-09)', async () => {
+    await render(null);
+    await fill('Pregunta sin explicación alguna', ['Sí', 'No', '', ''], 0, '');
+
+    expect(saveButton().disabled).toBe(false);
+    saveButton().click();
+    await stable();
+
+    const req = http.expectOne(`${API}/questions`);
+    expect(req.request.body.explanation).toBe('');
+    req.flush(null);
+  });
+
   it('avisa y no deja guardar con menos de 2 opciones o con la correcta vacía', async () => {
     await render(null);
     await fill('Texto suficientemente largo', ['Solo una', '', '', ''], 0, 'x');

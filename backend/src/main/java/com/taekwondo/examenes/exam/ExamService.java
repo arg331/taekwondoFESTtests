@@ -124,10 +124,13 @@ public class ExamService {
 
     public ExamResponse publish(Long examId, PublishExamRequest request, Long ownerId) {
         Exam exam = getOwned(examId, ownerId);
-        LocalDateTime expiresAt = request.expiresAt() != null
-                ? request.expiresAt()
-                : now().plus(DEFAULT_PUBLICATION);
-        requireFuture(expiresAt);
+        boolean neverExpires = Boolean.TRUE.equals(request.neverExpires());
+        if (neverExpires && request.expiresAt() != null) {
+            throw new BusinessRuleException("Indica una fecha de caducidad o «sin caducidad», no las dos");
+        }
+        LocalDateTime expiresAt = neverExpires ? null
+                : request.expiresAt() != null ? request.expiresAt() : now().plus(DEFAULT_PUBLICATION);
+        if (expiresAt != null) requireFuture(expiresAt);
         ExamAccessMode accessMode = request.accessMode() != null ? request.accessMode() : ExamAccessMode.OPEN;
 
         exam.publish(generateUniqueCode(), request.visibility(), accessMode, expiresAt);

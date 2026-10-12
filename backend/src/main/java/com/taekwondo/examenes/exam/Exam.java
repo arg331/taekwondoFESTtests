@@ -117,10 +117,13 @@ public class Exam {
     public void publish(String code, Visibility visibility, ExamAccessMode accessMode,
                         LocalDateTime expiresAt) {
         requireDraft("publicar");
-        if (questionIds.size() != config.getNumberOfQuestions()) {
-            throw new BusinessRuleException("El examen debe tener " + config.getNumberOfQuestions()
-                    + " preguntas para publicarse (tiene " + questionIds.size() + ")");
+        int count = questionIds.size();
+        if (count < ExamConfig.MIN_QUESTIONS || count > ExamConfig.MAX_QUESTIONS) {
+            throw new BusinessRuleException("El examen debe tener entre " + ExamConfig.MIN_QUESTIONS + " y "
+                    + ExamConfig.MAX_QUESTIONS + " preguntas para publicarse (tiene " + count + ")");
         }
+        // El número de preguntas es el de las elegidas (RF-46)
+        config.matchQuestionCount(count);
         this.code = code;
         this.visibility = visibility;
         this.accessMode = accessMode;

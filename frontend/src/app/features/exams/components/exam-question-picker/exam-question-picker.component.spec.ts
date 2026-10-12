@@ -36,7 +36,7 @@ describe('ExamQuestionPickerComponent', () => {
   let created: QuestionResponse[];
   let dialogOpen: ReturnType<typeof vi.fn>;
 
-  async function render(selected: number[] = [], requiredCount = 3): Promise<void> {
+  async function render(selected: number[] = [], targetCount = 3): Promise<void> {
     TestBed.configureTestingModule({
       imports: [ExamQuestionPickerComponent],
       providers: [{ provide: MatDialog, useValue: { open: dialogOpen } }]
@@ -44,7 +44,7 @@ describe('ExamQuestionPickerComponent', () => {
     fixture = TestBed.createComponent(ExamQuestionPickerComponent);
     fixture.componentRef.setInput('questions', QUESTIONS);
     fixture.componentRef.setInput('tags', [COMBATE, FORMAS, ITF]);
-    fixture.componentRef.setInput('requiredCount', requiredCount);
+    fixture.componentRef.setInput('targetCount', targetCount);
     fixture.componentRef.setInput('selectedIds', selected);
     created = [];
     fixture.componentInstance.questionCreated.subscribe(q => created.push(q));
@@ -126,22 +126,38 @@ describe('ExamQuestionPickerComponent', () => {
       expect(await (await checkbox('Sin tag')).getLabelText()).toContain('(1)');
     });
 
-    it('desmarcar un tag oculta las preguntas que no tienen ningún otro tag marcado', async () => {
+    it('al principio no hay ninguna marcada y se ven todas las preguntas', async () => {
       await render();
 
-      await (await checkbox('Combate')).uncheck();
-      await stable();
-
-      expect(visibleIds()).toEqual([1, 3, 4, 5]);
+      expect(await (await checkbox('Combate')).isChecked()).toBe(false);
+      expect(await (await checkbox('Sin tag')).isChecked()).toBe(false);
+      expect(visibleIds()).toEqual([1, 2, 3, 4, 5]);
     });
 
-    it('la casilla «Sin tag» controla las preguntas sin tags', async () => {
+    it('marcar un tag muestra las preguntas que lo tienen, aunque tengan más tags', async () => {
       await render();
 
-      await (await checkbox('Sin tag')).uncheck();
+      await (await checkbox('Combate')).check();
       await stable();
 
-      expect(visibleIds()).not.toContain(4);
+      expect(visibleIds()).toEqual([1, 2]);
+    });
+
+    it('«Sin tag» suma las preguntas sin tags', async () => {
+      await render();
+
+      await (await checkbox('Formas')).check();
+      await (await checkbox('Sin tag')).check();
+      await stable();
+
+      expect(visibleIds()).toEqual([3, 4, 5]);
+    });
+
+    it('cada tag es una pastilla con el borde de su color', async () => {
+      await render();
+
+      const pill = Array.from(el.querySelectorAll('.tag-pill')).find(p => p.textContent?.includes('Combate')) as HTMLElement;
+      expect(pill.style.getPropertyValue('--tag-color')).toBe('#123456');
     });
   });
 
@@ -172,13 +188,26 @@ describe('ExamQuestionPickerComponent', () => {
       await render([3, 1], 3);
 
       const items = Array.from(el.querySelectorAll('.cart-item')).map(i => i.textContent?.replace(/\s+/g, ' ').trim());
-      expect(el.querySelector('.cart-count')?.textContent).toContain('2 / 3');
+      expect(el.querySelector('.cart-count')?.textContent?.trim()).toBe('2');
+      expect(el.querySelector('.cart-target')?.textContent).toContain('objetivo 3');
       expect(items[0]).toContain('Pregunta 3');
       expect(items[1]).toContain('Pregunta 1');
 
       (el.querySelector('.cart-item .cart-remove') as HTMLElement).click();
       await stable();
       expect(selected()).toEqual([1]);
+    });
+
+    it('pasarse del objetivo no es un error (RF-46)', async () => {
+      await render([1, 2, 3, 4], 3);
+
+      expect(el.querySelector('.cart-warning')).toBeNull();
+    });
+
+    it('pasar de 50 sí lo avisa', async () => {
+      await render(Array.from({ length: 51 }, (_, i) => i + 1), 3);
+
+      expect(el.querySelector('.cart-warning')?.textContent).toContain('máximo 50');
     });
 
     it('«Vaciar» quita todas', async () => {
@@ -194,9 +223,7 @@ describe('ExamQuestionPickerComponent', () => {
   describe('completar al azar', () => {
     it('rellena los huecos solo con preguntas que cumplen los filtros', async () => {
       await render([3], 3);
-      await (await checkbox('Formas')).uncheck();
-      await (await checkbox('ITF')).uncheck();
-      await (await checkbox('Sin tag')).uncheck();
+      await (await checkbox('Combate')).check();
       await stable();
 
       button('Completar al azar').click();
@@ -252,14 +279,14 @@ describe('ExamQuestionPickerComponent', () => {
 
   it('recuerda los filtros de tags y dificultad entre exámenes', async () => {
     await render();
-    await (await checkbox('Combate')).uncheck();
+    await (await checkbox('Combate')).check();
     await (await (await loader.getHarness(MatSliderHarness)).getStartThumb()).setValue(1);
     await stable();
     TestBed.resetTestingModule();
 
     await render();
 
-    expect(await (await checkbox('Combate')).isChecked()).toBe(false);
-    expect(visibleIds()).toEqual([3, 5]);
+    expect(await (await checkbox('Combate')).isChecked()).toBe(true);
+    expect(visibleIds()).toEqual([2]);
   });
 });

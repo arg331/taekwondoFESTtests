@@ -25,9 +25,17 @@
 
       <div class="row-2">
         <mat-form-field appearance="outline">
-          <mat-label>Nº preguntas</mat-label>
+          @if (isRandom()) {
+            <mat-label>Nº preguntas</mat-label>
+          } @else {
+            <mat-label>Objetivo de preguntas</mat-label>
+          }
           <input matInput type="number" formControlName="numberOfQuestions" />
-          <mat-hint>Mín. 5, máx. 50</mat-hint>
+          @if (isRandom()) {
+            <mat-hint>Entre 5 y 50</mat-hint>
+          } @else {
+            <mat-hint>Se publican las que elijas, entre 5 y 50</mat-hint>
+          }
         </mat-form-field>
         <mat-form-field appearance="outline">
           <mat-label>Tiempo límite (min)</mat-label>

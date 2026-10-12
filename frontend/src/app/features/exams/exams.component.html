@@ -44,7 +44,7 @@
       <app-exam-list [exams]="exams()" [selectedId]="selectedExam()?.id ?? null" (selected)="select($event)" />
 
       @if (selectedExam(); as exam) {
-        <app-exam-detail [exam]="exam" [questions]="questions()" [tags]="tags()"
+        <app-exam-detail [exam]="exam" [questions]="questions()" [tags]="tags()" [openExamCodes]="openExamCodes()"
                          (changed)="onChanged($event)" (deleted)="onDeleted($event)"
                          (questionCreated)="onQuestionCreated($event)" />
       }

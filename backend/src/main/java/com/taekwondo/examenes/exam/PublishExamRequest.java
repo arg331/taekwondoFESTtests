@@ -5,10 +5,12 @@ import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 
 /**
- * accessMode null = OPEN. expiresAt null = una hora desde ahora.
+ * accessMode null = OPEN. Sin expiresAt, el examen caduca en una hora,
+ * salvo que neverExpires sea true: entonces no caduca nunca.
  */
 public record PublishExamRequest(
         @NotNull Visibility visibility,
         ExamAccessMode accessMode,
-        LocalDateTime expiresAt
+        LocalDateTime expiresAt,
+        Boolean neverExpires
 ) {}

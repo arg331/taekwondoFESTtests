@@ -6,6 +6,7 @@ import com.taekwondo.examenes.common.ResourceNotFoundException;
 import com.taekwondo.examenes.user.User;
 import com.taekwondo.examenes.user.UserRepository;
 import com.taekwondo.examenes.user.UserResponse;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +20,9 @@ import java.util.List;
 @Service
 @Transactional
 public class ClubService {
+
+    /** Cuántos candidatos devuelve como mucho una búsqueda. */
+    private static final int MAX_CANDIDATES = 20;
 
     private final ClubRepository clubRepository;
     private final UserRepository userRepository;
@@ -77,6 +81,20 @@ public class ClubService {
         Club club = getClub(clubId);
         requireManager(club, getUser(requesterId));
         return userRepository.findAllByClubId(clubId).stream().map(ClubMemberResponse::from).toList();
+    }
+
+    /**
+     * A quién se puede añadir: el profesor busca entre quienes no tienen club (RF-40);
+     * el administrador también entre los de otros clubes, para cambiarlos (RF-42).
+     */
+    @Transactional(readOnly = true)
+    public List<ClubCandidateResponse> candidates(Long clubId, String text, Long requesterId) {
+        Club club = getClub(clubId);
+        User requester = getUser(requesterId);
+        requireManager(club, requester);
+        String query = text == null ? "" : text.trim();
+        return userRepository.searchClubCandidates(query, clubId, !requester.isAdmin(), PageRequest.of(0, MAX_CANDIDATES))
+                .stream().map(ClubCandidateResponse::from).toList();
     }
 
     /**

@@ -33,6 +33,10 @@
       <p class="user-role">{{ roleLabel() }}</p>
     </div>
     <mat-divider />
+    <button mat-menu-item (click)="openMyClub()">
+      <mat-icon>groups</mat-icon>
+      <span class="my-club">Mi club: <strong>{{ auth.currentUser()?.club?.name ?? 'ninguno' }}</strong></span>
+    </button>
     <button mat-menu-item (click)="logout()">
       <mat-icon>logout</mat-icon>
       Cerrar sesión

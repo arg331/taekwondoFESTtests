@@ -49,6 +49,12 @@ public class ClubController {
         return clubService.members(id, userId);
     }
 
+    @GetMapping("/{id}/candidates")
+    public List<ClubCandidateResponse> candidates(@PathVariable Long id, @RequestParam(defaultValue = "") String q,
+                                                  @AuthenticationPrincipal Long userId) {
+        return clubService.candidates(id, q, userId);
+    }
+
     @PutMapping("/{id}/members/{memberId}")
     public ClubMemberResponse addMember(@PathVariable Long id, @PathVariable Long memberId,
                                         @AuthenticationPrincipal Long userId) {

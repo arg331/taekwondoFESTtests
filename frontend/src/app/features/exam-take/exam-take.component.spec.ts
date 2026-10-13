@@ -260,7 +260,7 @@ describe('ExamTakeComponent', () => {
   it('con sesión iniciada: rellena nombre y email con los de la cuenta', async () => {
     localStorage.setItem('fest_token', 't');
     localStorage.setItem('fest_user', JSON.stringify({
-      id: 2, username: 'alu', email: 'alu@x.es', displayName: 'Alumna Registrada', role: 'STUDENT', active: true,
+      id: 2, username: 'alu', email: 'alu@x.es', displayName: 'Alumna Registrada', role: 'STUDENT', club: null, active: true,
       createdAt: '2026-10-08T10:00:00'
     }));
 

@@ -48,6 +48,12 @@ export const routes: Routes = [
           import('./features/results/results.routes').then(m => m.RESULTS_ROUTES)
       },
       {
+        path: 'clubs',
+        canMatch: [teacherGuard],
+        loadChildren: () =>
+          import('./features/clubs/clubs.routes').then(m => m.CLUBS_ROUTES)
+      },
+      {
         path: 'users',
         canMatch: [adminGuard],
         loadChildren: () =>

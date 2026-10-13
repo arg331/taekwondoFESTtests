@@ -9,7 +9,7 @@ import { AuthService } from './services/auth.service';
 import { UserResponse, UserRole } from './models/auth.models';
 
 const USER: UserResponse = {
-  id: 1, username: 'u', email: 'u@x.es', displayName: 'U', role: 'STUDENT', active: true,
+  id: 1, username: 'u', email: 'u@x.es', displayName: 'U', role: 'STUDENT', club: null, active: true,
   createdAt: '2026-10-08T10:00:00'
 };
 

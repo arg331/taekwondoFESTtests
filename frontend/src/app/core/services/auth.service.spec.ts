@@ -8,7 +8,7 @@ import { LoginResponse, UserResponse } from '../models/auth.models';
 const API = 'http://localhost:8080/api';
 
 const ADMIN: UserResponse = {
-  id: 1, username: 'admin', email: 'admin@x.es', displayName: 'Admin', role: 'ADMIN', active: true,
+  id: 1, username: 'admin', email: 'admin@x.es', displayName: 'Admin', role: 'ADMIN', club: null, active: true,
   createdAt: '2026-10-08T10:00:00'
 };
 const STUDENT: UserResponse = { ...ADMIN, id: 2, username: 'alumno', role: 'STUDENT' };

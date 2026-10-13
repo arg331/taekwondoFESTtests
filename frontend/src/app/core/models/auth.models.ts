@@ -30,6 +30,8 @@ export interface UserResponse {
   email: string;
   displayName: string;
   role: UserRole;
+  /** Como mucho un club (RF-39); null = ninguno. */
+  club: { id: number; name: string } | null;
   active: boolean;
   createdAt: string;
 }

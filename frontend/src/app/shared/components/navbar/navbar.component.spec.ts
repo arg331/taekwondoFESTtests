@@ -11,7 +11,7 @@ describe('NavbarComponent', () => {
   function render(role: UserRole): string[] {
     localStorage.setItem('fest_token', 't');
     localStorage.setItem('fest_user', JSON.stringify({
-      id: 1, username: 'u', email: 'u@x.es', displayName: 'U', role, active: true, createdAt: '2026-10-13T10:00:00'
+      id: 1, username: 'u', email: 'u@x.es', displayName: 'U', role, club: null, active: true, createdAt: '2026-10-13T10:00:00'
     }));
     TestBed.configureTestingModule({
       imports: [NavbarComponent],
@@ -29,11 +29,11 @@ describe('NavbarComponent', () => {
     expect(render('STUDENT')).toEqual(['Dashboard', 'Mis resultados']);
   });
 
-  it('el profesor ve preguntas, exámenes y resultados, pero no usuarios', () => {
-    expect(render('TEACHER')).toEqual(['Dashboard', 'Preguntas', 'Exámenes', 'Resultados']);
+  it('el profesor ve preguntas, exámenes, resultados y clubes, pero no usuarios', () => {
+    expect(render('TEACHER')).toEqual(['Dashboard', 'Preguntas', 'Exámenes', 'Resultados', 'Clubes']);
   });
 
   it('el administrador ve además la gestión de usuarios', () => {
-    expect(render('ADMIN')).toEqual(['Dashboard', 'Preguntas', 'Exámenes', 'Resultados', 'Usuarios']);
+    expect(render('ADMIN')).toEqual(['Dashboard', 'Preguntas', 'Exámenes', 'Resultados', 'Clubes', 'Usuarios']);
   });
 });

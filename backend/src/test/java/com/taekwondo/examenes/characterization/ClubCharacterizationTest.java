@@ -165,7 +165,69 @@ class ClubCharacterizationTest extends ApiCharacterizationTest {
         assertThat(result.expectStatus(409).message()).isEqualTo("Ese usuario no es miembro del club");
     }
 
-    // ───── Elegir el propio club ─────
+    // ───── Buscar a quién añadir ─────
+
+    @Test
+    @DisplayName("Candidatos: el profesor busca por nombre o usuario entre quienes no tienen club (RF-40)")
+    void candidates_teacherSeesUsersWithoutClub() {
+        Session teacher = newTeacher();
+        long clubId = createClub(teacher);
+        Session free = newStudent();
+        Session member = newStudent();
+        put("/api/clubs/" + clubId + "/members/" + member.id(), teacher.token(), null).expectStatus(200);
+        Session inOtherClub = newStudent();
+        put("/api/users/me/club", inOtherClub.token(), obj("clubId", createClub(newTeacher()))).expectStatus(200);
+
+        List<Map<String, Object>> found = search(clubId, free.username(), teacher);
+
+        assertThat(found).singleElement().satisfies(c -> {
+            assertThat(c).containsOnlyKeys("id", "username", "displayName", "role", "clubName");
+            assertThat(((Number) c.get("id")).longValue()).isEqualTo(free.id());
+            assertThat(c.get("clubName")).isNull();
+        });
+        assertThat(search(clubId, member.username(), teacher)).isEmpty();
+        assertThat(search(clubId, inOtherClub.username(), teacher)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Candidatos: busca también por el nombre visible y sin distinguir mayúsculas")
+    void candidates_byDisplayName() {
+        Session teacher = newTeacher();
+        long clubId = createClub(teacher);
+        Session student = newStudent();
+
+        List<Map<String, Object>> found = get("/api/clubs/" + clubId + "/candidates?q=" + student.username().toUpperCase(),
+                teacher.token()).expectStatus(200).asList();
+
+        assertThat(ids(found)).containsExactly(student.id());
+    }
+
+    @Test
+    @DisplayName("Candidatos: el administrador ve también a los de otros clubes, con el nombre de su club (RF-42)")
+    void candidates_adminSeesOtherClubs() {
+        long clubId = createClub(newTeacher());
+        Session otherTeacher = newTeacher();
+        long otherClub = createClub(otherTeacher);
+        Session student = newStudent();
+        put("/api/clubs/" + otherClub + "/members/" + student.id(), otherTeacher.token(), null).expectStatus(200);
+
+        List<Map<String, Object>> found = get("/api/clubs/" + clubId + "/candidates?q=" + student.username(), adminToken())
+                .expectStatus(200).asList();
+
+        assertThat(ids(found)).containsExactly(student.id());
+        assertThat((String) found.get(0).get("clubName")).isEqualTo(get("/api/clubs", null).asList().stream()
+                .filter(c -> ((Number) c.get("id")).longValue() == otherClub).findFirst().orElseThrow().get("name"));
+    }
+
+    @Test
+    @DisplayName("Candidatos: solo quien gestiona el club puede buscar")
+    void candidates_forbiddenForOthers() {
+        long clubId = createClub(newTeacher());
+
+        get("/api/clubs/" + clubId + "/candidates?q=a", newTeacher().token()).expectStatus(403);
+    }
+
+        // ───── Elegir el propio club ─────
 
     @Test
     @DisplayName("Mi club: cada usuario elige su club, lo cambia o lo deja (RF-41)")
@@ -210,6 +272,14 @@ class ClubCharacterizationTest extends ApiCharacterizationTest {
 
     private long createClub(Session teacher) {
         return post("/api/clubs", teacher.token(), obj("name", unique("Club"))).expectStatus(201).id();
+    }
+
+    private List<Map<String, Object>> search(long clubId, String q, Session session) {
+        return get("/api/clubs/" + clubId + "/candidates?q=" + q, session.token()).expectStatus(200).asList();
+    }
+
+    private static List<Long> ids(List<Map<String, Object>> users) {
+        return users.stream().map(u -> ((Number) u.get("id")).longValue()).toList();
     }
 
     private HttpResult me(Session session) {

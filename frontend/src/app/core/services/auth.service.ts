@@ -73,6 +73,12 @@ export class AuthService {
     this.router.navigate(['/auth/login']);
   }
 
+  /** Tras cambiar algo del propio usuario (por ejemplo, su club), la sesión guarda la versión nueva. */
+  updateCurrentUser(user: UserResponse): void {
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+    this._currentUser.set(user);
+  }
+
   getToken(): string | null {
     return localStorage.getItem(TOKEN_KEY);
   }

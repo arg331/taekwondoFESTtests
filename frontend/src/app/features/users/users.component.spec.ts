@@ -12,7 +12,7 @@ const API = 'http://localhost:8080/api';
 
 function user(id: number, role: UserRole, displayName: string): UserResponse {
   return {
-    id, username: `u${id}`, email: `u${id}@x.es`, displayName, role, active: true, createdAt: '2026-10-13T10:00:00'
+    id, username: `u${id}`, email: `u${id}@x.es`, displayName, role, club: null, active: true, createdAt: '2026-10-13T10:00:00'
   };
 }
 

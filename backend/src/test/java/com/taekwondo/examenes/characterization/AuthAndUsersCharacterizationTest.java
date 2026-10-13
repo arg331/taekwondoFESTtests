@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AuthAndUsersCharacterizationTest extends ApiCharacterizationTest {
 
     private static final List<String> USER_FIELDS =
-            List.of("id", "username", "email", "displayName", "role", "active", "createdAt");
+            List.of("id", "username", "email", "displayName", "role", "club", "active", "createdAt");
 
     // ───── Registro ─────
 

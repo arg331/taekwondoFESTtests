@@ -1,5 +1,6 @@
 package com.taekwondo.examenes.user;
 
+import com.taekwondo.examenes.club.Club;
 import com.taekwondo.examenes.common.BusinessRuleException;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -38,6 +39,11 @@ public class User {
     @Column(nullable = false, length = 20)
     private UserRole role;
 
+    /** Como mucho un club (RF-39); null = ninguno. */
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "club_id")
+    private Club club;
+
     @Column(nullable = false)
     private boolean active = true;
 
@@ -60,6 +66,23 @@ public class User {
 
     public boolean isAdmin() {
         return role == UserRole.ADMIN;
+    }
+
+    public boolean isTeacher() {
+        return role == UserRole.TEACHER;
+    }
+
+    public boolean belongsTo(Club other) {
+        return club != null && club.getId().equals(other.getId());
+    }
+
+    /** Entrar en un club deja el anterior: se pertenece como mucho a uno. */
+    public void joinClub(Club newClub) {
+        this.club = newClub;
+    }
+
+    public void leaveClub() {
+        this.club = null;
     }
 
     public void changeRole(UserRole newRole) {

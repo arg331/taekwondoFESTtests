@@ -3,13 +3,13 @@
   <div class="welcome">
     <h1>Hola, {{ auth.currentUser()?.displayName }} 👋</h1>
     <p class="subtitle">
-      @if (auth.isAdmin()) { Panel de control de exámenes de arbitraje }
+      @if (auth.canTeach()) { Panel de control de exámenes de arbitraje }
       @else { Bienvenido al sistema de exámenes {{ appName }} }
     </p>
   </div>
 
   <!-- ── ADMIN ── -->
-  @if (auth.isAdmin()) {
+  @if (auth.canTeach()) {
     <div class="stats-grid">
       <mat-card class="stat-card">
         <mat-card-content>
@@ -142,7 +142,7 @@
   }
 
   <!-- ── STUDENT ── -->
-  @if (!auth.isAdmin()) {
+  @if (!auth.canTeach()) {
     <div class="quick-actions">
       <button mat-flat-button color="primary" routerLink="/results">
         <mat-icon>bar_chart</mat-icon>

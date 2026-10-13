@@ -7,6 +7,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../../core/services/auth.service';
+import { ROLE_LABEL } from '../../../core/models/auth.models';
 import { APP_NAME } from '../../../core/app-brand';
 
 @Component({
@@ -31,11 +32,15 @@ export class NavbarComponent {
   auth   = inject(AuthService);
   router = inject(Router);
 
-  adminLinks = [
+  teacherLinks = [
     { label: 'Dashboard',  path: '/dashboard',  icon: 'dashboard' },
     { label: 'Preguntas',  path: '/questions',  icon: 'quiz' },
     { label: 'Exámenes',   path: '/exams',       icon: 'assignment' },
     { label: 'Resultados', path: '/results',     icon: 'bar_chart' },
+  ];
+
+  adminLinks = [
+    ...this.teacherLinks,
     { label: 'Usuarios',   path: '/users',       icon: 'people' },
   ];
 
@@ -45,8 +50,12 @@ export class NavbarComponent {
   ];
 
   navLinks = computed(() =>
-    this.auth.isAdmin() ? this.adminLinks : this.studentLinks
+    this.auth.isAdmin() ? this.adminLinks : this.auth.canTeach() ? this.teacherLinks : this.studentLinks
   );
+  roleLabel = computed(() => {
+    const role = this.auth.currentUser()?.role;
+    return role ? ROLE_LABEL[role] : '';
+  });
 
   logout(): void {
     this.auth.logout();

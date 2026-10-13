@@ -34,6 +34,11 @@ export class AuthService {
   readonly currentUser = this._currentUser.asReadonly();
   readonly isAuthenticated = computed(() => this._currentUser() !== null);
   readonly isAdmin = computed(() => this._currentUser()?.role === 'ADMIN');
+  /** Prepara preguntas y exámenes y ve sus resultados: profesor o administrador. */
+  readonly canTeach = computed(() => {
+    const role = this._currentUser()?.role;
+    return role === 'TEACHER' || role === 'ADMIN';
+  });
 
   // ──────────────────────────────────────────────────
   // Endpoints públicos

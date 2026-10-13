@@ -72,9 +72,7 @@ describe('QuestionService, TagService y UserService (contrato HTTP)', () => {
 
     users.getAll().subscribe();
     expectCall('GET', `${API}/users`);
-    users.promote(9).subscribe();
-    expectCall('PATCH', `${API}/users/9/promote`, {});
-    users.demote(9).subscribe();
-    expectCall('PATCH', `${API}/users/9/demote`, {});
+    users.changeRole(9, 'TEACHER').subscribe();
+    expectCall('PATCH', `${API}/users/9/role`, { role: 'TEACHER' });
   });
 });

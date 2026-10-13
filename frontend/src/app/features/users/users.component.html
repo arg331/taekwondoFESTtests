@@ -14,7 +14,7 @@
   } @else {
     <div class="users-list">
       @for (user of users(); track user.id) {
-        <mat-card class="user-card">
+        <mat-card class="user-card" [attr.data-id]="user.id">
           <mat-card-content>
             <div class="user-row">
 
@@ -32,28 +32,20 @@
               </div>
 
               <div class="user-actions">
-                <span class="role-badge"
-                      [class.admin]="user.role === 'ADMIN'"
-                      [class.student]="user.role === 'STUDENT'">
-                  {{ user.role === 'ADMIN' ? 'Profesor/Admin' : 'Estudiante' }}
-                </span>
-
-                @if (!isCurrentUser(user)) {
-                  @if (user.role === 'STUDENT') {
-                    <button mat-stroked-button color="primary"
-                            (click)="promote(user)"
-                            matTooltip="Promover a Profesor/Admin">
-                      <mat-icon>arrow_upward</mat-icon>
-                      Promover
-                    </button>
-                  } @else {
-                    <button mat-stroked-button color="warn"
-                            (click)="demote(user)"
-                            matTooltip="Degradar a Estudiante">
-                      <mat-icon>arrow_downward</mat-icon>
-                      Degradar
-                    </button>
-                  }
+                @if (isCurrentUser(user)) {
+                  <!-- El propio rol no se cambia: así nadie se queda sin administrador por error -->
+                  <span class="role-badge" [attr.data-role]="user.role">{{ roleLabel[user.role] }}</span>
+                } @else {
+                  <mat-form-field appearance="outline" class="role-field" subscriptSizing="dynamic">
+                    <mat-label>Rol</mat-label>
+                    <mat-select #roleSelect [value]="user.role"
+                                (selectionChange)="changeRole(user, $event.value, roleSelect)"
+                                [attr.aria-label]="'Rol de ' + user.displayName">
+                      @for (role of roles; track role) {
+                        <mat-option [value]="role">{{ roleLabel[role] }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
                 }
               </div>
 

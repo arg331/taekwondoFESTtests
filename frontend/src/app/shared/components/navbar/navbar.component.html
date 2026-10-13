@@ -30,7 +30,7 @@
     <div class="user-info-menu">
       <p class="user-name">{{ auth.currentUser()?.displayName }}</p>
       <p class="user-email">{{ auth.currentUser()?.email }}</p>
-      <p class="user-role">{{ auth.currentUser()?.role }}</p>
+      <p class="user-role">{{ roleLabel() }}</p>
     </div>
     <mat-divider />
     <button mat-menu-item (click)="logout()">

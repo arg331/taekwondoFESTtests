@@ -8,8 +8,8 @@ import { MyResultsComponent } from './components/my-results/my-results.component
   imports: [TeacherResultsComponent, MyResultsComponent],
   template: `
     <div class="results-page">
-      <h1>{{ auth.isAdmin() ? 'Resultados' : 'Mis resultados' }}</h1>
-      @if (auth.isAdmin()) {
+      <h1>{{ auth.canTeach() ? 'Resultados' : 'Mis resultados' }}</h1>
+      @if (auth.canTeach()) {
         <app-teacher-results />
       } @else {
         <app-my-results />

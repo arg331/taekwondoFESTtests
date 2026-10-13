@@ -12,6 +12,7 @@ const ADMIN: UserResponse = {
   createdAt: '2026-10-08T10:00:00'
 };
 const STUDENT: UserResponse = { ...ADMIN, id: 2, username: 'alumno', role: 'STUDENT' };
+const TEACHER: UserResponse = { ...ADMIN, id: 3, username: 'profe', role: 'TEACHER' };
 
 /** Caracterización de la sesión: dónde se guarda, qué se expone y cómo se cierra. */
 describe('AuthService', () => {
@@ -66,6 +67,27 @@ describe('AuthService', () => {
 
     expect(auth.isAuthenticated()).toBe(true);
     expect(auth.isAdmin()).toBe(false);
+    expect(auth.canTeach()).toBe(false);
+  });
+
+  it('un profesor prepara exámenes pero no administra (RF-04)', () => {
+    localStorage.setItem('fest_token', 't');
+    localStorage.setItem('fest_user', JSON.stringify(TEACHER));
+
+    const auth = setup();
+
+    expect(auth.canTeach()).toBe(true);
+    expect(auth.isAdmin()).toBe(false);
+  });
+
+  it('el administrador también puede preparar exámenes', () => {
+    localStorage.setItem('fest_token', 't');
+    localStorage.setItem('fest_user', JSON.stringify(ADMIN));
+
+    const auth = setup();
+
+    expect(auth.canTeach()).toBe(true);
+    expect(auth.isAdmin()).toBe(true);
   });
 
   it('logout: borra la sesión y navega al login', () => {

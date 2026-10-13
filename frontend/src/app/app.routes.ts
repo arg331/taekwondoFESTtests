@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
-import { adminGuard } from './core/guards/role.guard';
+import { adminGuard, teacherGuard } from './core/guards/role.guard';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
@@ -32,13 +32,13 @@ export const routes: Routes = [
       },
       {
         path: 'questions',
-        canMatch: [adminGuard],
+        canMatch: [teacherGuard],
         loadChildren: () =>
           import('./features/questions/questions.routes').then(m => m.QUESTIONS_ROUTES)
       },
       {
         path: 'exams',
-        canMatch: [adminGuard],
+        canMatch: [teacherGuard],
         loadChildren: () =>
           import('./features/exams/exams.routes').then(m => m.EXAMS_ROUTES)
       },

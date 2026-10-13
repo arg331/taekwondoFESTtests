@@ -83,14 +83,10 @@
   border-radius: 12px;
   font-size: 0.8rem;
   font-weight: 600;
-
-  &.admin {
-    background: #fff3e0;
-    color: #e65100;
-  }
-
-  &.student {
-    background: #f3f4f6;
-    color: #555;
-  }
+  background: #f3f4f6;
+  color: #555;
+  &[data-role="ADMIN"] { background: #fdecea; color: #c62828; }
+  &[data-role="TEACHER"] { background: #fff3e0; color: #e65100; }
 }
+
+.role-field { width: 180px; }

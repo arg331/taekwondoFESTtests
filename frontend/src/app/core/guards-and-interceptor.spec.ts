@@ -6,14 +6,14 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import { routes } from '../app.routes';
 import { jwtInterceptor } from './interceptors/jwt.interceptor';
 import { AuthService } from './services/auth.service';
-import { UserResponse } from './models/auth.models';
+import { UserResponse, UserRole } from './models/auth.models';
 
 const USER: UserResponse = {
   id: 1, username: 'u', email: 'u@x.es', displayName: 'U', role: 'STUDENT', active: true,
   createdAt: '2026-10-08T10:00:00'
 };
 
-function login(role: 'ADMIN' | 'STUDENT'): void {
+function login(role: UserRole): void {
   localStorage.setItem('fest_token', 'jwt-abc');
   localStorage.setItem('fest_user', JSON.stringify({ ...USER, role }));
 }
@@ -69,11 +69,21 @@ describe('Guards y jwtInterceptor', () => {
     expect(await navigate('/users')).toBe('/dashboard');
   });
 
-  it('un profesor entra en las rutas de profesor', async () => {
+  it('un profesor entra en preguntas y exámenes, pero no en usuarios (RF-04)', async () => {
+    login('TEACHER');
+    setup();
+
+    expect(await navigate('/questions')).toBe('/questions');
+    expect(await navigate('/exams')).toBe('/exams');
+    expect(await navigate('/users')).toBe('/dashboard');
+  });
+
+  it('un administrador entra en las rutas de profesor y en usuarios', async () => {
     login('ADMIN');
     setup();
 
     expect(await navigate('/questions')).toBe('/questions');
+    expect(await navigate('/users')).toBe('/users');
   });
 
   it('las rutas públicas no piden sesión', async () => {

@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { UserResponse } from '../models/auth.models';
+import { UserResponse, UserRole } from '../models/auth.models';
 
 @Injectable({ providedIn: 'root' })
 export class UserService {
@@ -13,11 +13,8 @@ export class UserService {
     return this.http.get<UserResponse[]>(this.api);
   }
 
-  promote(id: number): Observable<UserResponse> {
-    return this.http.patch<UserResponse>(`${this.api}/${id}/promote`, {});
-  }
-
-  demote(id: number): Observable<UserResponse> {
-    return this.http.patch<UserResponse>(`${this.api}/${id}/demote`, {});
+  /** Solo el administrador, y nunca su propio rol (RF-36). */
+  changeRole(id: number, role: UserRole): Observable<UserResponse> {
+    return this.http.patch<UserResponse>(`${this.api}/${id}/role`, { role });
   }
 }

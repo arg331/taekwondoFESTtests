@@ -1,29 +1,25 @@
 import { ChangeDetectionStrategy, Component, inject, signal, OnInit, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
-import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatChipsModule } from '@angular/material/chips';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatDividerModule } from '@angular/material/divider';
+import { MatSelect, MatSelectModule } from '@angular/material/select';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { UserService } from '../../core/services/user.service';
 import { AuthService } from '../../core/services/auth.service';
-import { UserResponse } from '../../core/models/auth.models';
+import { ROLE_LABEL, USER_ROLES, UserResponse, UserRole } from '../../core/models/auth.models';
 
+/** Cuánto se ve el aviso de un cambio de rol rechazado. */
+const ERROR_DURATION_MS = 5000;
+
+/** Gestión de usuarios del administrador: lista y cambio de rol (RF-36). */
 @Component({
   selector: 'app-users',
-  standalone: true,
   imports: [
-    CommonModule,
     MatCardModule,
-    MatButtonModule,
     MatIconModule,
-    MatChipsModule,
     MatProgressSpinnerModule,
-    MatTooltipModule,
-    MatDividerModule
+    MatSelectModule
   ],
   templateUrl: './users.component.html',
   styleUrl: './users.component.scss',
@@ -31,37 +27,31 @@ import { UserResponse } from '../../core/models/auth.models';
 })
 export class UsersComponent implements OnInit {
   private userSvc = inject(UserService);
+  private snackBar = inject(MatSnackBar);
   auth            = inject(AuthService);
   private readonly destroyRef = inject(DestroyRef);
+
+  readonly roles = USER_ROLES;
+  readonly roleLabel = ROLE_LABEL;
 
   loading = signal(true);
   users   = signal<UserResponse[]>([]);
 
   ngOnInit(): void {
-    this.load();
-  }
-
-  load(): void {
     this.userSvc.getAll().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: u => { this.users.set(u); this.loading.set(false); },
       error: () => this.loading.set(false)
     });
   }
 
-  promote(user: UserResponse): void {
-    this.userSvc.promote(user.id).subscribe({
-      next: updated => this.users.update(
-        list => list.map(u => u.id === updated.id ? updated : u)
-      )
-    });
-  }
-
-  demote(user: UserResponse): void {
-    if (!confirm(`¿Degradar a ${user.displayName} a estudiante?`)) return;
-    this.userSvc.demote(user.id).subscribe({
-      next: updated => this.users.update(
-        list => list.map(u => u.id === updated.id ? updated : u)
-      )
+  /** Si el servidor lo rechaza, el desplegable vuelve al rol que tenía. */
+  changeRole(user: UserResponse, role: UserRole, select: MatSelect): void {
+    this.userSvc.changeRole(user.id, role).subscribe({
+      next: updated => this.users.update(list => list.map(u => u.id === updated.id ? updated : u)),
+      error: err => {
+        select.value = user.role;
+        this.snackBar.open(err?.error?.message ?? 'No se pudo cambiar el rol', undefined, { duration: ERROR_DURATION_MS });
+      }
     });
   }
 

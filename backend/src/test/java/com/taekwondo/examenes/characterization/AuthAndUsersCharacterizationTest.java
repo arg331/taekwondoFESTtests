@@ -162,56 +162,82 @@ class AuthAndUsersCharacterizationTest extends ApiCharacterizationTest {
         assertThat(users.get(0)).containsOnlyKeys(USER_FIELDS);
     }
 
-    @Test
-    @DisplayName("Usuarios: ascender y degradar cambian el rol; repetir la operación da 409")
-    void promoteAndDemote_changeRole_andRejectRepeats() {
+    @ParameterizedTest(name = "STUDENT → {0}")
+    @CsvSource({"TEACHER", "ADMIN"})
+    @DisplayName("Roles: el admin puede dar a un alumno cualquier rol")
+    void changeRole_byAdmin_setsAnyRole(String role) {
         Session student = newStudent();
-        String admin = adminToken();
 
-        HttpResult promoted = patch("/api/users/" + student.id() + "/promote", admin, null).expectStatus(200);
-        HttpResult promotedAgain = patch("/api/users/" + student.id() + "/promote", admin, null);
-        HttpResult demoted = patch("/api/users/" + student.id() + "/demote", admin, null).expectStatus(200);
-        HttpResult demotedAgain = patch("/api/users/" + student.id() + "/demote", admin, null);
+        HttpResult result = patch("/api/users/" + student.id() + "/role", adminToken(), obj("role", role));
 
-        assertThat((String) promoted.read("$.role")).isEqualTo("ADMIN");
-        assertThat(promotedAgain.expectStatus(409).message()).isEqualTo("El usuario ya es ADMIN");
-        assertThat((String) demoted.read("$.role")).isEqualTo("STUDENT");
-        assertThat(demotedAgain.expectStatus(409).message()).isEqualTo("El usuario ya es STUDENT");
+        assertThat((String) result.expectStatus(200).read("$.role")).isEqualTo(role);
+        assertThat(result.asMap()).containsOnlyKeys(USER_FIELDS);
     }
 
     @Test
-    @DisplayName("Usuarios: un profesor ascendido ya puede gestionar usuarios (hoy ADMIN = profesor)")
-    void promotedTeacher_canManageUsers() {
+    @DisplayName("Roles: dar el rol que ya tiene da 409")
+    void changeRole_sameRole_conflict() {
+        Session teacher = newTeacher();
+
+        HttpResult result = patch("/api/users/" + teacher.id() + "/role", adminToken(), obj("role", "TEACHER"));
+
+        assertThat(result.expectStatus(409).message()).isEqualTo("El usuario ya tiene el rol TEACHER");
+    }
+
+    @Test
+    @DisplayName("Roles: un profesor no puede cambiar roles (RF-36)")
+    void changeRole_byTeacher_forbidden() {
         Session teacher = newTeacher();
         Session student = newStudent();
 
-        patch("/api/users/" + student.id() + "/promote", teacher.token(), null).expectStatus(200);
+        HttpResult result = patch("/api/users/" + student.id() + "/role", teacher.token(), obj("role", "TEACHER"));
+
+        assertThat(result.status()).isEqualTo(403);
     }
 
     @Test
-    @DisplayName("Usuarios: nadie puede quitarse a sí mismo el rol de ADMIN")
-    void demote_self_conflict() {
-        Session teacher = newTeacher();
+    @DisplayName("Roles: nadie puede cambiarse su propio rol")
+    void changeRole_self_conflict() {
+        Session otherAdmin = newUserWithRole("ADMIN");
 
-        HttpResult result = patch("/api/users/" + teacher.id() + "/demote", teacher.token(), null);
+        HttpResult result = patch("/api/users/" + otherAdmin.id() + "/role", otherAdmin.token(),
+                obj("role", "STUDENT"));
 
-        assertThat(result.expectStatus(409).message()).isEqualTo("No puedes quitarte el rol de ADMIN a ti mismo");
+        assertThat(result.expectStatus(409).message()).isEqualTo("No puedes cambiar tu propio rol");
     }
 
     @Test
-    @DisplayName("Usuarios: id inexistente devuelve 404")
-    void promote_unknownUser_notFound() {
-        HttpResult result = patch("/api/users/999999/promote", adminToken(), null);
+    @DisplayName("Roles: sin rol o con un rol inexistente da 400")
+    void changeRole_invalidRole_badRequest() {
+        Session student = newStudent();
+        String url = "/api/users/" + student.id() + "/role";
+
+        assertThat(patch(url, adminToken(), obj()).expectStatus(400).message()).isEqualTo("role: must not be null");
+        assertThat(patch(url, adminToken(), obj("role", "SUPERADMIN")).expectStatus(400).message())
+                .isEqualTo("JSON malformado o petición inválida");
+    }
+
+    @Test
+    @DisplayName("Roles: id inexistente devuelve 404")
+    void changeRole_unknownUser_notFound() {
+        HttpResult result = patch("/api/users/999999/role", adminToken(), obj("role", "TEACHER"));
 
         assertThat(result.expectStatus(404).message()).isEqualTo("Usuario no encontrado con id 999999");
     }
 
     @Test
-    @DisplayName("Usuarios: tras degradar a un profesor, su token pierde el acceso de profesor al instante")
-    void demotedTeacher_losesAccessImmediately() {
-        Session teacher = newTeacher();
+    @DisplayName("Roles: un profesor no gestiona usuarios")
+    void listUsers_byTeacher_forbidden() {
+        assertThat(get("/api/users", newTeacher().token()).status()).isEqualTo(403);
+    }
 
-        patch("/api/users/" + teacher.id() + "/demote", adminToken(), null).expectStatus(200);
+    @Test
+    @DisplayName("Roles: al pasar un profesor a alumno, su token pierde el acceso de profesor al instante")
+    void teacherTurnedStudent_losesAccessImmediately() {
+        Session teacher = newTeacher();
+        assertThat(get("/api/questions", teacher.token()).status()).isEqualTo(200);
+
+        patch("/api/users/" + teacher.id() + "/role", adminToken(), obj("role", "STUDENT")).expectStatus(200);
 
         assertThat(get("/api/questions", teacher.token()).status()).isEqualTo(403);
     }

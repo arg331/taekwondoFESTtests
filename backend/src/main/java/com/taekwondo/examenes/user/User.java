@@ -62,17 +62,10 @@ public class User {
         return role == UserRole.ADMIN;
     }
 
-    public void promoteToAdmin() {
-        if (isAdmin()) {
-            throw new BusinessRuleException("El usuario ya es ADMIN");
+    public void changeRole(UserRole newRole) {
+        if (role == newRole) {
+            throw new BusinessRuleException("El usuario ya tiene el rol " + newRole);
         }
-        role = UserRole.ADMIN;
-    }
-
-    public void demoteToStudent() {
-        if (!isAdmin()) {
-            throw new BusinessRuleException("El usuario ya es STUDENT");
-        }
-        role = UserRole.STUDENT;
+        role = newRole;
     }
 }

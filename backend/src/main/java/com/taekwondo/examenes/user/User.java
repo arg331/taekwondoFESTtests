@@ -108,6 +108,18 @@ public class User {
         credentialsVersion++;
     }
 
+    /** RF-05: no puede entrar y sus sesiones se cierran; al reactivarlo no vuelven. Repetirlo no cambia nada. */
+    public void deactivate() {
+        if (active) {
+            active = false;
+            credentialsVersion++;
+        }
+    }
+
+    public void activate() {
+        active = true;
+    }
+
     public void changeRole(UserRole newRole) {
         if (role == newRole) {
             throw new BusinessRuleException("El usuario ya tiene el rol " + newRole);

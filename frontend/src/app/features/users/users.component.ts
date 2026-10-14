@@ -15,7 +15,7 @@ import { ResetPasswordDialogComponent } from './reset-password-dialog/reset-pass
 /** Cuánto se ven los avisos: un cambio de rol rechazado o una contraseña restablecida. */
 const MESSAGE_DURATION_MS = 5000;
 
-/** Gestión de usuarios del administrador: lista, cambio de rol (RF-36) y contraseña temporal (RF-35). */
+/** Gestión de usuarios del administrador: lista, rol (RF-36), contraseña temporal (RF-35) y desactivar (RF-05). */
 @Component({
   selector: 'app-users',
   imports: [
@@ -69,6 +69,15 @@ export class UsersComponent implements OnInit {
       this.replace(updated);
       this.snackBar.open(`Contraseña temporal guardada: ${updated.displayName} tendrá que cambiarla al entrar`,
         undefined, { duration: MESSAGE_DURATION_MS });
+    });
+  }
+
+  /** Desactivar cierra sus sesiones y le impide entrar; se puede deshacer reactivándola. */
+  toggleActive(user: UserResponse): void {
+    this.userSvc.setActive(user.id, !user.active).subscribe({
+      next: updated => this.replace(updated),
+      error: err => this.snackBar.open(err?.error?.message ?? 'No se pudo cambiar la cuenta', undefined,
+        { duration: MESSAGE_DURATION_MS })
     });
   }
 

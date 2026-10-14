@@ -82,6 +82,20 @@
   text-transform: uppercase;
 }
 
+.inactive-badge {
+  background: #eceff1;
+  color: #455a64;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 12px;
+  text-transform: uppercase;
+}
+
+.user-card.inactive .user-info {
+  opacity: 0.55;
+}
+
 .user-actions {
   display: flex;
   align-items: center;

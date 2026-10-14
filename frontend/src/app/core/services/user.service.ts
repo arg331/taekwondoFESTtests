@@ -18,6 +18,11 @@ export class UserService {
     return this.http.patch<UserResponse>(`${this.api}/${id}/role`, { role });
   }
 
+  /** Desactivar o reactivar una cuenta (RF-05); solo el administrador, y nunca la propia. */
+  setActive(id: number, active: boolean): Observable<UserResponse> {
+    return this.http.patch<UserResponse>(`${this.api}/${id}/active`, { active });
+  }
+
   /** Solo el administrador, y nunca su propia contraseña (RF-35). */
   resetPassword(id: number, temporaryPassword: string): Observable<UserResponse> {
     return this.http.put<UserResponse>(`${this.api}/${id}/password`, { temporaryPassword });

@@ -28,6 +28,12 @@ public class UserController {
         return userService.changeRole(id, request.role(), userId);
     }
 
+    @PatchMapping("/{id}/active")
+    public UserResponse setActive(@PathVariable Long id, @Valid @RequestBody SetActiveRequest request,
+                                  @AuthenticationPrincipal Long userId) {
+        return userService.setActive(id, request.active(), userId);
+    }
+
     @PutMapping("/{id}/password")
     public UserResponse resetPassword(@PathVariable Long id, @Valid @RequestBody ResetPasswordRequest request,
                                       @AuthenticationPrincipal Long userId) {

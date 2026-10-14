@@ -53,6 +53,20 @@ public class UserService {
         return UserResponse.from(user);
     }
 
+    /** Desactivar o reactivar una cuenta (RF-05); la propia no, para no quedarse fuera. */
+    public UserResponse setActive(Long userId, boolean active, Long requesterId) {
+        if (userId.equals(requesterId)) {
+            throw new BusinessRuleException("No puedes desactivar tu propia cuenta");
+        }
+        User user = getUser(userId);
+        if (active) {
+            user.activate();
+        } else {
+            user.deactivate();
+        }
+        return UserResponse.from(user);
+    }
+
     private User getUser(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con id " + userId));

@@ -14,7 +14,7 @@
   } @else {
     <div class="users-list">
       @for (user of users(); track user.id) {
-        <mat-card class="user-card" [attr.data-id]="user.id">
+        <mat-card class="user-card" [class.inactive]="!user.active" [attr.data-id]="user.id">
           <mat-card-content>
             <div class="user-row">
 
@@ -25,6 +25,9 @@
                     {{ user.displayName }}
                     @if (isCurrentUser(user)) {
                       <span class="you-badge">Tú</span>
+                    }
+                    @if (!user.active) {
+                      <span class="inactive-badge">Desactivada</span>
                     }
                     @if (user.mustChangePassword) {
                       <span class="temp-badge">Contraseña temporal</span>
@@ -56,6 +59,11 @@
                           [attr.aria-label]="'Restablecer la contraseña de ' + user.displayName">
                     <mat-icon>lock_reset</mat-icon>
                     Restablecer contraseña
+                  </button>
+                  <button mat-stroked-button type="button" class="toggle-active" (click)="toggleActive(user)"
+                          [attr.aria-label]="(user.active ? 'Desactivar la cuenta de ' : 'Reactivar la cuenta de ') + user.displayName">
+                    <mat-icon>{{ user.active ? 'block' : 'check_circle' }}</mat-icon>
+                    {{ user.active ? 'Desactivar' : 'Reactivar' }}
                   </button>
                 }
               </div>

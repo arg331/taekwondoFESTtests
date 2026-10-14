@@ -99,6 +99,48 @@ describe('UsersComponent', () => {
     expect(document.body.textContent).toContain('No se puede');
   });
 
+  describe('desactivar y reactivar (RF-05)', () => {
+    function activeButton(name: string): HTMLButtonElement | null {
+      return row(name).querySelector('button.toggle-active');
+    }
+
+    it('la propia cuenta no se desactiva desde aquí', () => {
+      expect(activeButton('Administrador')).toBeNull();
+      expect(activeButton('Ana')!.textContent).toContain('Desactivar');
+    });
+
+    it('desactivar lo guarda, marca la fila y deja reactivarla', async () => {
+      activeButton('Ana')!.click();
+      const req = http.expectOne(`${API}/users/2/active`);
+      expect(req.request.method).toBe('PATCH');
+      expect(req.request.body).toEqual({ active: false });
+      req.flush({ ...ANA, active: false });
+      await stable();
+
+      expect(row('Ana').textContent).toContain('Desactivada');
+      expect(row('Ana').classList).toContain('inactive');
+      expect(activeButton('Ana')!.textContent).toContain('Reactivar');
+
+      activeButton('Ana')!.click();
+      const again = http.expectOne(`${API}/users/2/active`);
+      expect(again.request.body).toEqual({ active: true });
+      again.flush(ANA);
+      await stable();
+
+      expect(row('Ana').textContent).not.toContain('Desactivada');
+    });
+
+    it('si el servidor lo rechaza, la fila no cambia y lo dice', async () => {
+      activeButton('Luis')!.click();
+      http.expectOne(`${API}/users/3/active`).flush({ message: 'Usuario no encontrado con id 3' },
+        { status: 404, statusText: 'Not Found' });
+      await stable();
+
+      expect(row('Luis').textContent).not.toContain('Desactivada');
+      expect(document.body.textContent).toContain('Usuario no encontrado con id 3');
+    });
+  });
+
   describe('restablecer contraseña (RF-35)', () => {
     function resetButton(name: string): HTMLButtonElement | null {
       return row(name).querySelector('button.reset-password');

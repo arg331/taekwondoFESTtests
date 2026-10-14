@@ -12,7 +12,7 @@ const AVILA: ClubResponse = { id: 1, name: 'Club Ávila' };
 const BADAJOZ: ClubResponse = { id: 2, name: 'Club Badajoz' };
 
 function me(role: UserRole, club: ClubResponse | null): UserResponse {
-  return { id: 7, username: 'yo', email: 'yo@x.es', displayName: 'Yo', role, club, active: true, createdAt: '2026-10-13T10:00:00' };
+  return { id: 7, username: 'yo', email: 'yo@x.es', displayName: 'Yo', role, club, active: true, mustChangePassword: false, createdAt: '2026-10-13T10:00:00' };
 }
 
 /** Página «Clubes» para profesores y administrador (RF-38, RF-40, RF-42). */

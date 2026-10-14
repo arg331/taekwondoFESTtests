@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { FormBuilder, Validators, ReactiveFormsModule, AbstractControl, ValidationErrors } from '@angular/forms';
+import { FormBuilder, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
@@ -15,6 +15,7 @@ import { ClubService } from '../../../core/services/club.service';
 import { RegisterRequest } from '../../../core/models/auth.models';
 import { ClubResponse } from '../../../core/models/club.models';
 import { APP_NAME } from '../../../core/app-brand';
+import { passwordMatchValidator } from '../../../shared/utils/password-match';
 
 /** Valor de «Sin club» en el desplegable: con null, el desplegable se mostraría vacío. */
 const NO_CLUB = 0;
@@ -23,22 +24,6 @@ function registerError(status: number | undefined): string {
   if (status === 409) return 'El usuario o email ya existe';
   if (status === 404) return 'Ese club ya no existe: elige otro o déjalo en «Sin club»';
   return 'Error al registrarse. Inténtalo de nuevo.';
-}
-
-function passwordMatchValidator(control: AbstractControl): ValidationErrors | null {
-  const password = control.get('plainPassword');
-  const confirm  = control.get('confirmPassword');
-  if (!password || !confirm) return null;
-
-  if (password.value !== confirm.value) {
-    confirm.setErrors({ passwordMismatch: true });
-    return { passwordMismatch: true };
-  } else {
-    const errors = { ...confirm.errors };
-    delete errors['passwordMismatch'];
-    confirm.setErrors(Object.keys(errors).length ? errors : null);
-    return null;
-  }
 }
 
 @Component({
@@ -83,7 +68,7 @@ export class RegisterComponent {
     clubId:          [NO_CLUB],
     plainPassword:   ['', [Validators.required, Validators.minLength(6)]],
     confirmPassword: ['', [Validators.required]]
-  }, { validators: passwordMatchValidator });
+  }, { validators: passwordMatchValidator('plainPassword', 'confirmPassword') });
 
   submit(): void {
     if (this.form.invalid || this.loading()) return;

@@ -48,6 +48,14 @@ public class User {
     @Column(nullable = false)
     private boolean active = true;
 
+    /** Contraseña temporal puesta por el administrador: hay que cambiarla antes de usar la app (RF-33). */
+    @Column(name = "must_change_password", nullable = false)
+    private boolean mustChangePassword;
+
+    /** Sube con cada cambio de contraseña; las sesiones de versiones anteriores dejan de valer. */
+    @Column(name = "credentials_version", nullable = false)
+    private int credentialsVersion;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -84,6 +92,20 @@ public class User {
 
     public void leaveClub() {
         this.club = null;
+    }
+
+    /** El propio usuario cambia su contraseña (RF-06): deja de ser temporal y se cierran sus otras sesiones. */
+    public void changePassword(String newPasswordHash) {
+        passwordHash = newPasswordHash;
+        mustChangePassword = false;
+        credentialsVersion++;
+    }
+
+    /** El administrador pone una contraseña temporal (RF-35): habrá que cambiarla y se cierran sus sesiones. */
+    public void resetPassword(String temporaryPasswordHash) {
+        passwordHash = temporaryPasswordHash;
+        mustChangePassword = true;
+        credentialsVersion++;
     }
 
     public void changeRole(UserRole newRole) {

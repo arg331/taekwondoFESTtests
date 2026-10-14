@@ -4,6 +4,7 @@ import { Observable, tap } from 'rxjs';
 import { Router } from '@angular/router';
 import { environment } from '../../../environments/environment';
 import {
+  ChangePasswordRequest,
   LoginRequest,
   LoginResponse,
   RegisterRequest,
@@ -39,6 +40,8 @@ export class AuthService {
     const role = this._currentUser()?.role;
     return role === 'TEACHER' || role === 'ADMIN';
   });
+  /** Contraseña temporal del administrador: hay que cambiarla antes de usar la app (RF-33). */
+  readonly mustChangePassword = computed(() => this._currentUser()?.mustChangePassword === true);
 
   // ──────────────────────────────────────────────────
   // Endpoints públicos
@@ -60,6 +63,13 @@ export class AuthService {
 
   me(): Observable<UserResponse> {
     return this.http.get<UserResponse>(`${this.apiUrl}/me`);
+  }
+
+  /** RF-06 y RF-33. El servidor cierra las demás sesiones y devuelve una nueva para esta. */
+  changePassword(request: ChangePasswordRequest): Observable<LoginResponse> {
+    return this.http.put<LoginResponse>(`${this.apiUrl}/me/password`, request).pipe(
+      tap(response => this.saveSession(response))
+    );
   }
 
   // ──────────────────────────────────────────────────

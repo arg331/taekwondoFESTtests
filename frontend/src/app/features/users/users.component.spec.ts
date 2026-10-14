@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { HarnessLoader } from '@angular/cdk/testing';
 import { MatSelectHarness } from '@angular/material/select/testing';
+import { MATERIAL_ANIMATIONS } from '@angular/material/core';
 import { UsersComponent } from './users.component';
 import { UserResponse, UserRole } from '../../core/models/auth.models';
 
@@ -12,7 +13,7 @@ const API = 'http://localhost:8080/api';
 
 function user(id: number, role: UserRole, displayName: string): UserResponse {
   return {
-    id, username: `u${id}`, email: `u${id}@x.es`, displayName, role, club: null, active: true, createdAt: '2026-10-13T10:00:00'
+    id, username: `u${id}`, email: `u${id}@x.es`, displayName, role, club: null, active: true, mustChangePassword: false, createdAt: '2026-10-13T10:00:00'
   };
 }
 
@@ -32,7 +33,11 @@ describe('UsersComponent', () => {
     localStorage.setItem('fest_user', JSON.stringify(ME));
     TestBed.configureTestingModule({
       imports: [UsersComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
+      providers: [
+        provideHttpClient(), provideHttpClientTesting(), provideRouter([]),
+        // Sin animaciones, el diálogo avisa de que se ha cerrado en cuanto se cierra
+        { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } }
+      ]
     });
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(UsersComponent);
@@ -92,5 +97,63 @@ describe('UsersComponent', () => {
 
     expect(await (await roleSelect('3')).getValueText()).toBe('Profesor');
     expect(document.body.textContent).toContain('No se puede');
+  });
+
+  describe('restablecer contraseña (RF-35)', () => {
+    function resetButton(name: string): HTMLButtonElement | null {
+      return row(name).querySelector('button.reset-password');
+    }
+
+    function dialog(): HTMLElement | null {
+      return document.querySelector('app-reset-password-dialog');
+    }
+
+    async function openAndType(name: string, password: string): Promise<void> {
+      resetButton(name)!.click();
+      await stable();
+      const input = dialog()!.querySelector('input') as HTMLInputElement;
+      input.value = password;
+      input.dispatchEvent(new Event('input'));
+      await stable();
+      (Array.from(dialog()!.querySelectorAll('button')).find(b => b.textContent?.includes('Restablecer')) as HTMLButtonElement).click();
+      await stable();
+    }
+
+    it('la propia contraseña no se restablece desde aquí', () => {
+      expect(resetButton('Administrador')).toBeNull();
+      expect(resetButton('Ana')).not.toBeNull();
+    });
+
+    it('guarda la temporal, lo dice y marca la fila', async () => {
+      await openAndType('Ana', 'temporal1');
+
+      const req = http.expectOne(`${API}/users/2/password`);
+      expect(req.request.method).toBe('PUT');
+      expect(req.request.body).toEqual({ temporaryPassword: 'temporal1' });
+      req.flush({ ...ANA, mustChangePassword: true });
+      await stable();
+
+      expect(row('Ana').textContent).toContain('Contraseña temporal');
+      expect(row('Luis').textContent).not.toContain('Contraseña temporal');
+      expect(document.body.textContent).toContain('Ana tendrá que cambiarla al entrar');
+    });
+
+    it('una temporal de menos de 6 caracteres no se envía', async () => {
+      await openAndType('Ana', '12345');
+
+      http.expectNone(`${API}/users/2/password`);
+      expect(dialog()).not.toBeNull();
+    });
+
+    it('si el servidor la rechaza, el diálogo sigue abierto con el mensaje', async () => {
+      await openAndType('Luis', 'temporal1');
+
+      http.expectOne(`${API}/users/3/password`).flush({ message: 'Usuario no encontrado con id 3' },
+        { status: 404, statusText: 'Not Found' });
+      await stable();
+
+      expect(dialog()!.textContent).toContain('Usuario no encontrado con id 3');
+      expect(row('Luis').textContent).not.toContain('Contraseña temporal');
+    });
   });
 });

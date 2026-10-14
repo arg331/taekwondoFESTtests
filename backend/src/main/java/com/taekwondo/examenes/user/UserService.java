@@ -3,6 +3,7 @@ package com.taekwondo.examenes.user;
 import com.taekwondo.examenes.common.BusinessRuleException;
 import com.taekwondo.examenes.common.ResourceNotFoundException;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,9 +14,11 @@ import java.util.List;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional(readOnly = true)
@@ -33,6 +36,20 @@ public class UserService {
         }
         User user = getUser(userId);
         user.changeRole(newRole);
+        return UserResponse.from(user);
+    }
+
+    /**
+     * El administrador pone una contraseña temporal (RF-35), tenga o no email el usuario.
+     * Sus sesiones se cierran y tendrá que cambiarla al entrar (RF-33).
+     */
+    public UserResponse resetPassword(Long userId, String temporaryPassword, Long requesterId) {
+        if (userId.equals(requesterId)) {
+            // Se quedaría con una contraseña temporal y sin poder usar la app hasta cambiarla
+            throw new BusinessRuleException("Para tu propia contraseña usa «Cambiar contraseña»");
+        }
+        User user = getUser(userId);
+        user.resetPassword(passwordEncoder.encode(temporaryPassword));
         return UserResponse.from(user);
     }
 

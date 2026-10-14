@@ -26,6 +26,9 @@
                     @if (isCurrentUser(user)) {
                       <span class="you-badge">Tú</span>
                     }
+                    @if (user.mustChangePassword) {
+                      <span class="temp-badge">Contraseña temporal</span>
+                    }
                   </p>
                   <p class="user-meta">
                     {{ user.username }} · {{ user.email ?? 'sin email' }}
@@ -49,6 +52,11 @@
                       }
                     </mat-select>
                   </mat-form-field>
+                  <button mat-stroked-button type="button" class="reset-password" (click)="resetPassword(user)"
+                          [attr.aria-label]="'Restablecer la contraseña de ' + user.displayName">
+                    <mat-icon>lock_reset</mat-icon>
+                    Restablecer contraseña
+                  </button>
                 }
               </div>
 

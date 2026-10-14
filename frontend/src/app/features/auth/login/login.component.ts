@@ -11,6 +11,7 @@ import { CommonModule } from '@angular/common';
 import { AuthService } from '../../../core/services/auth.service';
 import { ExamCodeEntryComponent } from '../../../shared/components/exam-code-entry/exam-code-entry.component';
 import { APP_NAME } from '../../../core/app-brand';
+import { safeReturnUrl } from '../../../shared/utils/return-url';
 
 @Component({
   selector: 'app-login',
@@ -53,8 +54,9 @@ export class LoginComponent {
     this.loading.set(true);
     this.error.set(null);
 
+    // Con contraseña temporal, el guard lleva antes a cambiarla y conserva este destino (RF-33)
     this.auth.login(this.form.getRawValue()).subscribe({
-      next: () => this.router.navigateByUrl(this.returnUrl()),
+      next: () => this.router.navigateByUrl(safeReturnUrl(this.route)),
       error: (err) => {
         this.error.set(
           err.status === 401
@@ -64,11 +66,5 @@ export class LoginComponent {
         this.loading.set(false);
       }
     });
-  }
-
-  /** Vuelve a la página que pidió el login (p. ej. un examen); solo rutas internas. */
-  private returnUrl(): string {
-    const url = this.route.snapshot.queryParamMap.get('returnUrl');
-    return url && url.startsWith('/') && !url.startsWith('//') ? url : '/dashboard';
   }
 }

@@ -5,17 +5,21 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelect, MatSelectModule } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { UserService } from '../../core/services/user.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ROLE_LABEL, USER_ROLES, UserResponse, UserRole } from '../../core/models/auth.models';
+import { ResetPasswordDialogComponent } from './reset-password-dialog/reset-password-dialog.component';
 
-/** Cuánto se ve el aviso de un cambio de rol rechazado. */
-const ERROR_DURATION_MS = 5000;
+/** Cuánto se ven los avisos: un cambio de rol rechazado o una contraseña restablecida. */
+const MESSAGE_DURATION_MS = 5000;
 
-/** Gestión de usuarios del administrador: lista y cambio de rol (RF-36). */
+/** Gestión de usuarios del administrador: lista, cambio de rol (RF-36) y contraseña temporal (RF-35). */
 @Component({
   selector: 'app-users',
   imports: [
+    MatButtonModule,
     MatCardModule,
     MatIconModule,
     MatProgressSpinnerModule,
@@ -28,6 +32,7 @@ const ERROR_DURATION_MS = 5000;
 export class UsersComponent implements OnInit {
   private userSvc = inject(UserService);
   private snackBar = inject(MatSnackBar);
+  private dialog = inject(MatDialog);
   auth            = inject(AuthService);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -47,15 +52,31 @@ export class UsersComponent implements OnInit {
   /** Si el servidor lo rechaza, el desplegable vuelve al rol que tenía. */
   changeRole(user: UserResponse, role: UserRole, select: MatSelect): void {
     this.userSvc.changeRole(user.id, role).subscribe({
-      next: updated => this.users.update(list => list.map(u => u.id === updated.id ? updated : u)),
+      next: updated => this.replace(updated),
       error: err => {
         select.value = user.role;
-        this.snackBar.open(err?.error?.message ?? 'No se pudo cambiar el rol', undefined, { duration: ERROR_DURATION_MS });
+        this.snackBar.open(err?.error?.message ?? 'No se pudo cambiar el rol', undefined, { duration: MESSAGE_DURATION_MS });
       }
+    });
+  }
+
+  /** La temporal la escribe el administrador; la fila queda marcada hasta que el usuario la cambie. */
+  resetPassword(user: UserResponse): void {
+    this.dialog.open<ResetPasswordDialogComponent, UserResponse, UserResponse>(ResetPasswordDialogComponent, {
+      data: user, width: '440px', maxWidth: '95vw'
+    }).afterClosed().subscribe(updated => {
+      if (!updated) return;
+      this.replace(updated);
+      this.snackBar.open(`Contraseña temporal guardada: ${updated.displayName} tendrá que cambiarla al entrar`,
+        undefined, { duration: MESSAGE_DURATION_MS });
     });
   }
 
   isCurrentUser(user: UserResponse): boolean {
     return user.id === this.auth.currentUser()?.id;
+  }
+
+  private replace(updated: UserResponse): void {
+    this.users.update(list => list.map(u => u.id === updated.id ? updated : u));
   }
 }

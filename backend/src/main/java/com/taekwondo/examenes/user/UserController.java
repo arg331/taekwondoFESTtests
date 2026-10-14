@@ -27,4 +27,10 @@ public class UserController {
                                    @AuthenticationPrincipal Long userId) {
         return userService.changeRole(id, request.role(), userId);
     }
+
+    @PutMapping("/{id}/password")
+    public UserResponse resetPassword(@PathVariable Long id, @Valid @RequestBody ResetPasswordRequest request,
+                                      @AuthenticationPrincipal Long userId) {
+        return userService.resetPassword(id, request.temporaryPassword(), userId);
+    }
 }

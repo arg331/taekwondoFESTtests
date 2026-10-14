@@ -57,7 +57,28 @@ public class AuthService {
                 .filter(u -> passwordEncoder.matches(request.plainPassword(), u.getPasswordHash()))
                 .orElseThrow(InvalidCredentialsException::new);
 
-        return new LoginResponse(jwtService.generateAccessToken(user.getId()), UserResponse.from(user));
+        return session(user);
+    }
+
+    /**
+     * Cambiar la propia contraseña (RF-06), también la temporal (RF-33). Cierra las demás sesiones
+     * y devuelve una nueva para seguir en este dispositivo.
+     */
+    public LoginResponse changeOwnPassword(Long userId, ChangePasswordRequest request) {
+        User user = userRepository.findById(userId).orElseThrow(InvalidCredentialsException::new);
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+            throw new BusinessRuleException("La contraseña actual no es correcta");
+        }
+        if (request.newPassword().equals(request.currentPassword())) {
+            throw new BusinessRuleException("La nueva contraseña tiene que ser distinta de la actual");
+        }
+        user.changePassword(passwordEncoder.encode(request.newPassword()));
+        return session(user);
+    }
+
+    private LoginResponse session(User user) {
+        return new LoginResponse(jwtService.generateAccessToken(user.getId(), user.getCredentialsVersion()),
+                UserResponse.from(user));
     }
 
     @Transactional(readOnly = true)

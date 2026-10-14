@@ -9,13 +9,13 @@ import { AuthService } from './services/auth.service';
 import { UserResponse, UserRole } from './models/auth.models';
 
 const USER: UserResponse = {
-  id: 1, username: 'u', email: 'u@x.es', displayName: 'U', role: 'STUDENT', club: null, active: true,
+  id: 1, username: 'u', email: 'u@x.es', displayName: 'U', role: 'STUDENT', club: null, active: true, mustChangePassword: false,
   createdAt: '2026-10-08T10:00:00'
 };
 
-function login(role: UserRole): void {
+function login(role: UserRole, mustChangePassword = false): void {
   localStorage.setItem('fest_token', 'jwt-abc');
-  localStorage.setItem('fest_user', JSON.stringify({ ...USER, role }));
+  localStorage.setItem('fest_user', JSON.stringify({ ...USER, role, mustChangePassword }));
 }
 
 /**
@@ -90,6 +90,34 @@ describe('Guards y jwtInterceptor', () => {
     setup();
 
     expect(await navigate('/auth/register')).toBe('/auth/register');
+  });
+
+  it('con contraseña temporal, cualquier ruta privada lleva a cambiarla y después vuelve (RF-33)', async () => {
+    login('ADMIN', true);
+    setup();
+
+    expect(await navigate('/results')).toBe('/auth/change-password?returnUrl=%2Fresults');
+    expect(await navigate('/users')).toBe('/auth/change-password?returnUrl=%2Fusers');
+  });
+
+  it('con contraseña temporal, tampoco se entra en un examen por código hasta cambiarla', async () => {
+    login('STUDENT', true);
+    setup();
+
+    expect(await navigate('/exam/EXM-ABC')).toBe('/auth/change-password?returnUrl=%2Fexam%2FEXM-ABC');
+  });
+
+  it('cambiar la contraseña pide sesión', async () => {
+    setup();
+
+    expect(await navigate('/auth/change-password')).toBe('/auth/login?returnUrl=%2Fauth%2Fchange-password');
+  });
+
+  it('con sesión, cambiar la contraseña se abre', async () => {
+    login('STUDENT');
+    setup();
+
+    expect(await navigate('/auth/change-password')).toBe('/auth/change-password');
   });
 
   it('interceptor: añade Authorization si hay token', () => {

@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard } from './core/guards/auth.guard';
+import { authGuard, passwordChangedGuard } from './core/guards/auth.guard';
 import { adminGuard, teacherGuard } from './core/guards/role.guard';
 
 export const routes: Routes = [
@@ -13,6 +13,7 @@ export const routes: Routes = [
   },
   {
     path: 'exam/:code',
+    canMatch: [passwordChangedGuard],
     loadChildren: () =>
       import('./features/exam-take/exam-take.routes').then(m => m.EXAM_TAKE_ROUTES)
   },
@@ -20,7 +21,7 @@ export const routes: Routes = [
   // Privadas con layout
   {
     path: '',
-    canMatch: [authGuard],
+    canMatch: [authGuard, passwordChangedGuard],
     loadComponent: () =>
       import('./shared/components/private-layout/private-layout.component')
         .then(m => m.PrivateLayoutComponent),

@@ -8,7 +8,7 @@ import { LoginResponse, UserResponse } from '../models/auth.models';
 const API = 'http://localhost:8080/api';
 
 const ADMIN: UserResponse = {
-  id: 1, username: 'admin', email: 'admin@x.es', displayName: 'Admin', role: 'ADMIN', club: null, active: true,
+  id: 1, username: 'admin', email: 'admin@x.es', displayName: 'Admin', role: 'ADMIN', club: null, active: true, mustChangePassword: false,
   createdAt: '2026-10-08T10:00:00'
 };
 const STUDENT: UserResponse = { ...ADMIN, id: 2, username: 'alumno', role: 'STUDENT' };
@@ -110,5 +110,22 @@ describe('AuthService', () => {
     auth.me().subscribe();
 
     http.expectOne(r => r.method === 'GET' && r.url === `${API}/auth/me`).flush(ADMIN);
+  });
+
+  it('changePassword: guarda la sesión nueva que devuelve el servidor (RF-06)', () => {
+    localStorage.setItem('fest_token', 'viejo');
+    localStorage.setItem('fest_user', JSON.stringify({ ...STUDENT, mustChangePassword: true }));
+    const auth = setup();
+    expect(auth.mustChangePassword()).toBe(true);
+
+    auth.changePassword({ currentPassword: 'temporal1', newPassword: 'nueva123' }).subscribe();
+    const req = http.expectOne(`${API}/auth/me/password`);
+    expect(req.request.method).toBe('PUT');
+    expect(req.request.body).toEqual({ currentPassword: 'temporal1', newPassword: 'nueva123' });
+    req.flush({ token: 'nuevo', user: STUDENT });
+
+    expect(auth.getToken()).toBe('nuevo');
+    expect(auth.currentUser()).toEqual(STUDENT);
+    expect(auth.mustChangePassword()).toBe(false);
   });
 });

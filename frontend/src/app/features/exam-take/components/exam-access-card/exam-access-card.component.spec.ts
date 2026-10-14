@@ -40,7 +40,7 @@ describe('ExamAccessCardComponent', () => {
 
     fixture.componentRef.setInput('user', {
       id: 3, username: 'ana', email: null, displayName: 'Ana López', role: 'STUDENT',
-      club: { id: 2, name: 'Club Badajoz' }, active: true, createdAt: '2026-10-13T10:00:00'
+      club: { id: 2, name: 'Club Badajoz' }, active: true, mustChangePassword: false, createdAt: '2026-10-13T10:00:00'
     });
     fixture.detectChanges();
     await fixture.whenStable();

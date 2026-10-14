@@ -53,7 +53,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/clubs").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/exams/by-code/*/attempts").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/results").permitAll()
-                        .requestMatchers("/api/auth/me", "/api/results/me", "/api/users/me/club").authenticated()
+                        .requestMatchers("/api/auth/me", "/api/auth/me/password", "/api/results/me",
+                                "/api/users/me/club").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/exams/public").authenticated()
                         .requestMatchers("/api/users/**").hasAuthority(ADMIN)
                         .requestMatchers("/api/questions/**", "/api/tags/**", "/api/exams/**",

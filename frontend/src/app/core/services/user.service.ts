@@ -17,4 +17,9 @@ export class UserService {
   changeRole(id: number, role: UserRole): Observable<UserResponse> {
     return this.http.patch<UserResponse>(`${this.api}/${id}/role`, { role });
   }
+
+  /** Solo el administrador, y nunca su propia contraseña (RF-35). */
+  resetPassword(id: number, temporaryPassword: string): Observable<UserResponse> {
+    return this.http.put<UserResponse>(`${this.api}/${id}/password`, { temporaryPassword });
+  }
 }

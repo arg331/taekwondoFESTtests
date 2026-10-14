@@ -31,4 +31,11 @@ public class AuthController {
     public UserResponse me(@AuthenticationPrincipal Long userId) {
         return authService.me(userId);
     }
+
+    /** Devuelve una sesión nueva: las anteriores, también la de esta petición, dejan de valer. */
+    @PutMapping("/me/password")
+    public LoginResponse changePassword(@Valid @RequestBody ChangePasswordRequest request,
+                                        @AuthenticationPrincipal Long userId) {
+        return authService.changeOwnPassword(userId, request);
+    }
 }

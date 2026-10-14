@@ -72,10 +72,21 @@
   text-transform: uppercase;
 }
 
+.temp-badge {
+  background: #fff3e0;
+  color: #8a4b00;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 12px;
+  text-transform: uppercase;
+}
+
 .user-actions {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .role-badge {

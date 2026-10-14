@@ -36,7 +36,15 @@ export interface UserResponse {
   /** Como mucho un club (RF-39); null = ninguno. */
   club: { id: number; name: string } | null;
   active: boolean;
+  /** Tiene una contraseña temporal del administrador y debe cambiarla antes de seguir (RF-33). */
+  mustChangePassword: boolean;
   createdAt: string;
+}
+
+/** Cambiar la propia contraseña (RF-06): el servidor devuelve una sesión nueva. */
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
 }
 
 export interface LoginResponse {

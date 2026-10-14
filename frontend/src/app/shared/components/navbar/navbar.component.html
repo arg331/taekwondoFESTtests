@@ -39,6 +39,10 @@
       <mat-icon>groups</mat-icon>
       <span class="my-club">Mi club: <strong>{{ auth.currentUser()?.club?.name ?? 'ninguno' }}</strong></span>
     </button>
+    <a mat-menu-item routerLink="/auth/change-password">
+      <mat-icon>key</mat-icon>
+      Cambiar contraseña
+    </a>
     <button mat-menu-item (click)="logout()">
       <mat-icon>logout</mat-icon>
       Cerrar sesión

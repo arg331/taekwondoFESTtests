@@ -12,7 +12,7 @@ import { UserResponse } from '../../../core/models/auth.models';
 const API = 'http://localhost:8080/api';
 const ME: UserResponse = {
   id: 5, username: 'ana', email: 'ana@x.es', displayName: 'Ana', role: 'STUDENT',
-  club: { id: 1, name: 'Club Ávila' }, active: true, createdAt: '2026-10-13T10:00:00'
+  club: { id: 1, name: 'Club Ávila' }, active: true, mustChangePassword: false, createdAt: '2026-10-13T10:00:00'
 };
 const CLUBS = [{ id: 1, name: 'Club Ávila' }, { id: 2, name: 'Club Badajoz' }];
 

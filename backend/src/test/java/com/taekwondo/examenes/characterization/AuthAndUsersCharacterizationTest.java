@@ -41,6 +41,53 @@ class AuthAndUsersCharacterizationTest extends ApiCharacterizationTest {
     }
 
     @Test
+    @DisplayName("Registro: el email es opcional; sin él (ausente, null o vacío) el usuario queda sin email (RF-01)")
+    void register_withoutEmail_created() {
+        String first = unique("SinEmail");
+        String second = unique("SinEmail");
+        String third = unique("SinEmail");
+
+        HttpResult absent = post("/api/auth/register", null, obj(
+                "username", first, "plainPassword", "secreto1", "displayName", "Sin email")).expectStatus(201);
+        HttpResult nullEmail = post("/api/auth/register", null, obj(
+                "username", second, "email", null, "plainPassword", "secreto1", "displayName", "Sin email"))
+                .expectStatus(201);
+        HttpResult blank = post("/api/auth/register", null, obj(
+                "username", third, "email", "", "plainPassword", "secreto1", "displayName", "Sin email"))
+                .expectStatus(201);
+
+        assertThat((Object) absent.read("$.email")).isNull();
+        assertThat((Object) nullEmail.read("$.email")).isNull();
+        assertThat((Object) blank.read("$.email")).isNull();
+        assertThat(login(first, "secreto1")).isNotBlank();
+    }
+
+    @Test
+    @DisplayName("Registro: se puede elegir un club existente; queda en él (RF-01, RF-41)")
+    void register_withClub_joinsIt() {
+        long clubId = post("/api/clubs", newTeacher().token(), obj("name", unique("Club"))).expectStatus(201).id();
+
+        HttpResult result = post("/api/auth/register", null, obj(
+                "username", unique("ConClub"), "plainPassword", "secreto1", "displayName", "Con club",
+                "clubId", clubId)).expectStatus(201);
+
+        assertThat((Integer) result.read("$.club.id")).isEqualTo((int) clubId);
+        assertThat((String) result.read("$.role")).isEqualTo("STUDENT");
+    }
+
+    @Test
+    @DisplayName("Registro: un club que no existe da 404 y no crea el usuario")
+    void register_unknownClub_notFound() {
+        String username = unique("ClubFalso");
+
+        post("/api/auth/register", null, obj(
+                "username", username, "plainPassword", "secreto1", "displayName", "X", "clubId", 999_999))
+                .expectStatus(404);
+
+        post("/api/auth/login", null, obj("usernameOrEmail", username, "plainPassword", "secreto1")).expectStatus(401);
+    }
+
+    @Test
     @DisplayName("Registro: email con espacios alrededor se rechaza (400); sin Accept-Language el mensaje estándar sale en inglés")
     void register_emailWithSurroundingSpaces_rejectedWithEnglishMessage() {
         String username = unique("Espacios");

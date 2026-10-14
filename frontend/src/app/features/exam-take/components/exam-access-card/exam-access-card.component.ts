@@ -59,11 +59,15 @@ export class ExamAccessCardComponent {
   });
 
   constructor() {
-    // Con sesión iniciada, rellena nombre y email con los de la cuenta
+    // Con sesión iniciada, rellena nombre, club y email con los de la cuenta (club y email pueden faltar)
     effect(() => {
       const user = this.user();
       if (user && !this.form.dirty) {
-        this.form.patchValue({ studentName: user.displayName, studentEmail: user.email });
+        this.form.patchValue({
+          studentName: user.displayName,
+          studentClub: user.club?.name ?? '',
+          studentEmail: user.email ?? ''
+        });
       }
     });
   }

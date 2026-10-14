@@ -34,6 +34,22 @@ describe('ExamAccessCardComponent', () => {
     expect(kind?.textContent).toContain('no es un examen oficial');
   });
 
+  it('con sesión rellena nombre, club y email de la cuenta; sin email ni club los deja vacíos', async () => {
+    await render('PRIVATE');
+    const field = (name: string) => (el.querySelector(`input[formcontrolname="${name}"]`) as HTMLInputElement).value;
+
+    fixture.componentRef.setInput('user', {
+      id: 3, username: 'ana', email: null, displayName: 'Ana López', role: 'STUDENT',
+      club: { id: 2, name: 'Club Badajoz' }, active: true, createdAt: '2026-10-13T10:00:00'
+    });
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(field('studentName')).toBe('Ana López');
+    expect(field('studentClub')).toBe('Club Badajoz');
+    expect(field('studentEmail')).toBe('');
+  });
+
   it('un examen privado se presenta como oficial', async () => {
     await render('PRIVATE');
 

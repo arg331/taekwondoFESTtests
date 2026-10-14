@@ -29,7 +29,9 @@
   <mat-menu #userMenu="matMenu">
     <div class="user-info-menu">
       <p class="user-name">{{ auth.currentUser()?.displayName }}</p>
-      <p class="user-email">{{ auth.currentUser()?.email }}</p>
+      @if (auth.currentUser()?.email; as email) {
+        <p class="user-email">{{ email }}</p>
+      }
       <p class="user-role">{{ roleLabel() }}</p>
     </div>
     <mat-divider />

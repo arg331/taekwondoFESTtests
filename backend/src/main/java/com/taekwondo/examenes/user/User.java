@@ -26,7 +26,8 @@ public class User {
     @Column(nullable = false, length = 50)
     private String username;
 
-    @Column(nullable = false, length = 200)
+    /** Opcional (RF-01): quien no lo tiene recupera la cuenta a través del administrador. */
+    @Column(length = 200)
     private String email;
 
     @Column(name = "password_hash", nullable = false, length = 100)

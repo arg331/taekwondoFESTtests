@@ -12,11 +12,13 @@ export const ROLE_LABEL: Record<UserRole, string> = {
   STUDENT: 'Alumno'
 };
 
+/** Registro público (RF-01): email y club opcionales (null = sin ellos). */
 export interface RegisterRequest {
   username: string;
-  email: string;
+  email: string | null;
   plainPassword: string;
   displayName: string;
+  clubId: number | null;
 }
 
 export interface LoginRequest {
@@ -27,7 +29,8 @@ export interface LoginRequest {
 export interface UserResponse {
   id: number;
   username: string;
-  email: string;
+  /** Opcional (RF-01). */
+  email: string | null;
   displayName: string;
   role: UserRole;
   /** Como mucho un club (RF-39); null = ninguno. */

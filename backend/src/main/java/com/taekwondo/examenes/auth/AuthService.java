@@ -1,6 +1,9 @@
 package com.taekwondo.examenes.auth;
 
+import com.taekwondo.examenes.club.Club;
+import com.taekwondo.examenes.club.ClubRepository;
 import com.taekwondo.examenes.common.BusinessRuleException;
+import com.taekwondo.examenes.common.ResourceNotFoundException;
 import com.taekwondo.examenes.security.JwtService;
 import com.taekwondo.examenes.user.User;
 import com.taekwondo.examenes.user.UserRepository;
@@ -15,19 +18,28 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final ClubRepository clubRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService) {
+    public AuthService(UserRepository userRepository, ClubRepository clubRepository,
+                       PasswordEncoder passwordEncoder, JwtService jwtService) {
         this.userRepository = userRepository;
+        this.clubRepository = clubRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
     }
 
-    /** Registro público: siempre crea un STUDENT. */
+    /** Registro público: siempre crea un STUDENT, con email y club opcionales (RF-01, RF-41). */
     public UserResponse register(RegisterRequest request) {
+        // El club se comprueba antes de crear el usuario: con un club que no existe no se crea nada
+        Club club = request.clubId() == null ? null : clubRepository.findById(request.clubId())
+                .orElseThrow(() -> new ResourceNotFoundException("No existe un club con id " + request.clubId()));
         User user = createUser(request.username(), request.email(), request.plainPassword(),
                 request.displayName(), UserRole.STUDENT);
+        if (club != null) {
+            user.joinClub(club);
+        }
         return UserResponse.from(user);
     }
 
@@ -58,11 +70,12 @@ public class AuthService {
     private User createUser(String username, String email, String plainPassword,
                             String displayName, UserRole role) {
         String cleanUsername = username.trim();
-        String cleanEmail = email.trim().toLowerCase();
+        // Sin email (ausente o vacío) se guarda null: varios usuarios pueden no tenerlo
+        String cleanEmail = email == null || email.isBlank() ? null : email.trim().toLowerCase();
         if (userRepository.existsByUsername(cleanUsername)) {
             throw new BusinessRuleException("Ya existe un usuario con username '" + cleanUsername + "'");
         }
-        if (userRepository.existsByEmail(cleanEmail)) {
+        if (cleanEmail != null && userRepository.existsByEmail(cleanEmail)) {
             throw new BusinessRuleException("Ya existe un usuario con email '" + cleanEmail + "'");
         }
         User user = new User(cleanUsername, cleanEmail, passwordEncoder.encode(plainPassword),

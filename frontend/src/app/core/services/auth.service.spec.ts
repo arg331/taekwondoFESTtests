@@ -50,7 +50,7 @@ describe('AuthService', () => {
   it('register: no inicia sesión', () => {
     const auth = setup();
 
-    auth.register({ username: 'u', email: 'u@x.es', plainPassword: 'secreto1', displayName: 'U' }).subscribe();
+    auth.register({ username: 'u', email: 'u@x.es', plainPassword: 'secreto1', displayName: 'U', clubId: null }).subscribe();
     const req = http.expectOne(`${API}/auth/register`);
     expect(req.request.method).toBe('POST');
     req.flush(STUDENT);

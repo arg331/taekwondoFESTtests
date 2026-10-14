@@ -27,7 +27,10 @@
                       <span class="you-badge">Tú</span>
                     }
                   </p>
-                  <p class="user-meta">{{ user.username }} · {{ user.email }}</p>
+                  <p class="user-meta">
+                    {{ user.username }} · {{ user.email ?? 'sin email' }}
+                    @if (user.club) { · {{ user.club.name }} }
+                  </p>
                 </div>
               </div>
 

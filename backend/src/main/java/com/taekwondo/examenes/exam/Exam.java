@@ -1,6 +1,7 @@
 package com.taekwondo.examenes.exam;
 
 import com.taekwondo.examenes.common.BusinessRuleException;
+import com.taekwondo.examenes.question.Question;
 import com.taekwondo.examenes.tag.Tag;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -20,6 +21,7 @@ import java.util.Set;
  * Ciclo de vida: DRAFT → PUBLISHED ⇄ EXPIRED.
  * La configuración y las preguntas solo se pueden cambiar en DRAFT, para que
  * todos los alumnos de un examen publicado hagan exactamente el mismo examen.
+ * Al publicar se copian las preguntas (DE-03): editar el banco después no cambia el examen.
  * La caducidad por fecha (expiresAt) no cambia el estado: se evalúa al vuelo.
  */
 @Entity
@@ -62,6 +64,12 @@ public class Exam {
     @OrderColumn(name = "position")
     @Column(name = "question_id", nullable = false)
     private List<Long> questionIds = new ArrayList<>();
+
+    /** Copia de las preguntas al publicar, en orden (DE-03). Vacía en borrador. */
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "exam_id", nullable = false, updatable = false)
+    @OrderBy("position")
+    private List<PublishedQuestion> publishedQuestions = new ArrayList<>();
 
     /** Tags usados al pre-generar el examen (solo informativo). */
     @ManyToMany(fetch = FetchType.EAGER)
@@ -128,8 +136,9 @@ public class Exam {
 
     // ───── Transiciones de estado ─────
 
+    /** Publica con las preguntas del banco en el orden del examen; se guarda una copia de cada una. */
     public void publish(String code, Visibility visibility, ExamAccessMode accessMode,
-                        LocalDateTime expiresAt) {
+                        LocalDateTime expiresAt, List<Question> questionsInOrder) {
         requireDraft("publicar");
         int count = questionIds.size();
         if (count < ExamConfig.MIN_QUESTIONS || count > ExamConfig.MAX_QUESTIONS) {
@@ -138,6 +147,12 @@ public class Exam {
         }
         // El número de preguntas es el de las elegidas (RF-46)
         config.matchQuestionCount(count);
+        if (!questionsInOrder.stream().map(Question::getId).toList().equals(questionIds)) {
+            throw new IllegalArgumentException("Las preguntas a copiar no son las del examen");
+        }
+        for (int i = 0; i < count; i++) {
+            publishedQuestions.add(PublishedQuestion.copyOf(i, questionsInOrder.get(i)));
+        }
         this.code = code;
         this.visibility = visibility;
         this.accessMode = accessMode;
@@ -196,6 +211,10 @@ public class Exam {
 
     public List<Long> getQuestionIds() {
         return Collections.unmodifiableList(questionIds);
+    }
+
+    public List<PublishedQuestion> getPublishedQuestions() {
+        return Collections.unmodifiableList(publishedQuestions);
     }
 
     public Set<Tag> getGenerationTags() {

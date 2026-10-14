@@ -11,7 +11,8 @@ import {
   UpdateExamQuestionsRequest,
   ChangeExamVisibilityRequest,
   ExpirationRequest,
-  ExamAttemptResponse
+  ExamAttemptResponse,
+  PublishedQuestionResponse
 } from '../models/exam.models';
 
 @Injectable({ providedIn: 'root' })
@@ -69,6 +70,11 @@ export class ExamService {
   }
 
   /** Copia el examen como borrador nuevo para ampliarlo (RF-18). */
+  /** Las preguntas de un examen publicado tal como las ven los alumnos (DE-03). */
+  publishedQuestions(id: number): Observable<PublishedQuestionResponse[]> {
+    return this.http.get<PublishedQuestionResponse[]>(`${this.api}/${id}/published-questions`);
+  }
+
   copy(id: number): Observable<ExamResponse> {
     return this.http.post<ExamResponse>(`${this.api}/${id}/copy`, {});
   }

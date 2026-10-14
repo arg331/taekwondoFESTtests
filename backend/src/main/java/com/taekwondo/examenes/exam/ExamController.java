@@ -107,6 +107,12 @@ public class ExamController {
         return examService.get(id, userId);
     }
 
+    /** Las preguntas tal como se publicaron, aunque se hayan editado después en el banco (DE-03). */
+    @GetMapping("/{id}/published-questions")
+    public List<PublishedQuestionResponse> publishedQuestions(@PathVariable Long id, @AuthenticationPrincipal Long userId) {
+        return examService.publishedQuestions(id, userId);
+    }
+
     @GetMapping("/mine")
     public List<ExamResponse> listMine(@AuthenticationPrincipal Long userId) {
         return examService.listMine(userId);

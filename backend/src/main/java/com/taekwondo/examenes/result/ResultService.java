@@ -87,8 +87,9 @@ public class ResultService {
             throw new BusinessRuleException("Las respuestas no coinciden con las preguntas del examen");
         }
 
-        List<Answer> answers = examService.loadQuestionsInOrder(exam).stream()
-                .map(q -> new Answer(q.getId(), chosenByQuestion.get(q.getId()), q.getCorrectAnswer()))
+        // Se corrige contra la copia publicada (DE-03), no contra el banco
+        List<Answer> answers = exam.getPublishedQuestions().stream()
+                .map(q -> new Answer(q.getQuestionId(), chosenByQuestion.get(q.getQuestionId()), q.getCorrectAnswer()))
                 .toList();
 
         Result result = new Result(exam.getId(), studentUserId, studentName,

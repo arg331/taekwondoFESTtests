@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, linkedSignal, output, resource, signal, untracked } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Observable, of, switchMap } from 'rxjs';
 import { MatCardModule } from '@angular/material/card';
@@ -110,11 +110,10 @@ export class ExamDetailComponent {
     const current = this.selectedIds();
     return saved.length !== current.length || saved.some((id, i) => id !== current[i]);
   });
-  assignedQuestions = computed(() => {
-    const byId = new Map(this.questions().map(q => [q.id, q]));
-    return this.exam().questionIds
-      .map(id => byId.get(id))
-      .filter((q): q is QuestionResponse => q !== undefined);
+  /** Ya publicado: sus preguntas tal como las ven los alumnos, no como estén hoy en el banco (DE-03). */
+  publishedQuestions = rxResource({
+    params: () => (this.exam().status === 'DRAFT' ? undefined : this.exam().id),
+    stream: ({ params: id }) => this.examSvc.publishedQuestions(id)
   });
 
   /** Se publican las preguntas elegidas, coincidan o no con el objetivo (RF-46). */

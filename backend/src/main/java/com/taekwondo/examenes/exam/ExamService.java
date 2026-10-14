@@ -144,7 +144,7 @@ public class ExamService {
         if (expiresAt != null) requireFuture(expiresAt);
         ExamAccessMode accessMode = request.accessMode() != null ? request.accessMode() : ExamAccessMode.OPEN;
 
-        exam.publish(generateUniqueCode(), request.visibility(), accessMode, expiresAt);
+        exam.publish(generateUniqueCode(), request.visibility(), accessMode, expiresAt, loadBankQuestionsInOrder(exam));
         return ExamResponse.from(exam);
     }
 
@@ -224,7 +224,7 @@ public class ExamService {
         }
 
         ExamConfig config = exam.getConfig();
-        List<PublicQuestionResponse> questions = new ArrayList<>(loadQuestionsInOrder(exam).stream()
+        List<PublicQuestionResponse> questions = new ArrayList<>(exam.getPublishedQuestions().stream()
                 .map(q -> toPublicQuestion(q, config.isRandomizeOptions()))
                 .toList());
         if (config.isRandomizeQuestionOrder()) {
@@ -238,8 +238,25 @@ public class ExamService {
         return new ExamAttemptResponse(token, questions);
     }
 
-    /** Preguntas del examen en su orden; falla si alguna ya no existe. */
-    public List<Question> loadQuestionsInOrder(Exam exam) {
+    /**
+     * Preguntas tal como se publicaron (DE-03), con solución y explicación, y si se han
+     * editado en el banco después. Solo el profesor del examen.
+     */
+    @Transactional(readOnly = true)
+    public List<PublishedQuestionResponse> publishedQuestions(Long examId, Long ownerId) {
+        Exam exam = getOwned(examId, ownerId);
+        if (exam.isDraft()) {
+            throw new BusinessRuleException("El examen todavía no está publicado");
+        }
+        Map<Long, Question> bank = questionRepository.findAllById(exam.getQuestionIds()).stream()
+                .collect(Collectors.toMap(Question::getId, Function.identity()));
+        return exam.getPublishedQuestions().stream()
+                .map(pq -> PublishedQuestionResponse.from(pq, bank.get(pq.getQuestionId())))
+                .toList();
+    }
+
+    /** Preguntas del banco en el orden del examen, para copiarlas al publicar; falla si alguna ya no existe. */
+    private List<Question> loadBankQuestionsInOrder(Exam exam) {
         Map<Long, Question> byId = questionRepository.findAllById(exam.getQuestionIds()).stream()
                 .collect(Collectors.toMap(Question::getId, Function.identity()));
         if (byId.size() != exam.getQuestionIds().size()) {
@@ -264,7 +281,7 @@ public class ExamService {
 
     // ───── Auxiliares ─────
 
-    private PublicQuestionResponse toPublicQuestion(Question question, boolean shuffleOptions) {
+    private PublicQuestionResponse toPublicQuestion(PublishedQuestion question, boolean shuffleOptions) {
         List<PublicQuestionResponse.Option> options = new ArrayList<>(IntStream
                 .range(0, question.getOptions().size())
                 .mapToObj(i -> new PublicQuestionResponse.Option(i, question.getOptions().get(i)))
@@ -272,7 +289,7 @@ public class ExamService {
         if (shuffleOptions) {
             Collections.shuffle(options);
         }
-        return new PublicQuestionResponse(question.getId(), question.getText(), options);
+        return new PublicQuestionResponse(question.getQuestionId(), question.getText(), options);
     }
 
     private ExamConfig toConfig(ExamDraftRequest r) {

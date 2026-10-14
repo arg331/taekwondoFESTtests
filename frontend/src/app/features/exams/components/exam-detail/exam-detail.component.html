@@ -141,11 +141,23 @@
           </button>
         }
       } @else {
-        <ol class="assigned-list">
-          @for (q of assignedQuestions(); track q.id) {
-            <li>{{ q.text }}</li>
-          }
-        </ol>
+        <p class="published-hint">Así las ven los alumnos; editar el banco no cambia este examen.</p>
+        @if (publishedQuestions.hasValue()) {
+          <ol class="assigned-list">
+            @for (q of publishedQuestions.value(); track q.questionId) {
+              <li>
+                {{ q.text }}
+                @if (q.editedSincePublished) {
+                  <span class="edited-note">editada en el banco después de publicar</span>
+                }
+              </li>
+            }
+          </ol>
+        } @else if (publishedQuestions.error()) {
+          <p class="hint-warn">No se pudieron cargar las preguntas publicadas.</p>
+        } @else {
+          <mat-spinner diameter="24" />
+        }
       }
     </div>
     <mat-divider />

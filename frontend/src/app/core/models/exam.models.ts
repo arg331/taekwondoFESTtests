@@ -56,6 +56,19 @@ export interface ExamResponse {
   expiresAt: string | null;
 }
 
+/**
+ * Pregunta tal como se publicó en un examen (DE-03): es lo que ven y contestan los alumnos,
+ * aunque después se edite en el banco. editedSincePublished avisa de que el banco ya no coincide.
+ */
+export interface PublishedQuestionResponse {
+  questionId: number;
+  text: string;
+  options: string[];
+  correctAnswer: number;
+  explanation: string | null;
+  editedSincePublished: boolean;
+}
+
 /** Crear borrador vacío o pre-generado (requiredAnyOfTagIds solo aplica al pre-generado). */
 export interface ExamDraftRequest extends ExamConfig {
   title: string;

@@ -32,6 +32,8 @@ import java.util.Set;
 public class Exam {
 
     public static final int MAX_TITLE_LENGTH = 200;
+    public static final int MIN_ATTEMPTS = 1;
+    public static final int MAX_ATTEMPTS = 20;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -57,6 +59,10 @@ public class Exam {
 
     @Embedded
     private ExamConfig config;
+
+    /** Intentos por alumno (RF-52); se fija al publicar. */
+    @Column(name = "max_attempts", nullable = false)
+    private int maxAttempts = MIN_ATTEMPTS;
 
     /** IDs de las preguntas, en orden. Sin FK: las preguntas viven en su propio agregado. */
     @ElementCollection(fetch = FetchType.EAGER)
@@ -137,9 +143,12 @@ public class Exam {
     // ───── Transiciones de estado ─────
 
     /** Publica con las preguntas del banco en el orden del examen; se guarda una copia de cada una. */
-    public void publish(String code, Visibility visibility, ExamAccessMode accessMode,
-                        LocalDateTime expiresAt, List<Question> questionsInOrder) {
+    public void publish(String code, Visibility visibility, ExamAccessMode accessMode, LocalDateTime expiresAt,
+                        int maxAttempts, List<Question> questionsInOrder) {
         requireDraft("publicar");
+        if (maxAttempts < MIN_ATTEMPTS || maxAttempts > MAX_ATTEMPTS) {
+            throw new IllegalArgumentException("Intentos fuera de rango: " + maxAttempts);
+        }
         int count = questionIds.size();
         if (count < ExamConfig.MIN_QUESTIONS || count > ExamConfig.MAX_QUESTIONS) {
             throw new BusinessRuleException("El examen debe tener entre " + ExamConfig.MIN_QUESTIONS + " y "
@@ -157,6 +166,7 @@ public class Exam {
         this.visibility = visibility;
         this.accessMode = accessMode;
         this.expiresAt = expiresAt;
+        this.maxAttempts = maxAttempts;
         this.status = ExamStatus.PUBLISHED;
     }
 

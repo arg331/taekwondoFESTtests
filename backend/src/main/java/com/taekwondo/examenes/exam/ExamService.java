@@ -1,11 +1,12 @@
 package com.taekwondo.examenes.exam;
 
+import com.taekwondo.examenes.attempt.ExamAttempt;
+import com.taekwondo.examenes.attempt.ExamAttemptRepository;
 import com.taekwondo.examenes.common.BusinessRuleException;
 import com.taekwondo.examenes.common.ResourceNotFoundException;
 import com.taekwondo.examenes.question.PublicQuestionResponse;
 import com.taekwondo.examenes.question.Question;
 import com.taekwondo.examenes.question.QuestionRepository;
-import com.taekwondo.examenes.result.ResultRepository;
 import com.taekwondo.examenes.security.JwtService;
 import com.taekwondo.examenes.tag.Tag;
 import com.taekwondo.examenes.tag.TagService;
@@ -42,17 +43,17 @@ public class ExamService {
 
     private final ExamRepository examRepository;
     private final QuestionRepository questionRepository;
-    private final ResultRepository resultRepository;
+    private final ExamAttemptRepository attemptRepository;
     private final TagService tagService;
     private final JwtService jwtService;
     private final Clock clock;
 
     public ExamService(ExamRepository examRepository, QuestionRepository questionRepository,
-                       ResultRepository resultRepository, TagService tagService,
+                       ExamAttemptRepository attemptRepository, TagService tagService,
                        JwtService jwtService, Clock clock) {
         this.examRepository = examRepository;
         this.questionRepository = questionRepository;
-        this.resultRepository = resultRepository;
+        this.attemptRepository = attemptRepository;
         this.tagService = tagService;
         this.jwtService = jwtService;
         this.clock = clock;
@@ -144,7 +145,9 @@ public class ExamService {
         if (expiresAt != null) requireFuture(expiresAt);
         ExamAccessMode accessMode = request.accessMode() != null ? request.accessMode() : ExamAccessMode.OPEN;
 
-        exam.publish(generateUniqueCode(), request.visibility(), accessMode, expiresAt, loadBankQuestionsInOrder(exam));
+        int maxAttempts = request.maxAttempts() != null ? request.maxAttempts() : Exam.MIN_ATTEMPTS;
+        exam.publish(generateUniqueCode(), request.visibility(), accessMode, expiresAt, maxAttempts,
+                loadBankQuestionsInOrder(exam));
         return ExamResponse.from(exam);
     }
 
@@ -210,18 +213,31 @@ public class ExamService {
     }
 
     /**
-     * Empieza un intento: devuelve las preguntas sin la respuesta correcta,
-     * barajadas según la configuración, y un token firmado con la hora de inicio.
+     * Empieza un intento (DE-04): lo registra a nombre del alumno y devuelve las preguntas sin la
+     * respuesta correcta, barajadas según la configuración, y el token del intento. Cada alumno
+     * tiene un intento abierto como mucho y tantos en total como fije el profesor (RF-52):
+     * los registrados se cuentan por su cuenta y los anónimos por su nombre.
      */
-    @Transactional(readOnly = true)
-    public ExamAttemptResponse startAttempt(String code, Long studentUserId) {
+    public ExamAttemptResponse startAttempt(String code, StartAttemptRequest identity, Long studentUserId) {
         Exam exam = getAccessible(code);
         if (exam.requiresRegistration() && studentUserId == null) {
             throw new BusinessRuleException("Este examen requiere estar registrado e iniciar sesión");
         }
-        if (studentUserId != null && resultRepository.existsByExamIdAndStudentUserId(exam.getId(), studentUserId)) {
-            throw new BusinessRuleException("Ya has realizado este examen");
+        String studentName = identity.studentName().trim();
+        LocalDateTime now = now();
+        Duration validity = attemptValidity(exam.getConfig());
+        List<ExamAttempt> previous = studentUserId != null
+                ? attemptRepository.findAllByExamIdAndStudentUserId(exam.getId(), studentUserId)
+                : attemptRepository.findAllByExamIdAndStudentUserIdIsNullAndStudentNameIgnoreCase(exam.getId(), studentName);
+        if (previous.stream().anyMatch(a -> a.isOpenAt(now, validity))) {
+            throw new BusinessRuleException("Ya tienes un intento empezado en este examen");
         }
+        // Cuentan los entregados y los que se quedaron sin entregar fuera de plazo
+        if (previous.size() >= exam.getMaxAttempts()) {
+            throw new BusinessRuleException("Ya has hecho todos los intentos de este examen");
+        }
+        ExamAttempt attempt = attemptRepository.save(new ExamAttempt(exam.getId(), studentUserId, studentName,
+                blankToNull(identity.studentClub()), blankToNull(identity.studentEmail()), now));
 
         ExamConfig config = exam.getConfig();
         List<PublicQuestionResponse> questions = new ArrayList<>(exam.getPublishedQuestions().stream()
@@ -231,11 +247,20 @@ public class ExamService {
             Collections.shuffle(questions);
         }
 
-        Duration validity = config.hasTimeLimit()
+        String token = jwtService.generateAttemptToken(attempt.getId(), exam.getId(),
+                now.atZone(clock.getZone()).toInstant(), validity);
+        return new ExamAttemptResponse(token, questions, previous.size() + 1, exam.getMaxAttempts());
+    }
+
+    /** Cuánto dura un intento: el tiempo límite más el margen de entrega, o 12 horas sin límite (RN-07). */
+    public static Duration attemptValidity(ExamConfig config) {
+        return config.hasTimeLimit()
                 ? Duration.ofMinutes(config.getTimeLimitMinutes()).plus(SUBMIT_GRACE)
                 : UNLIMITED_ATTEMPT_VALIDITY;
-        String token = jwtService.generateAttemptToken(exam.getId(), clock.instant(), validity);
-        return new ExamAttemptResponse(token, questions);
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     /**

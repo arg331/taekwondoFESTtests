@@ -13,6 +13,15 @@
     </mat-card-subtitle>
   </mat-card-header>
 
+  <p class="attempts-info">
+    <mat-icon class="inline-icon">replay</mat-icon>
+    @if (exam().maxAttempts > 1) {
+      Puedes hacerlo {{ exam().maxAttempts }} veces.
+    } @else {
+      Solo puedes hacerlo una vez.
+    }
+  </p>
+
   <p class="exam-kind" [class.practice]="isPractice()">
     <mat-icon class="inline-icon">{{ kindIcon() }}</mat-icon>
     @if (isPractice()) {

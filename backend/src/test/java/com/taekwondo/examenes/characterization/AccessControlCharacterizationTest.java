@@ -75,7 +75,7 @@ class AccessControlCharacterizationTest extends ApiCharacterizationTest {
                 Arguments.of(HttpMethod.POST, "/api/auth/register", "{}", 400),
                 Arguments.of(HttpMethod.POST, "/api/auth/login", "{}", 400),
                 Arguments.of(HttpMethod.GET, "/api/exams/by-code/EXM-NOEXISTE", null, 404),
-                Arguments.of(HttpMethod.POST, "/api/exams/by-code/EXM-NOEXISTE/attempts", null, 404),
+                Arguments.of(HttpMethod.POST, "/api/exams/by-code/EXM-NOEXISTE/attempts", "{\"studentName\":\"Ana\"}", 404),
                 Arguments.of(HttpMethod.POST, "/api/results", "{}", 400));
     }
 

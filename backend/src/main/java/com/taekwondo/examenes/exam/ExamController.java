@@ -132,7 +132,8 @@ public class ExamController {
 
     /** userId es null si el alumno no ha iniciado sesión. */
     @PostMapping("/by-code/{code}/attempts")
-    public ExamAttemptResponse startAttempt(@PathVariable String code, @AuthenticationPrincipal Long userId) {
-        return examService.startAttempt(code, userId);
+    public ExamAttemptResponse startAttempt(@PathVariable String code, @Valid @RequestBody StartAttemptRequest request,
+                                            @AuthenticationPrincipal Long userId) {
+        return examService.startAttempt(code, request, userId);
     }
 }

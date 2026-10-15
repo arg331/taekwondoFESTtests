@@ -69,6 +69,11 @@
         } @else if (exam().status !== 'DRAFT') {
           <span class="config-item"><mat-icon>all_inclusive</mat-icon>Sin caducidad</span>
         }
+        @if (exam().status !== 'DRAFT') {
+          <span class="config-item"><mat-icon>replay</mat-icon>
+            {{ exam().maxAttempts }} {{ exam().maxAttempts === 1 ? 'intento' : 'intentos' }} por alumno
+          </span>
+        }
         @if (exam().status === 'DRAFT') {
           <button mat-stroked-button class="edit-btn" (click)="openEditConfig()">
             <mat-icon>edit</mat-icon>Editar
@@ -189,11 +194,19 @@
             <mat-checkbox class="never-expires" formControlName="neverExpires" color="primary">
               Sin caducidad: abierto hasta que lo cierres
             </mat-checkbox>
+            <mat-form-field appearance="outline">
+              <mat-label>Intentos por alumno</mat-label>
+              <input matInput type="number" formControlName="maxAttempts" [min]="minAttempts" [max]="maxAttempts" />
+              <mat-hint>De {{ minAttempts }} a {{ maxAttempts }}; cuentan también los que se dejan sin entregar</mat-hint>
+              @if (publishForm.controls.maxAttempts.invalid) {
+                <mat-error>Entre {{ minAttempts }} y {{ maxAttempts }}</mat-error>
+              }
+            </mat-form-field>
           </form>
           @if (publishBlockReason()) {
             <p class="hint-warn"><mat-icon class="inline-icon">warning</mat-icon>{{ publishBlockReason() }}</p>
           }
-          <button mat-flat-button color="primary" (click)="publish()" [disabled]="!!publishBlockReason() || busy()">
+          <button mat-flat-button color="primary" (click)="publish()" [disabled]="!!publishBlockReason() || publishForm.invalid || busy()">
             <mat-icon>publish</mat-icon>Publicar examen
           </button>
           <button mat-button color="warn" (click)="deleteDraft()" [disabled]="busy()">

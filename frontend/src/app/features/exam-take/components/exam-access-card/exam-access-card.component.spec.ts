@@ -8,7 +8,7 @@ function exam(visibility: Visibility): ExamResponse {
     id: 7, title: 'Examen de cinturón', ownerId: 1, status: 'PUBLISHED', visibility, accessMode: 'OPEN',
     config: { numberOfQuestions: 10, timeLimitMinutes: null, showScore: true, randomizeOptions: false,
       randomizeQuestionOrder: false },
-    questionIds: [], generationTags: [], code: 'EXM-1234ABCD', createdAt: '2026-10-12T10:00:00', expiresAt: null
+    questionIds: [], generationTags: [], code: 'EXM-1234ABCD', createdAt: '2026-10-12T10:00:00', expiresAt: null, maxAttempts: 1
   };
 }
 
@@ -17,14 +17,24 @@ describe('ExamAccessCardComponent', () => {
   let fixture: ComponentFixture<ExamAccessCardComponent>;
   let el: HTMLElement;
 
-  async function render(visibility: Visibility): Promise<void> {
+  async function render(visibility: Visibility, maxAttempts = 1): Promise<void> {
     TestBed.configureTestingModule({ imports: [ExamAccessCardComponent], providers: [provideRouter([])] });
     fixture = TestBed.createComponent(ExamAccessCardComponent);
-    fixture.componentRef.setInput('exam', exam(visibility));
+    fixture.componentRef.setInput('exam', { ...exam(visibility), maxAttempts });
     el = fixture.nativeElement;
     fixture.detectChanges();
     await fixture.whenStable();
   }
+
+  it('con varios intentos, dice cuántas veces se puede hacer (RF-52)', async () => {
+    await render('PRIVATE', 3);
+    expect(el.textContent).toContain('Puedes hacerlo 3 veces');
+  });
+
+  it('con un solo intento, avisa de que solo hay uno', async () => {
+    await render('PRIVATE');
+    expect(el.textContent).toContain('Solo puedes hacerlo una vez');
+  });
 
   it('un examen público se presenta como examen de prueba', async () => {
     await render('PUBLIC');

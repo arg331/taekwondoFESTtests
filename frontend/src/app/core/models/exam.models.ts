@@ -28,6 +28,9 @@ export const VISIBILITY_COLOR: Record<Visibility, string> = {
 /** Un examen se publica con las preguntas elegidas, entre estos límites (RF-46). */
 export const EXAM_MIN_QUESTIONS = 5;
 export const EXAM_MAX_QUESTIONS = 50;
+/** Intentos por alumno que puede fijar el profesor al publicar (RF-52). */
+export const EXAM_MIN_ATTEMPTS = 1;
+export const EXAM_MAX_ATTEMPTS = 20;
 
 export const EXAM_STATUS_ICON: Record<ExamStatus, string> = {
   DRAFT: 'edit_note', PUBLISHED: 'check_circle', EXPIRED: 'schedule'
@@ -54,6 +57,8 @@ export interface ExamResponse {
   code: string | null;
   createdAt: string;
   expiresAt: string | null;
+  /** Intentos por alumno (RF-52). */
+  maxAttempts: number;
 }
 
 /**
@@ -81,6 +86,8 @@ export interface PublishExamRequest {
   expiresAt: string | null;
   /** Abierto hasta que se cierre a mano (RF-48); no se combina con expiresAt. */
   neverExpires?: boolean;
+  /** Intentos por alumno (RF-52); sin él, 1. */
+  maxAttempts?: number;
 }
 
 export interface RenameExamRequest {
@@ -107,7 +114,17 @@ export interface PublicQuestionResponse {
   options: { index: number; text: string }[];
 }
 
+/** El alumno se identifica al empezar (DE-04); la entrega queda a su nombre. */
+export interface StartAttemptRequest {
+  studentName: string;
+  studentClub: string | null;
+  studentEmail: string | null;
+}
+
 export interface ExamAttemptResponse {
   attemptToken: string;
   questions: PublicQuestionResponse[];
+  /** Qué intento es, de cuántos tiene el alumno (RF-52). */
+  attemptNumber: number;
+  maxAttempts: number;
 }

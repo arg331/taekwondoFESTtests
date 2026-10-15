@@ -18,7 +18,8 @@ public record ExamResponse(
         Set<TagResponse> generationTags,
         String code,
         LocalDateTime createdAt,
-        LocalDateTime expiresAt
+        LocalDateTime expiresAt,
+        int maxAttempts
 ) {
     public record Config(
             int numberOfQuestions,
@@ -38,6 +39,6 @@ public record ExamResponse(
                 exam.getVisibility(), exam.getAccessMode(), Config.from(exam.getConfig()),
                 List.copyOf(exam.getQuestionIds()),
                 exam.getGenerationTags().stream().map(TagResponse::from).collect(Collectors.toSet()),
-                exam.getCode(), exam.getCreatedAt(), exam.getExpiresAt());
+                exam.getCode(), exam.getCreatedAt(), exam.getExpiresAt(), exam.getMaxAttempts());
     }
 }

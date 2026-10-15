@@ -12,6 +12,10 @@
 }
 .inline-icon { font-size: 18px; height: 18px; width: 18px; }
 .full-width { width: 100%; margin-bottom: 4px; }
+.attempts-info {
+  display: flex; align-items: center; gap: 6px;
+  margin: 0 16px 8px; font-size: 0.85rem; color: #555;
+}
 .exam-kind {
   display: flex; align-items: center; gap: 6px;
   margin: 0 16px 8px; padding: 6px 10px; border-radius: 6px;

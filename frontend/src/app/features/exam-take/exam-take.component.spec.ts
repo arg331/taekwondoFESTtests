@@ -14,13 +14,15 @@ function exam(overrides: Partial<ExamResponse> = {}): ExamResponse {
     config: { numberOfQuestions: 3, timeLimitMinutes: null, showScore: true, randomizeOptions: true,
       randomizeQuestionOrder: true },
     questionIds: [10, 20, 30], generationTags: [], code: 'EXM-ABC', createdAt: '2026-10-08T10:00:00',
-    expiresAt: null, ...overrides
+    expiresAt: null, maxAttempts: 1, ...overrides
   };
 }
 
 /** Preguntas tal como las manda el servidor: orden y opciones ya barajados. */
 const ATTEMPT: ExamAttemptResponse = {
   attemptToken: 'intento-123',
+  attemptNumber: 1,
+  maxAttempts: 1,
   questions: [
     { id: 20, text: 'Segunda', options: [{ index: 2, text: 'C' }, { index: 0, text: 'A' }, { index: 1, text: 'B' }] },
     { id: 10, text: 'Primera', options: [{ index: 1, text: 'Sí' }, { index: 0, text: 'No' }] },
@@ -63,7 +65,7 @@ describe('ExamTakeComponent', () => {
     return found as HTMLButtonElement;
   }
 
-  async function startAs(name: string): Promise<void> {
+  async function startAs(name: string, attempt: ExamAttemptResponse = ATTEMPT): Promise<void> {
     const input = el.querySelector('app-exam-access-card input') as HTMLInputElement;
     input.value = name;
     input.dispatchEvent(new Event('input'));
@@ -72,7 +74,9 @@ describe('ExamTakeComponent', () => {
     await stable();
     const req = http.expectOne(`${API}/exams/by-code/EXM-ABC/attempts`);
     expect(req.request.method).toBe('POST');
-    req.flush(ATTEMPT);
+    // Se identifica al empezar (DE-04)
+    expect(req.request.body).toEqual({ studentName: name.trim(), studentClub: null, studentEmail: null });
+    req.flush(attempt);
     await stable();
   }
 
@@ -152,9 +156,6 @@ describe('ExamTakeComponent', () => {
     expect(req.request.body).toEqual({
       examCode: 'EXM-ABC',
       attemptToken: 'intento-123',
-      studentName: 'Ana Pérez',
-      studentClub: null,
-      studentEmail: null,
       answers: [
         { questionId: 20, chosenOption: 0 },
         { questionId: 10, chosenOption: 1 },
@@ -163,6 +164,38 @@ describe('ExamTakeComponent', () => {
     });
     expect(window.confirm).toHaveBeenCalledWith('Tienes 1 pregunta(s) sin responder. ¿Enviar el examen igualmente?');
     req.flush(null);
+  });
+
+  describe('intentos (RF-52)', () => {
+    it('con varios intentos, dice cuál es', async () => {
+      await render(exam({ maxAttempts: 3 }));
+      await startAs('Ana', { ...ATTEMPT, attemptNumber: 2, maxAttempts: 3 });
+
+      expect(el.querySelector('.exam-header')?.textContent).toContain('Intento 2 de 3');
+    });
+
+    it('con uno solo, no lo menciona', async () => {
+      await render(exam());
+      await startAs('Ana');
+
+      expect(el.querySelector('.exam-header')?.textContent).not.toContain('Intento');
+    });
+
+    it('si ya no le quedan intentos, muestra el aviso del servidor', async () => {
+      await render(exam());
+      const input = el.querySelector('app-exam-access-card input') as HTMLInputElement;
+      input.value = 'Ana';
+      input.dispatchEvent(new Event('input'));
+      await stable();
+      button('Comenzar examen').click();
+      await stable();
+
+      http.expectOne(`${API}/exams/by-code/EXM-ABC/attempts`).flush(
+        { message: 'Ya has hecho todos los intentos de este examen' }, { status: 409, statusText: 'Conflict' });
+      await stable();
+
+      expect(el.textContent).toContain('Ya has hecho todos los intentos de este examen');
+    });
   });
 
   it('si el alumno cancela la confirmación no se envía nada', async () => {

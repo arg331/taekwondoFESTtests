@@ -12,7 +12,8 @@ import {
   ChangeExamVisibilityRequest,
   ExpirationRequest,
   ExamAttemptResponse,
-  PublishedQuestionResponse
+  PublishedQuestionResponse,
+  StartAttemptRequest
 } from '../models/exam.models';
 
 @Injectable({ providedIn: 'root' })
@@ -107,7 +108,8 @@ export class ExamService {
   }
 
   /** Empieza un intento: preguntas sin solución + token con la hora de inicio. */
-  startAttempt(code: string): Observable<ExamAttemptResponse> {
-    return this.http.post<ExamAttemptResponse>(`${this.api}/by-code/${encodeURIComponent(code)}/attempts`, {});
+  /** Empieza un intento a nombre del alumno (DE-04). */
+  startAttempt(code: string, identity: StartAttemptRequest): Observable<ExamAttemptResponse> {
+    return this.http.post<ExamAttemptResponse>(`${this.api}/by-code/${encodeURIComponent(code)}/attempts`, identity);
   }
 }

@@ -19,7 +19,7 @@ function exam(status: ExamStatus, questionIds: number[] = []): ExamResponse {
     config: { numberOfQuestions: 10, timeLimitMinutes: null, showScore: true, randomizeOptions: false,
       randomizeQuestionOrder: false },
     questionIds, generationTags: [], code: status === 'DRAFT' ? null : 'EXM-1234ABCD',
-    createdAt: '2026-10-08T10:00:00', expiresAt: null
+    createdAt: '2026-10-08T10:00:00', expiresAt: null, maxAttempts: 1
   };
 }
 
@@ -153,7 +153,7 @@ describe('ExamDetailComponent', () => {
     expect(save.request.body).toEqual({ questionIds: [1, 3, 4, 5, 6] });
     save.flush(exam('DRAFT', [1, 3, 4, 5, 6]));
     const publish = http.expectOne(`${API}/exams/7/publish`);
-    expect(publish.request.body).toEqual({ visibility: 'PUBLIC', accessMode: 'OPEN', expiresAt: null, neverExpires: false });
+    expect(publish.request.body).toEqual({ visibility: 'PUBLIC', accessMode: 'OPEN', expiresAt: null, neverExpires: false, maxAttempts: 1 });
     publish.flush(exam('PUBLISHED', [1, 3, 4, 5, 6]));
     await stable();
 
@@ -173,7 +173,7 @@ describe('ExamDetailComponent', () => {
 
       button('Publicar examen').click();
       const publish = http.expectOne(`${API}/exams/7/publish`);
-      expect(publish.request.body).toEqual({ visibility: 'PUBLIC', accessMode: 'OPEN', expiresAt: null, neverExpires: true });
+      expect(publish.request.body).toEqual({ visibility: 'PUBLIC', accessMode: 'OPEN', expiresAt: null, neverExpires: true, maxAttempts: 1 });
       publish.flush(exam('PUBLISHED', [1, 2, 3, 4, 5]));
     });
 
@@ -252,6 +252,45 @@ describe('ExamDetailComponent', () => {
 
       expect(createdQuestions.map(q => q.id)).toEqual([7]);
       expect(fixture.componentInstance.selectedIds()).toEqual([7]);
+    });
+  });
+
+  describe('intentos por alumno (RF-52)', () => {
+    it('al publicar se eligen; por defecto, 1', async () => {
+      await render(exam('DRAFT', [1, 2, 3, 4, 5]));
+      const attempts = el.querySelector('.publish-options input[type=number]') as HTMLInputElement;
+      expect(attempts.value).toBe('1');
+
+      attempts.value = '3';
+      attempts.dispatchEvent(new Event('input'));
+      await stable();
+      button('Publicar examen').click();
+
+      const publish = http.expectOne(`${API}/exams/7/publish`);
+      expect(publish.request.body.maxAttempts).toBe(3);
+      publish.flush({ ...exam('PUBLISHED', [1, 2, 3, 4, 5]), maxAttempts: 3 });
+      await stable();
+    });
+
+    it('fuera de 1 a 20 no se puede publicar', async () => {
+      await render(exam('DRAFT', [1, 2, 3, 4, 5]));
+      const attempts = el.querySelector('.publish-options input[type=number]') as HTMLInputElement;
+      attempts.value = '21';
+      attempts.dispatchEvent(new Event('input'));
+      await stable();
+
+      expect(button('Publicar examen').disabled).toBe(true);
+    });
+
+    it('un examen publicado dice cuántos intentos tiene cada alumno', async () => {
+      await render({ ...exam('PUBLISHED', [1, 2]), maxAttempts: 3 });
+      expect(el.querySelector('.config-summary')?.textContent).toContain('3 intentos');
+    });
+
+    it('con uno solo, lo dice en singular', async () => {
+      await render(exam('PUBLISHED', [1, 2]));
+      expect(el.querySelector('.config-summary')?.textContent).toContain('1 intento');
+      expect(el.querySelector('.config-summary')?.textContent).not.toContain('1 intentos');
     });
   });
 

@@ -31,6 +31,7 @@ public class JwtService {
     private static final String ACCESS_TYPE = "access";
     private static final String ATTEMPT_TYPE = "attempt";
     private static final String VERSION_CLAIM = "ver";
+    private static final String EXAM_CLAIM = "exam";
 
     private final SecretKey signingKey;
     private final Duration accessTokenValidity;
@@ -68,16 +69,26 @@ public class JwtService {
 
     public record AccessToken(Long userId, int credentialsVersion) {}
 
-    public String generateAttemptToken(Long examId, Instant startedAt, Duration validity) {
-        return build(ATTEMPT_TYPE, String.valueOf(examId), startedAt, validity);
+    /** Token del intento: identifica el intento registrado (DE-04) y caduca con su plazo. */
+    public String generateAttemptToken(Long attemptId, Long examId, Instant startedAt, Duration validity) {
+        return Jwts.builder()
+                .subject(String.valueOf(attemptId))
+                .claim(TYPE_CLAIM, ATTEMPT_TYPE)
+                .claim(EXAM_CLAIM, examId)
+                .issuedAt(Date.from(startedAt))
+                .expiration(Date.from(startedAt.plus(validity)))
+                .signWith(signingKey)
+                .compact();
     }
 
     public Optional<Attempt> parseAttemptToken(String token) {
-        return parse(token, ATTEMPT_TYPE).map(claims -> new Attempt(
-                Long.parseLong(claims.getSubject()), claims.getIssuedAt().toInstant()));
+        return parse(token, ATTEMPT_TYPE)
+                .filter(claims -> claims.get(EXAM_CLAIM) instanceof Number)
+                .map(claims -> new Attempt(Long.parseLong(claims.getSubject()),
+                        ((Number) claims.get(EXAM_CLAIM)).longValue()));
     }
 
-    public record Attempt(Long examId, Instant startedAt) {}
+    public record Attempt(Long attemptId, Long examId) {}
 
     private String build(String type, String subject, Instant issuedAt, Duration validity) {
         return Jwts.builder()

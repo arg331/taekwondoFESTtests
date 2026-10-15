@@ -59,6 +59,8 @@ export class ExamTakeComponent implements OnInit, OnDestroy {
 
   private student: StudentInfo | null = null;
   private attemptToken = '';
+  /** Qué intento es, de cuántos (RF-52); con uno solo no se muestra. */
+  attemptLabel = signal<string | null>(null);
 
   currentIndex = signal(0);
   /** questionId → índice original de la opción elegida. */
@@ -100,9 +102,10 @@ export class ExamTakeComponent implements OnInit, OnDestroy {
   startExam(student: StudentInfo): void {
     this.student = student;
     this.starting.set(true);
-    this.examSvc.startAttempt(this.code()).subscribe({
+    this.examSvc.startAttempt(this.code(), student).subscribe({
       next: attempt => {
         this.attemptToken = attempt.attemptToken;
+        this.attemptLabel.set(attempt.maxAttempts > 1 ? `Intento ${attempt.attemptNumber} de ${attempt.maxAttempts}` : null);
         this.questions.set(attempt.questions);
         this.answers.set({});
         this.currentIndex.set(0);
@@ -153,7 +156,6 @@ export class ExamTakeComponent implements OnInit, OnDestroy {
     this.resultSvc.submit({
       examCode: this.code(),
       attemptToken: this.attemptToken,
-      ...this.student,
       answers: this.questions().map(q => ({
         questionId: q.id,
         chosenOption: this.answers()[q.id] ?? null

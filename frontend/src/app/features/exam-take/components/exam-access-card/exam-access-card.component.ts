@@ -7,15 +7,12 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { ExamResponse, VISIBILITY_ICON } from '../../../../core/models/exam.models';
+import { ExamResponse, StartAttemptRequest, VISIBILITY_ICON } from '../../../../core/models/exam.models';
 import { UserResponse } from '../../../../core/models/auth.models';
 import { APP_NAME } from '../../../../core/app-brand';
 
-export interface StudentInfo {
-  studentName: string;
-  studentClub: string | null;
-  studentEmail: string | null;
-}
+/** Con lo que se identifica el alumno al empezar (DE-04). */
+export type StudentInfo = StartAttemptRequest;
 
 /**
  * Portada del examen: datos del alumno antes de empezar. Si el examen exige

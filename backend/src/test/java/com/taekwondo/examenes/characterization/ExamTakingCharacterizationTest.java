@@ -58,9 +58,9 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
     void startAttempt_returnsPublicQuestionsInOrder() {
         PublishedExam exam = publishedExam(adminToken(), 5, null, true);
 
-        HttpResult result = post("/api/exams/by-code/" + exam.code() + "/attempts", null, null).expectStatus(200);
+        HttpResult result = start(exam.code(), null, obj("studentName", unique("A"))).expectStatus(200);
 
-        assertThat(result.asMap()).containsOnlyKeys("attemptToken", "questions");
+        assertThat(result.asMap()).containsOnlyKeys("attemptToken", "questions", "attemptNumber", "maxAttempts");
         List<Map<String, Object>> questions = result.read("$.questions");
         assertThat(questions).extracting(q -> ((Number) q.get("id")).longValue())
                 .containsExactlyElementsOf(exam.questionIds());
@@ -82,7 +82,7 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
         setQuestions(token, examId, questionIds);
         String code = publish(token, examId, "PUBLIC", null, null).expectStatus(200).read("$.code");
 
-        List<Map<String, Object>> questions = post("/api/exams/by-code/" + code + "/attempts", null, null)
+        List<Map<String, Object>> questions = start(code, null, obj("studentName", unique("A")))
                 .expectStatus(200).read("$.questions");
 
         assertThat(questions).extracting(q -> ((Number) q.get("id")).longValue())
@@ -101,8 +101,8 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
         setQuestions(token, examId, createQuestions(token, 5));
         String code = publish(token, examId, "PUBLIC", "REGISTERED_ONLY", null).expectStatus(200).read("$.code");
 
-        HttpResult anonymous = post("/api/exams/by-code/" + code + "/attempts", null, null);
-        HttpResult registered = post("/api/exams/by-code/" + code + "/attempts", newStudent().token(), null);
+        HttpResult anonymous = start(code, null, obj("studentName", unique("A")));
+        HttpResult registered = start(code, newStudent().token(), obj("studentName", "Yo"));
 
         assertThat(anonymous.expectStatus(409).message())
                 .isEqualTo("Este examen requiere estar registrado e iniciar sesión");
@@ -115,13 +115,13 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
     @DisplayName("Entrega con nota visible: corrige, calcula la nota y el tiempo desde el inicio del intento")
     void submit_showScore_fullResult() {
         PublishedExam exam = publishedExam(adminToken(), 5, 10, true);
-        String attempt = startAttempt(exam.code(), null);
+        String attempt = startAttempt(exam.code(), null, "  Ana Pérez ");
         clock.advance(Duration.ofSeconds(150));
         List<Integer> chosen = new ArrayList<>(allCorrect(5));
         chosen.set(3, (chosen.get(3) + 1) % 4);
         chosen.set(4, null);
 
-        HttpResult result = submit(exam.code(), attempt, "  Ana Pérez ", null, answers(exam.questionIds(), chosen))
+        HttpResult result = submit(exam.code(), attempt, null, answers(exam.questionIds(), chosen))
                 .expectStatus(201);
 
         assertThat(result.asMap()).containsOnlyKeys(RESULT_FIELDS);
@@ -147,7 +147,7 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
         chosen.set(1, null);
         chosen.set(2, null);
 
-        HttpResult result = submit(exam.code(), startAttempt(exam.code(), null), unique("Alumno"), null,
+        HttpResult result = submit(exam.code(), startAttempt(exam.code(), null, unique("Alumno")), null,
                 answers(exam.questionIds(), chosen)).expectStatus(201);
 
         assertThat((Integer) result.read("$.score")).isEqualTo(70);
@@ -159,7 +159,7 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
     void submit_hiddenScore_studentSeesNoScore() {
         PublishedExam exam = publishedExam(adminToken(), 5, null, false);
 
-        HttpResult result = submit(exam.code(), startAttempt(exam.code(), null), unique("Alumno"), null,
+        HttpResult result = submit(exam.code(), startAttempt(exam.code(), null, unique("Alumno")), null,
                 answers(exam.questionIds(), allCorrect(5))).expectStatus(201);
 
         assertThat((Boolean) result.read("$.scoreVisible")).isFalse();
@@ -171,49 +171,17 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
     }
 
     @Test
-    @DisplayName("Entrega anónima: el mismo nombre con otras mayúsculas no puede repetir")
-    void submit_anonymousSameNameDifferentCase_conflict() {
-        PublishedExam exam = publishedExam(adminToken(), 5, null, true);
-        String name = unique("Juan");
-        submit(exam.code(), startAttempt(exam.code(), null), name, null, answers(exam.questionIds(), allCorrect(5)))
-                .expectStatus(201);
-
-        HttpResult again = submit(exam.code(), startAttempt(exam.code(), null), name.toUpperCase(), null,
-                answers(exam.questionIds(), allCorrect(5)));
-
-        assertThat(again.expectStatus(409).message()).isEqualTo("Este estudiante ya ha realizado este examen");
-    }
-
-    @Test
-    @DisplayName("Entrega registrada: se controla por cuenta; no puede volver a empezar ni a entregar con otro nombre")
-    void submit_registered_oncePerAccount() {
-        PublishedExam exam = publishedExam(adminToken(), 5, null, true);
-        Session student = newStudent();
-        String attempt = startAttempt(exam.code(), student.token());
-        String secondAttempt = startAttempt(exam.code(), student.token());
-        submit(exam.code(), attempt, "Nombre 1", student.token(), answers(exam.questionIds(), allCorrect(5)))
-                .expectStatus(201);
-
-        HttpResult otherName = submit(exam.code(), secondAttempt, "Nombre 2", student.token(),
-                answers(exam.questionIds(), allCorrect(5)));
-        HttpResult restart = post("/api/exams/by-code/" + exam.code() + "/attempts", student.token(), null);
-
-        assertThat(otherName.expectStatus(409).message()).isEqualTo("Este estudiante ya ha realizado este examen");
-        assertThat(restart.expectStatus(409).message()).isEqualTo("Ya has realizado este examen");
-    }
-
-    @Test
     @DisplayName("Entrega: token de intento inválido o de otro examen devuelve 409")
     void submit_invalidAttemptToken_conflict() {
         String token = adminToken();
         PublishedExam exam = publishedExam(token, 5, null, true);
         PublishedExam otherExam = publishedExam(token, 5, null, true);
 
-        HttpResult garbage = submit(exam.code(), "no-es-un-token", unique("A"), null,
+        HttpResult garbage = submit(exam.code(), "no-es-un-token", null,
                 answers(exam.questionIds(), allCorrect(5)));
-        HttpResult fromOtherExam = submit(exam.code(), startAttempt(otherExam.code(), null), unique("A"), null,
+        HttpResult fromOtherExam = submit(exam.code(), startAttempt(otherExam.code(), null, unique("A")), null,
                 answers(exam.questionIds(), allCorrect(5)));
-        HttpResult accessToken = submit(exam.code(), token, unique("A"), null,
+        HttpResult accessToken = submit(exam.code(), token, null,
                 answers(exam.questionIds(), allCorrect(5)));
 
         String expected = "El intento no es válido o ha superado el tiempo límite";
@@ -230,10 +198,10 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
         String late = startAttempt(exam.code(), null);
 
         clock.advance(Duration.ofMinutes(11));
-        HttpResult withinGrace = submit(exam.code(), onTime, unique("A"), null,
+        HttpResult withinGrace = submit(exam.code(), onTime, null,
                 answers(exam.questionIds(), allCorrect(5)));
         clock.advance(Duration.ofMinutes(1).plusSeconds(1));
-        HttpResult afterGrace = submit(exam.code(), late, unique("B"), null,
+        HttpResult afterGrace = submit(exam.code(), late, null,
                 answers(exam.questionIds(), allCorrect(5)));
 
         assertThat((Integer) withinGrace.expectStatus(201).read("$.timeSpentSeconds")).isEqualTo(660);
@@ -252,9 +220,9 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
 
         clock.advance(Duration.ofMinutes(70));
         post("/api/exams/" + closing.id() + "/close", token, null).expectStatus(200);
-        HttpResult afterExpiry = submit(expiring.code(), expiringAttempt, unique("A"), null,
+        HttpResult afterExpiry = submit(expiring.code(), expiringAttempt, null,
                 answers(expiring.questionIds(), allCorrect(5)));
-        HttpResult afterClose = submit(closing.code(), closingAttempt, unique("A"), null,
+        HttpResult afterClose = submit(closing.code(), closingAttempt, null,
                 answers(closing.questionIds(), allCorrect(5)));
 
         afterExpiry.expectStatus(201);
@@ -269,8 +237,8 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
         List<Map<String, Object>> duplicated = new ArrayList<>(answers(exam.questionIds(), allCorrect(5)));
         duplicated.add(obj("questionId", exam.questionIds().get(0), "chosenOption", 0));
 
-        HttpResult incomplete = submit(exam.code(), startAttempt(exam.code(), null), unique("A"), null, missingOne);
-        HttpResult repeated = submit(exam.code(), startAttempt(exam.code(), null), unique("B"), null, duplicated);
+        HttpResult incomplete = submit(exam.code(), startAttempt(exam.code(), null, unique("A")), null, missingOne);
+        HttpResult repeated = submit(exam.code(), startAttempt(exam.code(), null, unique("B")), null, duplicated);
 
         assertThat(incomplete.expectStatus(409).message())
                 .isEqualTo("Las respuestas no coinciden con las preguntas del examen");
@@ -279,18 +247,18 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
     }
 
     @Test
-    @DisplayName("Entrega: opción fuera de 0..3 o nombre vacío devuelven 400")
-    void submit_invalidPayload_badRequest() {
+    @DisplayName("Entrega: una opción negativa da 400; una que la pregunta no tiene, 409")
+    void submit_invalidOption() {
         PublishedExam exam = publishedExam(adminToken(), 5, null, true);
-        List<Integer> chosen = Arrays.asList(4, 0, 0, 0, 0);
 
-        HttpResult badOption = submit(exam.code(), startAttempt(exam.code(), null), unique("A"), null,
-                answers(exam.questionIds(), chosen));
-        HttpResult blankName = submit(exam.code(), startAttempt(exam.code(), null), " ", null,
-                answers(exam.questionIds(), allCorrect(5)));
+        HttpResult negative = submit(exam.code(), startAttempt(exam.code(), null), null,
+                answers(exam.questionIds(), Arrays.asList(-1, 0, 0, 0, 0)));
+        HttpResult missing = submit(exam.code(), startAttempt(exam.code(), null), null,
+                answers(exam.questionIds(), Arrays.asList(4, 0, 0, 0, 0)));
 
-        assertThat(badOption.expectStatus(400).message()).startsWith("answers[0].chosenOption:");
-        assertThat(blankName.expectStatus(400).message()).startsWith("studentName:");
+        assertThat(negative.expectStatus(400).message()).startsWith("answers[0].chosenOption:");
+        assertThat(missing.expectStatus(409).message())
+                .isEqualTo("La opción 4 no existe en la pregunta " + exam.questionIds().get(0));
     }
 
     @Test
@@ -298,7 +266,7 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
     void submit_storesCorrectAnswerAtSubmissionTime() {
         String token = adminToken();
         PublishedExam exam = publishedExam(token, 5, null, true);
-        submit(exam.code(), startAttempt(exam.code(), null), unique("A"), null,
+        submit(exam.code(), startAttempt(exam.code(), null, unique("A")), null,
                 answers(exam.questionIds(), allCorrect(5))).expectStatus(201);
         long firstQuestion = exam.questionIds().get(0);
         put("/api/questions/" + firstQuestion, token, obj("text", "Editada", "options", FOUR_OPTIONS,
@@ -319,10 +287,10 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
         List<Integer> threeRight = new ArrayList<>(allCorrect(5));
         threeRight.set(0, null);
         threeRight.set(1, null);
-        submit(exam.code(), startAttempt(exam.code(), null), "Primera", null,
+        submit(exam.code(), startAttempt(exam.code(), null, "Primera"), null,
                 answers(exam.questionIds(), allCorrect(5))).expectStatus(201);
         clock.advance(Duration.ofSeconds(1));
-        submit(exam.code(), startAttempt(exam.code(), null), "Segunda", null,
+        submit(exam.code(), startAttempt(exam.code(), null, "Segunda"), null,
                 answers(exam.questionIds(), threeRight)).expectStatus(201);
 
         List<Map<String, Object>> results = get("/api/results/exam/" + exam.id(), teacher.token())
@@ -355,7 +323,7 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
         Session owner = newTeacher();
         Session other = newTeacher();
         PublishedExam exam = publishedExam(owner.token(), 5, null, true);
-        long resultId = submit(exam.code(), startAttempt(exam.code(), null), unique("A"), null,
+        long resultId = submit(exam.code(), startAttempt(exam.code(), null, unique("A")), null,
                 answers(exam.questionIds(), allCorrect(5))).expectStatus(201).id();
 
         HttpResult asOwner = get("/api/results/" + resultId, owner.token()).expectStatus(200);
@@ -374,10 +342,10 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
         Session student = newStudent();
         PublishedExam visible = publishedExam(token, 5, null, true);
         PublishedExam hidden = publishedExam(token, 5, null, false);
-        submit(visible.code(), startAttempt(visible.code(), student.token()), "Yo", student.token(),
+        submit(visible.code(), startAttempt(visible.code(), student.token(), "Yo"), student.token(),
                 answers(visible.questionIds(), allCorrect(5))).expectStatus(201);
         clock.advance(Duration.ofSeconds(1));
-        submit(hidden.code(), startAttempt(hidden.code(), student.token()), "Yo", student.token(),
+        submit(hidden.code(), startAttempt(hidden.code(), student.token(), "Yo"), student.token(),
                 answers(hidden.questionIds(), allCorrect(5))).expectStatus(201);
 
         List<Map<String, Object>> mine = get("/api/results/me", student.token()).expectStatus(200).asList();

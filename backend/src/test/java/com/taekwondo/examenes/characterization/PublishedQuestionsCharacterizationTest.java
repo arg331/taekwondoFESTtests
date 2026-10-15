@@ -42,7 +42,7 @@ class PublishedQuestionsCharacterizationTest extends ApiCharacterizationTest {
         String attempt = startAttempt(exam.code(), null);
         exam.questionIds().forEach(id -> editQuestion(token, id, "Otra pregunta", 3));
 
-        HttpResult result = submit(exam.code(), attempt, unique("A"), null,
+        HttpResult result = submit(exam.code(), attempt, null,
                 answers(exam.questionIds(), allCorrect(5))).expectStatus(201);
 
         assertThat((Integer) result.read("$.score")).isEqualTo(100);
@@ -94,7 +94,7 @@ class PublishedQuestionsCharacterizationTest extends ApiCharacterizationTest {
     }
 
     private Map<String, Object> attemptQuestion(String code, long questionId) {
-        List<Map<String, Object>> questions = post("/api/exams/by-code/" + code + "/attempts", null, null)
+        List<Map<String, Object>> questions = start(code, null, obj("studentName", unique("A")))
                 .expectStatus(200).read("$.questions");
         return questions.stream()
                 .filter(q -> ((Number) q.get("id")).longValue() == questionId)

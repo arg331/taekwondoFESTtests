@@ -86,13 +86,14 @@ describe('ExamService y ResultService (contrato HTTP)', () => {
   it('flujo del alumno: el código va codificado en la URL', () => {
     exams.getByCode('EXM 1/2').subscribe();
     expectCall('GET', `${API}/exams/by-code/EXM%201%2F2`);
-    exams.startAttempt('EXM-1').subscribe();
-    expectCall('POST', `${API}/exams/by-code/EXM-1/attempts`, {});
+    const identity = { studentName: 'Ana', studentClub: null, studentEmail: null };
+    exams.startAttempt('EXM-1', identity).subscribe();
+    expectCall('POST', `${API}/exams/by-code/EXM-1/attempts`, identity);
   });
 
   it('resultados', () => {
     const submission = {
-      examCode: 'EXM-1', attemptToken: 't', studentName: 'Ana', studentClub: null, studentEmail: null,
+      examCode: 'EXM-1', attemptToken: 't',
       answers: [{ questionId: 1, chosenOption: null }]
     };
     results.submit(submission).subscribe();

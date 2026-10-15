@@ -69,13 +69,9 @@ class ResultExportCharacterizationTest extends ApiCharacterizationTest {
     }
 
     private void submitAs(PublishedExam exam, String name, String club, List<Integer> chosen) {
-        post("/api/results", null, obj(
-                "examCode", exam.code(),
-                "attemptToken", startAttempt(exam.code(), null),
-                "studentName", name,
-                "studentClub", club,
-                "studentEmail", null,
-                "answers", answers(exam.questionIds(), chosen))).expectStatus(201);
+        String attempt = start(exam.code(), null, obj("studentName", name, "studentClub", club))
+                .expectStatus(200).read("$.attemptToken");
+        submit(exam.code(), attempt, null, answers(exam.questionIds(), chosen)).expectStatus(201);
     }
 
     /** Acierta las primeras «right» preguntas y falla el resto. */

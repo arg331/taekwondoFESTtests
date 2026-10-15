@@ -1,10 +1,13 @@
 package com.taekwondo.examenes.result;
 
+import com.taekwondo.examenes.attempt.ExamAttempt;
+import com.taekwondo.examenes.attempt.ExamAttemptRepository;
 import com.taekwondo.examenes.common.BusinessRuleException;
 import com.taekwondo.examenes.common.ResourceNotFoundException;
 import com.taekwondo.examenes.exam.Exam;
 import com.taekwondo.examenes.exam.ExamRepository;
 import com.taekwondo.examenes.exam.ExamService;
+import com.taekwondo.examenes.exam.PublishedQuestion;
 import com.taekwondo.examenes.security.JwtService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,74 +32,84 @@ public class ResultService {
     private final ResultRepository resultRepository;
     private final ExamRepository examRepository;
     private final ExamService examService;
+    private final ExamAttemptRepository attemptRepository;
     private final JwtService jwtService;
     private final Clock clock;
 
     public ResultService(ResultRepository resultRepository, ExamRepository examRepository,
-                         ExamService examService, JwtService jwtService, Clock clock) {
+                         ExamService examService, ExamAttemptRepository attemptRepository,
+                         JwtService jwtService, Clock clock) {
         this.resultRepository = resultRepository;
         this.examRepository = examRepository;
         this.examService = examService;
+        this.attemptRepository = attemptRepository;
         this.jwtService = jwtService;
         this.clock = clock;
     }
 
     /**
-     * Corrige y guarda la entrega de un alumno. El tiempo empleado se calcula
-     * en el servidor a partir del token del intento, no lo decide el cliente.
+     * Corrige y guarda la entrega de un intento. Quién la hace lo dice el intento (DE-04), y el
+     * tiempo empleado lo calcula el servidor desde que empezó, no lo decide el cliente.
      */
-    public ResultResponse submit(SubmitExamRequest request, Long studentUserId) {
+    public ResultResponse submit(SubmitExamRequest request) {
         Exam exam = examRepository.findByCode(request.examCode())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "No existe ningún examen con código " + request.examCode()));
-
-        JwtService.Attempt attempt = jwtService.parseAttemptToken(request.attemptToken())
-                .filter(a -> a.examId().equals(exam.getId()))
-                .orElseThrow(() -> new BusinessRuleException(
-                        "El intento no es válido o ha superado el tiempo límite"));
+        BusinessRuleException invalid = new BusinessRuleException(
+                "El intento no es válido o ha superado el tiempo límite");
+        ExamAttempt attempt = jwtService.parseAttemptToken(request.attemptToken())
+                .filter(token -> token.examId().equals(exam.getId()))
+                .flatMap(token -> attemptRepository.findById(token.attemptId()))
+                .filter(a -> a.getExamId().equals(exam.getId()))
+                .orElseThrow(() -> invalid);
+        if (attempt.isSubmitted()) {
+            throw new BusinessRuleException("Este intento ya se ha entregado");
+        }
         // Basta con que el examen estuviera abierto al empezar: si caduca a mitad, la entrega vale.
         // Si el profesor lo cierra manualmente, ya no se aceptan entregas.
-        if (!exam.isAccessibleAt(LocalDateTime.ofInstant(attempt.startedAt(), clock.getZone()))) {
+        if (!exam.isAccessibleAt(attempt.getStartedAt())) {
             throw new BusinessRuleException("Este examen no está disponible en este momento");
         }
-        Duration elapsed = Duration.between(attempt.startedAt(), clock.instant());
-        if (exam.getConfig().hasTimeLimit() && elapsed.compareTo(
-                Duration.ofMinutes(exam.getConfig().getTimeLimitMinutes()).plus(ExamService.SUBMIT_GRACE)) > 0) {
-            throw new BusinessRuleException("Se ha superado el tiempo límite del examen");
+        LocalDateTime now = LocalDateTime.now(clock);
+        if (!attempt.isOpenAt(now, ExamService.attemptValidity(exam.getConfig()))) {
+            throw invalid;
         }
 
-        if (exam.requiresRegistration() && studentUserId == null) {
-            throw new BusinessRuleException("Este examen requiere estar registrado e iniciar sesión");
-        }
-        String studentName = request.studentName().trim();
-        boolean alreadyDone = studentUserId != null
-                ? resultRepository.existsByExamIdAndStudentUserId(exam.getId(), studentUserId)
-                : resultRepository.existsByExamIdAndStudentNameIgnoreCase(exam.getId(), studentName);
-        if (alreadyDone) {
-            throw new BusinessRuleException("Este estudiante ya ha realizado este examen");
-        }
-
-        Map<Long, Integer> chosenByQuestion = new HashMap<>();
-        for (SubmitExamRequest.Answer answer : request.answers()) {
-            if (chosenByQuestion.containsKey(answer.questionId())) {
-                throw new BusinessRuleException("Hay respuestas duplicadas para la pregunta " + answer.questionId());
-            }
-            chosenByQuestion.put(answer.questionId(), answer.chosenOption());
-        }
+        Map<Long, Integer> chosenByQuestion = chosenByQuestion(request);
         if (!chosenByQuestion.keySet().equals(Set.copyOf(exam.getQuestionIds()))) {
             throw new BusinessRuleException("Las respuestas no coinciden con las preguntas del examen");
         }
-
         // Se corrige contra la copia publicada (DE-03), no contra el banco
         List<Answer> answers = exam.getPublishedQuestions().stream()
-                .map(q -> new Answer(q.getQuestionId(), chosenByQuestion.get(q.getQuestionId()), q.getCorrectAnswer()))
+                .map(q -> new Answer(q.getQuestionId(), chosenOption(q, chosenByQuestion), q.getCorrectAnswer()))
                 .toList();
 
-        Result result = new Result(exam.getId(), studentUserId, studentName,
-                blankToNull(request.studentClub()), blankToNull(request.studentEmail()),
-                answers, (int) elapsed.toSeconds(), LocalDateTime.now(clock));
+        attempt.markSubmitted(now);
+        Result result = new Result(exam.getId(), attempt.getStudentUserId(), attempt.getStudentName(),
+                attempt.getStudentClub(), attempt.getStudentEmail(), answers,
+                (int) Duration.between(attempt.getStartedAt(), now).toSeconds(), now);
         return ResultResponse.forStudent(resultRepository.save(result), exam.getTitle(),
                 exam.getConfig().isShowScore());
+    }
+
+    private static Map<Long, Integer> chosenByQuestion(SubmitExamRequest request) {
+        Map<Long, Integer> chosen = new HashMap<>();
+        for (SubmitExamRequest.Answer answer : request.answers()) {
+            if (chosen.containsKey(answer.questionId())) {
+                throw new BusinessRuleException("Hay respuestas duplicadas para la pregunta " + answer.questionId());
+            }
+            chosen.put(answer.questionId(), answer.chosenOption());
+        }
+        return chosen;
+    }
+
+    /** La opción elegida en esa pregunta (null = en blanco); tiene que existir en la pregunta publicada. */
+    private static Integer chosenOption(PublishedQuestion question, Map<Long, Integer> chosenByQuestion) {
+        Integer chosen = chosenByQuestion.get(question.getQuestionId());
+        if (chosen != null && chosen >= question.getOptions().size()) {
+            throw new BusinessRuleException("La opción " + chosen + " no existe en la pregunta " + question.getQuestionId());
+        }
+        return chosen;
     }
 
     // ───── Consultas del profesor ─────
@@ -168,7 +181,4 @@ public class ResultService {
                 .toList();
     }
 
-    private static String blankToNull(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
-    }
 }

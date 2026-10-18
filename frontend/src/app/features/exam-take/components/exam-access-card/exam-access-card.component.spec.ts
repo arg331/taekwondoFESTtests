@@ -26,7 +26,7 @@ describe('ExamAccessCardComponent', () => {
   let el: HTMLElement;
   let http: HttpTestingController;
 
-  async function render(visibility: Visibility, maxAttempts = 1): Promise<void> {
+  async function render(visibility: Visibility, maxAttempts: number | null = 1): Promise<void> {
     TestBed.configureTestingModule({
       imports: [ExamAccessCardComponent],
       providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()]
@@ -50,6 +50,11 @@ describe('ExamAccessCardComponent', () => {
   it('con varios intentos, dice cuántas veces se puede hacer (RF-52)', async () => {
     await render('PRIVATE', 3);
     expect(el.textContent).toContain('Puedes hacerlo 3 veces');
+  });
+
+  it('sin límite, dice que se puede hacer las veces que quiera', async () => {
+    await render('PRIVATE', null);
+    expect(el.textContent).toContain('Puedes hacerlo las veces que quieras');
   });
 
   it('con un solo intento, avisa de que solo hay uno', async () => {

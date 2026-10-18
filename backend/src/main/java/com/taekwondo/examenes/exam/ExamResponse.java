@@ -19,7 +19,8 @@ public record ExamResponse(
         String code,
         LocalDateTime createdAt,
         LocalDateTime expiresAt,
-        int maxAttempts
+        /** Intentos por alumno; null = sin límite (RF-52). */
+        Integer maxAttempts
 ) {
     public record Config(
             int numberOfQuestions,

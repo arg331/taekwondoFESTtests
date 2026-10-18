@@ -170,6 +170,59 @@ describe('ExamTakeComponent', () => {
   });
 
   describe('intentos (RF-52)', () => {
+    /** Contesta, entrega y recibe una nota: queda en la pantalla del resultado. */
+    async function finish(): Promise<void> {
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      await goToQuestion(3);
+      button('Enviar examen').click();
+      await stable();
+      http.expectOne(`${API}/results`).flush({
+        id: 5, examId: 1, examTitle: 'Examen de árbitros', studentName: 'Ana', studentClub: null, studentEmail: null,
+        registered: false, scoreVisible: true, answers: [], correctAnswers: 0, totalQuestions: 3, score: 0, passed: false,
+        timeSpentSeconds: 40, completedAt: '2026-10-08T10:10:00'
+      } satisfies ResultResponse);
+      await stable();
+    }
+
+    function repeatButton(): HTMLButtonElement | undefined {
+      return Array.from(el.querySelectorAll('button')).find(b => b.textContent?.includes('Repetir examen'));
+    }
+
+    it('si le quedan intentos, al terminar ve «Repetir examen» con los que le quedan y empieza otro con sus datos', async () => {
+      await render(exam({ maxAttempts: 3 }));
+      await startAs('Ana', { ...ATTEMPT, attemptNumber: 1, maxAttempts: 3 });
+      await finish();
+
+      expect(repeatButton()?.textContent).toContain('Te quedan 2 intentos');
+      repeatButton()!.click();
+      await stable();
+
+      const again = http.expectOne(`${API}/exams/by-code/EXM-ABC/attempts`);
+      expect(again.request.body).toEqual({ studentName: 'Ana', studentClub: null, studentEmail: null });
+      again.flush({ ...ATTEMPT, attemptNumber: 2, maxAttempts: 3 });
+      await stable();
+      expect(el.querySelector('.exam-header')?.textContent).toContain('Intento 2 de 3');
+    });
+
+    it('con el último intento ya hecho, no aparece', async () => {
+      await render(exam({ maxAttempts: 2 }));
+      await startAs('Ana', { ...ATTEMPT, attemptNumber: 2, maxAttempts: 2 });
+      await finish();
+
+      expect(repeatButton()).toBeUndefined();
+    });
+
+    it('sin límite: «Intento N» sin total y «Repetir examen» sin contar', async () => {
+      await render(exam({ maxAttempts: null }));
+      await startAs('Ana', { ...ATTEMPT, attemptNumber: 4, maxAttempts: null });
+      expect(el.querySelector('.exam-header')?.textContent).toContain('Intento 4');
+      expect(el.querySelector('.exam-header')?.textContent).not.toContain('Intento 4 de');
+      await finish();
+
+      expect(repeatButton()).toBeDefined();
+      expect(repeatButton()?.textContent).not.toContain('Te quedan');
+    });
+
     it('con varios intentos, dice cuál es', async () => {
       await render(exam({ maxAttempts: 3 }));
       await startAs('Ana', { ...ATTEMPT, attemptNumber: 2, maxAttempts: 3 });

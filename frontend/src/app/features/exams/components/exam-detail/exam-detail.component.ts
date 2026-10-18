@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, linkedSignal, output, resource, signal, untracked } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { rxResource } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Observable, of, switchMap } from 'rxjs';
 import { MatCardModule } from '@angular/material/card';
@@ -10,7 +10,6 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDividerModule } from '@angular/material/divider';
@@ -22,7 +21,7 @@ import { QrColorService } from '../../../../core/services/qr-color.service';
 import {
   EXAM_MAX_QUESTIONS,
   EXAM_MIN_ATTEMPTS,
-  EXAM_MAX_ATTEMPTS,
+  attemptsRequest,
   EXAM_MIN_QUESTIONS,
   EXAM_STATUS_COLOR,
   EXAM_STATUS_LABEL,
@@ -35,6 +34,7 @@ import {
 import { QuestionResponse } from '../../../../core/models/question.models';
 import { TagResponse } from '../../../../core/models/tag.models';
 import { ExamQuestionPickerComponent } from '../exam-question-picker/exam-question-picker.component';
+import { AttemptsSliderComponent } from '../attempts-slider/attempts-slider.component';
 import { ExamQrDialogComponent, ExamQrDialogData } from '../exam-qr-dialog/exam-qr-dialog.component';
 
 /** Cuánto se ve un aviso breve (enlace copiado, etc.). */
@@ -57,11 +57,11 @@ const NOTICE_DURATION_MS = 3000;
     MatInputModule,
     MatSelectModule,
     MatSlideToggleModule,
-    MatCheckboxModule,
     MatProgressSpinnerModule,
     MatTooltipModule,
     MatDividerModule,
-    ExamQuestionPickerComponent
+    ExamQuestionPickerComponent,
+    AttemptsSliderComponent
   ],
   templateUrl: './exam-detail.component.html',
   styleUrl: './exam-detail.component.scss',
@@ -74,9 +74,6 @@ export class ExamDetailComponent {
   private dialog = inject(MatDialog);
   private qrCode = inject(QrCodeService);
   private qrColor = inject(QrColorService);
-
-  readonly minAttempts = EXAM_MIN_ATTEMPTS;
-  readonly maxAttempts = EXAM_MAX_ATTEMPTS;
 
   exam = input.required<ExamResponse>();
   questions = input<QuestionResponse[]>([]);
@@ -158,24 +155,17 @@ export class ExamDetailComponent {
     // Por defecto, oficial: solo entra quien tenga el código
     visibility: ['PRIVATE' as Visibility],
     accessMode: ['OPEN' as 'OPEN' | 'REGISTERED_ONLY'],
-    expiresAt:  [''],
-    neverExpires: [false],
-    maxAttempts: [EXAM_MIN_ATTEMPTS, [Validators.required, Validators.min(EXAM_MIN_ATTEMPTS), Validators.max(EXAM_MAX_ATTEMPTS)]]
+    // Vacío = no caduca (RF-48)
+    expiresAt:  ['']
   });
+  /** Intentos por alumno al publicar (RF-52); null = sin límite. Vuelve a 1 al cambiar de examen. */
+  publishAttempts = linkedSignal<number, number | null>({ source: this.examId, computation: () => EXAM_MIN_ATTEMPTS });
+  /** Intentos de un examen publicado mientras se eligen otros. */
+  attemptsDraft = linkedSignal(() => this.exam().maxAttempts);
 
   expirationForm = this.fb.nonNullable.group({ expiresAt: [''] });
 
   constructor() {
-    // «Sin caducidad» excluye la fecha (RF-48)
-    this.publishForm.controls.neverExpires.valueChanges.pipe(takeUntilDestroyed()).subscribe(neverExpires => {
-      const date = this.publishForm.controls.expiresAt;
-      if (neverExpires) {
-        date.reset();
-        date.disable();
-      } else {
-        date.enable();
-      }
-    });
     // Los formularios reactivos no son signals: se vacían al cambiar de examen
     effect(() => {
       this.examId();
@@ -237,13 +227,17 @@ export class ExamDetailComponent {
     this.run(save$.pipe(switchMap(() => this.examSvc.publish(exam.id, {
       visibility: v.visibility,
       accessMode: v.accessMode,
-      expiresAt: v.neverExpires ? null : v.expiresAt || null,
-      neverExpires: v.neverExpires,
-      maxAttempts: v.maxAttempts
+      expiresAt: v.expiresAt || null,
+      ...attemptsRequest(this.publishAttempts())
     }))), published => {
       if (published.code) this.qrColor.assignDistinct(published.code, this.openExamCodes());
       this.showQr.set(true);
     });
+  }
+
+  /** Subir o bajar los intentos de un examen publicado (RF-52). */
+  changeAttempts(): void {
+    this.run(this.examSvc.changeAttempts(this.exam().id, attemptsRequest(this.attemptsDraft())));
   }
 
   close(): void {

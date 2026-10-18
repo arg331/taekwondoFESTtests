@@ -15,7 +15,9 @@
 
   <p class="attempts-info">
     <mat-icon class="inline-icon">replay</mat-icon>
-    @if (exam().maxAttempts > 1) {
+    @if (exam().maxAttempts === null) {
+      Puedes hacerlo las veces que quieras.
+    } @else if (exam().maxAttempts! > 1) {
       Puedes hacerlo {{ exam().maxAttempts }} veces.
     } @else {
       Solo puedes hacerlo una vez.

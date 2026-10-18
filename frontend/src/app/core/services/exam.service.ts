@@ -12,6 +12,7 @@ import {
   ChangeExamVisibilityRequest,
   ExpirationRequest,
   ExamAttemptResponse,
+  ChangeAttemptsRequest,
   PublishedQuestionResponse,
   StartAttemptRequest
 } from '../models/exam.models';
@@ -74,6 +75,11 @@ export class ExamService {
   /** Las preguntas de un examen publicado tal como las ven los alumnos (DE-03). */
   publishedQuestions(id: number): Observable<PublishedQuestionResponse[]> {
     return this.http.get<PublishedQuestionResponse[]>(`${this.api}/${id}/published-questions`);
+  }
+
+  /** Subir o bajar los intentos por alumno de un examen publicado (RF-52). */
+  changeAttempts(id: number, request: ChangeAttemptsRequest): Observable<ExamResponse> {
+    return this.http.patch<ExamResponse>(`${this.api}/${id}/attempts`, request);
   }
 
   copy(id: number): Observable<ExamResponse> {

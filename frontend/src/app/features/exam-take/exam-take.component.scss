@@ -9,6 +9,13 @@
   &.result-screen { justify-content: flex-start; }
 }
 
+// «Repetir examen»: bien visible, a la derecha, alineado con la tarjeta del resultado
+.repeat-row { width: 100%; max-width: 560px; display: flex; justify-content: flex-end; }
+.repeat-btn {
+  height: 48px; padding: 0 20px; font-size: 1rem; font-weight: 600;
+  .repeat-left { margin-left: 6px; font-weight: 400; opacity: 0.9; }
+}
+
 .exam-wrapper { display: flex; flex-direction: column; min-height: 100vh; }
 .exam-header {
   display: flex; justify-content: space-between; align-items: center;

@@ -188,7 +188,7 @@ class ExamLifecycleCharacterizationTest extends ApiCharacterizationTest {
     // ───── Publicación y estados ─────
 
     @Test
-    @DisplayName("Publicar: sin fecha expira en 1 h, genera código EXM-XXXXXXXX y acceso OPEN por defecto")
+    @DisplayName("Publicar: sin fecha no caduca (RF-48), genera código EXM-XXXXXXXX y acceso OPEN por defecto")
     void publish_defaults() {
         Session teacher = newTeacher();
         List<Long> questionIds = createQuestions(teacher.token(), 5);
@@ -201,7 +201,9 @@ class ExamLifecycleCharacterizationTest extends ApiCharacterizationTest {
         assertThat((String) result.read("$.visibility")).isEqualTo("PRIVATE");
         assertThat((String) result.read("$.accessMode")).isEqualTo("OPEN");
         assertThat((String) result.read("$.code")).matches("EXM-[0-9A-F]{8}");
-        assertThat(LocalDateTime.parse(result.read("$.expiresAt"))).isEqualTo(now().plusHours(1));
+        assertThat((Object) result.read("$.expiresAt")).isNull();
+        clock.advance(Duration.ofDays(30));
+        get("/api/exams/by-code/" + result.read("$.code"), null).expectStatus(200);
     }
 
     @Test
@@ -228,35 +230,6 @@ class ExamLifecycleCharacterizationTest extends ApiCharacterizationTest {
 
         assertThat(result.expectStatus(409).message())
                 .isEqualTo("El examen debe tener entre 5 y 50 preguntas para publicarse (tiene 4)");
-    }
-
-    @Test
-    @DisplayName("Publicar sin caducidad: no tiene fecha de expiración y sigue abierto días después (RF-48)")
-    void publish_neverExpires() {
-        Session teacher = newTeacher();
-        long examId = createDraft(teacher.token(), 5, null, true);
-        setQuestions(teacher.token(), examId, createQuestions(teacher.token(), 5));
-
-        HttpResult result = post("/api/exams/" + examId + "/publish", teacher.token(),
-                obj("visibility", "PRIVATE", "neverExpires", true)).expectStatus(200);
-        clock.advance(Duration.ofDays(30));
-
-        assertThat((Object) result.read("$.expiresAt")).isNull();
-        get("/api/exams/by-code/" + result.read("$.code"), null).expectStatus(200);
-    }
-
-    @Test
-    @DisplayName("Publicar: pedir a la vez fecha de caducidad y «sin caducidad» devuelve 409")
-    void publish_neverExpiresWithDate_conflict() {
-        Session teacher = newTeacher();
-        long examId = createDraft(teacher.token(), 5, null, true);
-        setQuestions(teacher.token(), examId, createQuestions(teacher.token(), 5));
-
-        HttpResult result = post("/api/exams/" + examId + "/publish", teacher.token(), obj(
-                "visibility", "PRIVATE", "neverExpires", true, "expiresAt", now().plusDays(1).toString()));
-
-        assertThat(result.expectStatus(409).message())
-                .isEqualTo("Indica una fecha de caducidad o «sin caducidad», no las dos");
     }
 
     @Test

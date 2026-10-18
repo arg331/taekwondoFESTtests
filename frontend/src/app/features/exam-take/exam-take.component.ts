@@ -59,8 +59,20 @@ export class ExamTakeComponent implements OnInit, OnDestroy {
 
   private student: StudentInfo | null = null;
   private attemptToken = '';
-  /** Qué intento es, de cuántos (RF-52); con uno solo no se muestra. */
-  attemptLabel = signal<string | null>(null);
+  /** El intento en curso: cuál es y de cuántos (null = sin límite). */
+  private attempt = signal<{ number: number; max: number | null } | null>(null);
+  /** «Intento 2 de 3», o «Intento 4» sin límite; con un solo intento no se muestra (RF-52). */
+  attemptLabel = computed(() => {
+    const a = this.attempt();
+    if (!a || a.max === 1) return null;
+    return a.max === null ? `Intento ${a.number}` : `Intento ${a.number} de ${a.max}`;
+  });
+  /** Intentos que le quedan después del actual: null = sin límite, 0 = ninguno. */
+  remainingAttempts = computed(() => {
+    const a = this.attempt();
+    if (!a) return 0;
+    return a.max === null ? null : Math.max(0, a.max - a.number);
+  });
 
   currentIndex = signal(0);
   /** questionId → índice original de la opción elegida. */
@@ -105,7 +117,7 @@ export class ExamTakeComponent implements OnInit, OnDestroy {
     this.examSvc.startAttempt(this.code(), student).subscribe({
       next: attempt => {
         this.attemptToken = attempt.attemptToken;
-        this.attemptLabel.set(attempt.maxAttempts > 1 ? `Intento ${attempt.attemptNumber} de ${attempt.maxAttempts}` : null);
+        this.attempt.set({ number: attempt.attemptNumber, max: attempt.maxAttempts });
         this.questions.set(attempt.questions);
         this.answers.set({});
         this.currentIndex.set(0);
@@ -118,6 +130,11 @@ export class ExamTakeComponent implements OnInit, OnDestroy {
         this.fail(err?.error?.message ?? 'Error al cargar las preguntas.');
       }
     });
+  }
+
+  /** «Repetir examen»: otro intento con los mismos datos, sin volver a la portada. */
+  repeat(): void {
+    if (this.student) this.startExam(this.student);
   }
 
   // ── Examen ────────────────────────────────────────

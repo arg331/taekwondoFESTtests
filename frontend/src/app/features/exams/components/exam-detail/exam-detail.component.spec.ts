@@ -9,6 +9,7 @@ import { QrColorService } from '../../../../core/services/qr-color.service';
 import { By } from '@angular/platform-browser';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { MatSelectHarness } from '@angular/material/select/testing';
+import { MatSliderHarness, MatSliderThumbHarness } from '@angular/material/slider/testing';
 import { ExamQuestionPickerComponent } from '../exam-question-picker/exam-question-picker.component';
 
 const API = 'http://localhost:8080/api';
@@ -155,7 +156,7 @@ describe('ExamDetailComponent', () => {
     expect(save.request.body).toEqual({ questionIds: [1, 3, 4, 5, 6] });
     save.flush(exam('DRAFT', [1, 3, 4, 5, 6]));
     const publish = http.expectOne(`${API}/exams/7/publish`);
-    expect(publish.request.body).toEqual({ visibility: 'PRIVATE', accessMode: 'OPEN', expiresAt: null, neverExpires: false, maxAttempts: 1 });
+    expect(publish.request.body).toEqual({ visibility: 'PRIVATE', accessMode: 'OPEN', expiresAt: null, maxAttempts: 1 });
     publish.flush(exam('PUBLISHED', [1, 3, 4, 5, 6]));
     await stable();
 
@@ -163,19 +164,27 @@ describe('ExamDetailComponent', () => {
   });
 
   describe('publicar sin caducidad (RF-48)', () => {
-    it('«Sin caducidad» desactiva la fecha y lo envía al publicar', async () => {
+    it('con la fecha vacía no caduca: no hay casilla aparte y la pista lo dice', async () => {
+      await render(exam('DRAFT', [1, 2, 3, 4, 5]));
+
+      expect(el.querySelector('.never-expires')).toBeNull();
+      expect(el.querySelector('.publish-options')?.textContent).toContain('Si lo dejas vacío, no caduca');
+      button('Publicar examen').click();
+      const publish = http.expectOne(`${API}/exams/7/publish`);
+      expect(publish.request.body.expiresAt).toBeNull();
+      publish.flush(exam('PUBLISHED', [1, 2, 3, 4, 5]));
+    });
+
+    it('con fecha, la envía', async () => {
       await render(exam('DRAFT', [1, 2, 3, 4, 5]));
       const date = el.querySelector('.publish-options input[type=datetime-local]') as HTMLInputElement;
       date.value = '2026-12-31T10:00';
       date.dispatchEvent(new Event('input'));
-
-      (el.querySelector('.never-expires input[type=checkbox]') as HTMLInputElement).click();
       await stable();
-      expect(date.disabled).toBe(true);
 
       button('Publicar examen').click();
       const publish = http.expectOne(`${API}/exams/7/publish`);
-      expect(publish.request.body).toEqual({ visibility: 'PRIVATE', accessMode: 'OPEN', expiresAt: null, neverExpires: true, maxAttempts: 1 });
+      expect(publish.request.body.expiresAt).toBe('2026-12-31T10:00');
       publish.flush(exam('PUBLISHED', [1, 2, 3, 4, 5]));
     });
 
@@ -265,30 +274,63 @@ describe('ExamDetailComponent', () => {
   });
 
   describe('intentos por alumno (RF-52)', () => {
-    it('al publicar se eligen; por defecto, 1', async () => {
-      await render(exam('DRAFT', [1, 2, 3, 4, 5]));
-      const attempts = el.querySelector('.publish-options input[type=number]') as HTMLInputElement;
-      expect(attempts.value).toBe('1');
+    async function attemptsThumb(): Promise<MatSliderThumbHarness> {
+      const slider = await TestbedHarnessEnvironment.loader(fixture).getHarness(MatSliderHarness.with({ selector: '.attempts-slider' }));
+      return slider.getEndThumb();
+    }
 
-      attempts.value = '3';
-      attempts.dispatchEvent(new Event('input'));
+    it('al publicar se eligen con una barra de 1, 2, 3, 4 o sin límite; por defecto, 1', async () => {
+      await render(exam('DRAFT', [1, 2, 3, 4, 5]));
+      const thumb = await attemptsThumb();
+      expect(await thumb.getValue()).toBe(1);
+      expect(Array.from(el.querySelectorAll('.publish-options .attempts-marks span')).map(m => m.textContent?.trim()))
+        .toEqual(['1', '2', '3', '4', '∞']);
+      expect(el.textContent).not.toContain('cuentan también los que se dejan sin entregar');
+
+      await thumb.setValue(3);
       await stable();
       button('Publicar examen').click();
 
       const publish = http.expectOne(`${API}/exams/7/publish`);
       expect(publish.request.body.maxAttempts).toBe(3);
+      expect(publish.request.body.unlimitedAttempts).toBeUndefined();
       publish.flush({ ...exam('PUBLISHED', [1, 2, 3, 4, 5]), maxAttempts: 3 });
       await stable();
     });
 
-    it('fuera de 1 a 20 no se puede publicar', async () => {
+    it('al final de la barra, sin límite', async () => {
       await render(exam('DRAFT', [1, 2, 3, 4, 5]));
-      const attempts = el.querySelector('.publish-options input[type=number]') as HTMLInputElement;
-      attempts.value = '21';
-      attempts.dispatchEvent(new Event('input'));
+      await (await attemptsThumb()).setValue(5);
       await stable();
 
-      expect(button('Publicar examen').disabled).toBe(true);
+      expect(el.querySelector('.publish-options')?.textContent).toContain('Sin límite');
+      button('Publicar examen').click();
+      const publish = http.expectOne(`${API}/exams/7/publish`);
+      expect(publish.request.body.unlimitedAttempts).toBe(true);
+      expect(publish.request.body.maxAttempts).toBeUndefined();
+      publish.flush({ ...exam('PUBLISHED', [1, 2, 3, 4, 5]), maxAttempts: null });
+      await stable();
+    });
+
+    it('en un examen publicado se pueden cambiar', async () => {
+      await render({ ...exam('PUBLISHED', [1, 2]), maxAttempts: 2 });
+      expect(button('Cambiar intentos').disabled).toBe(true);
+
+      await (await attemptsThumb()).setValue(5);
+      await stable();
+      button('Cambiar intentos').click();
+
+      const change = http.expectOne(`${API}/exams/7/attempts`);
+      expect(change.request.method).toBe('PATCH');
+      expect(change.request.body).toEqual({ unlimitedAttempts: true });
+      change.flush({ ...exam('PUBLISHED', [1, 2]), maxAttempts: null });
+      await stable();
+      expect(changed.at(-1)?.maxAttempts).toBeNull();
+    });
+
+    it('sin límite lo dice en el resumen', async () => {
+      await render({ ...exam('PUBLISHED', [1, 2]), maxAttempts: null });
+      expect(el.querySelector('.config-summary')?.textContent).toContain('Intentos sin límite');
     });
 
     it('un examen publicado dice cuántos intentos tiene cada alumno', async () => {

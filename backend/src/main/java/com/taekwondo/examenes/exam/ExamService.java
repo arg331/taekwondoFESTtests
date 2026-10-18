@@ -35,7 +35,6 @@ import static com.taekwondo.examenes.question.QuestionSpecifications.ownedBy;
 @Transactional
 public class ExamService {
 
-    private static final Duration DEFAULT_PUBLICATION = Duration.ofHours(1);
     /** Margen sobre el tiempo límite para absorber la latencia del envío. */
     public static final Duration SUBMIT_GRACE = Duration.ofMinutes(2);
     private static final Duration UNLIMITED_ATTEMPT_VALIDITY = Duration.ofHours(12);
@@ -136,19 +135,37 @@ public class ExamService {
 
     public ExamResponse publish(Long examId, PublishExamRequest request, Long ownerId) {
         Exam exam = getOwned(examId, ownerId);
-        boolean neverExpires = Boolean.TRUE.equals(request.neverExpires());
-        if (neverExpires && request.expiresAt() != null) {
-            throw new BusinessRuleException("Indica una fecha de caducidad o «sin caducidad», no las dos");
-        }
-        LocalDateTime expiresAt = neverExpires ? null
-                : request.expiresAt() != null ? request.expiresAt() : now().plus(DEFAULT_PUBLICATION);
+        // Sin fecha, el examen no caduca: queda abierto hasta que se cierre (RF-48)
+        LocalDateTime expiresAt = request.expiresAt();
         if (expiresAt != null) requireFuture(expiresAt);
         ExamAccessMode accessMode = request.accessMode() != null ? request.accessMode() : ExamAccessMode.OPEN;
+        // Sin indicar nada, 1 intento
+        Integer maxAttempts = request.maxAttempts() == null && !Boolean.TRUE.equals(request.unlimitedAttempts())
+                ? Integer.valueOf(Exam.MIN_ATTEMPTS)
+                : attempts(request.maxAttempts(), request.unlimitedAttempts());
 
-        int maxAttempts = request.maxAttempts() != null ? request.maxAttempts() : Exam.MIN_ATTEMPTS;
         exam.publish(generateUniqueCode(), request.visibility(), accessMode, expiresAt, maxAttempts,
                 loadBankQuestionsInOrder(exam));
         return ExamResponse.from(exam);
+    }
+
+    /** Subir o bajar los intentos de un examen publicado (RF-52). */
+    public ExamResponse changeAttempts(Long examId, ChangeAttemptsRequest request, Long ownerId) {
+        Exam exam = getOwned(examId, ownerId);
+        exam.changeMaxAttempts(attempts(request.maxAttempts(), request.unlimitedAttempts()));
+        return ExamResponse.from(exam);
+    }
+
+    /** Un número de 1 a 4 o «sin límite» (null), nunca las dos cosas ni ninguna. */
+    private static Integer attempts(Integer maxAttempts, Boolean unlimitedAttempts) {
+        boolean unlimited = Boolean.TRUE.equals(unlimitedAttempts);
+        if (unlimited && maxAttempts != null) {
+            throw new BusinessRuleException("Indica un número de intentos o «sin límite», no las dos cosas");
+        }
+        if (!unlimited && maxAttempts == null) {
+            throw new BusinessRuleException("Indica un número de intentos o «sin límite»");
+        }
+        return unlimited ? null : maxAttempts;
     }
 
     public ExamResponse close(Long examId, Long ownerId) {
@@ -233,7 +250,7 @@ public class ExamService {
             throw new BusinessRuleException("Ya tienes un intento empezado en este examen");
         }
         // Cuentan los entregados y los que se quedaron sin entregar fuera de plazo
-        if (previous.size() >= exam.getMaxAttempts()) {
+        if (exam.attemptsUsedUp(previous.size())) {
             throw new BusinessRuleException("Ya has hecho todos los intentos de este examen");
         }
         ExamAttempt attempt = attemptRepository.save(new ExamAttempt(exam.getId(), studentUserId, studentName,

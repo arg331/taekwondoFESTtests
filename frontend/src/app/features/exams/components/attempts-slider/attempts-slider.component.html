@@ -1,0 +1,12 @@
+<span class="attempts-label">
+  Intentos por alumno: <strong>{{ value() === null ? 'Sin límite' : value() }}</strong>
+</span>
+<mat-slider class="attempts-slider" [min]="1" [max]="maxPosition" [step]="1" [discrete]="true" [showTickMarks]="true"
+            [displayWith]="display">
+  <input matSliderThumb [value]="position()" (valueChange)="setPosition($event)" aria-label="Intentos por alumno" />
+</mat-slider>
+<div class="attempts-marks" aria-hidden="true">
+  @for (mark of marks; track mark) {
+    <span>{{ mark }}</span>
+  }
+</div>

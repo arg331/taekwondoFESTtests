@@ -21,6 +21,7 @@ class AttemptsCharacterizationTest extends ApiCharacterizationTest {
 
     private static final String ALL_USED = "Ya has hecho todos los intentos de este examen";
     private static final String ALREADY_OPEN = "Ya tienes un intento empezado en este examen";
+    private static final String BOTH_LIMITS = "Indica un número de intentos o «sin límite», no las dos cosas";
 
     // ───── Identificarse al empezar (DE-04) ─────
 
@@ -101,18 +102,77 @@ class AttemptsCharacterizationTest extends ApiCharacterizationTest {
     }
 
     @Test
-    @DisplayName("Publicar: de 1 a 20 intentos; fuera de ese rango, 400")
+    @DisplayName("Publicar: de 1 a 4 intentos o sin límite; fuera de ese rango, 400; las dos cosas a la vez, 409")
     void publish_attemptsRange() {
         String token = adminToken();
-        long examId = createDraft(token, 5, null, true);
-        setQuestions(token, examId, createQuestions(token, 5));
+        long examId = draftWithQuestions(token);
 
         assertThat(publish(token, examId, obj("visibility", "PUBLIC", "maxAttempts", 0)).expectStatus(400).message())
                 .startsWith("maxAttempts");
-        assertThat(publish(token, examId, obj("visibility", "PUBLIC", "maxAttempts", 21)).expectStatus(400).message())
+        assertThat(publish(token, examId, obj("visibility", "PUBLIC", "maxAttempts", 5)).expectStatus(400).message())
                 .startsWith("maxAttempts");
-        assertThat((Integer) publish(token, examId, obj("visibility", "PUBLIC", "maxAttempts", 20))
-                .expectStatus(200).read("$.maxAttempts")).isEqualTo(20);
+        assertThat(publish(token, examId, obj("visibility", "PUBLIC", "maxAttempts", 2, "unlimitedAttempts", true))
+                .expectStatus(409).message()).isEqualTo(BOTH_LIMITS);
+        assertThat((Integer) publish(token, examId, obj("visibility", "PUBLIC", "maxAttempts", 4))
+                .expectStatus(200).read("$.maxAttempts")).isEqualTo(4);
+    }
+
+    @Test
+    @DisplayName("Sin límite: el alumno repite las veces que quiera y el intento no dice «de N»")
+    void unlimitedAttempts() {
+        String token = adminToken();
+        long examId = draftWithQuestions(token);
+        HttpResult published = publish(token, examId, obj("visibility", "PUBLIC", "unlimitedAttempts", true))
+                .expectStatus(200);
+        PublishedExam exam = new PublishedExam(examId, published.read("$.code"),
+                get("/api/exams/" + examId, token).<List<Integer>>read("$.questionIds").stream().map(Integer::longValue).toList());
+        Session student = newStudent();
+
+        assertThat((Object) published.read("$.maxAttempts")).isNull();
+        for (int i = 1; i <= 6; i++) {
+            HttpResult attempt = start(exam.code(), student.token(), obj("studentName", "Yo")).expectStatus(200);
+            assertThat((Integer) attempt.read("$.attemptNumber")).isEqualTo(i);
+            assertThat((Object) attempt.read("$.maxAttempts")).isNull();
+            finish(exam, attempt.read("$.attemptToken"), student.token());
+        }
+    }
+
+    // ───── Cambiar los intentos de un examen publicado ─────
+
+    @Test
+    @DisplayName("Después de publicar se pueden subir o bajar los intentos; quien ya los ha usado no empieza otro")
+    void changeAttemptsAfterPublishing() {
+        String token = adminToken();
+        PublishedExam exam = publishedExam(token, 5, null, true, 3);
+        Session student = newStudent();
+        finish(exam, startAttempt(exam.code(), student.token(), "Yo"), student.token());
+        finish(exam, startAttempt(exam.code(), student.token(), "Yo"), student.token());
+
+        assertThat((Integer) changeAttempts(exam.id(), token, obj("maxAttempts", 1)).expectStatus(200)
+                .read("$.maxAttempts")).isEqualTo(1);
+        assertThat(start(exam.code(), student.token(), obj("studentName", "Yo")).expectStatus(409).message())
+                .isEqualTo(ALL_USED);
+
+        assertThat((Object) changeAttempts(exam.id(), token, obj("unlimitedAttempts", true)).expectStatus(200)
+                .read("$.maxAttempts")).isNull();
+        assertThat((Integer) start(exam.code(), student.token(), obj("studentName", "Yo")).expectStatus(200)
+                .read("$.attemptNumber")).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("Cambiar intentos: no en un borrador (409), solo el dueño (404), de 1 a 4 (400)")
+    void changeAttempts_rules() {
+        String token = adminToken();
+        long draft = draftWithQuestions(token);
+        PublishedExam exam = publishedExam(token, 5, null, true);
+
+        assertThat(changeAttempts(draft, token, obj("maxAttempts", 2)).expectStatus(409).message())
+                .isEqualTo("Los intentos de un borrador se eligen al publicarlo");
+        changeAttempts(exam.id(), newTeacher().token(), obj("maxAttempts", 2)).expectStatus(404);
+        assertThat(changeAttempts(exam.id(), token, obj("maxAttempts", 5)).expectStatus(400).message())
+                .startsWith("maxAttempts");
+        assertThat(changeAttempts(exam.id(), token, obj("maxAttempts", 2, "unlimitedAttempts", true))
+                .expectStatus(409).message()).isEqualTo(BOTH_LIMITS);
     }
 
     // ───── Un intento abierto cada vez ─────
@@ -188,6 +248,16 @@ class AttemptsCharacterizationTest extends ApiCharacterizationTest {
 
     private HttpResult publish(String token, long examId, Map<String, Object> body) {
         return post("/api/exams/" + examId + "/publish", token, body);
+    }
+
+    private long draftWithQuestions(String token) {
+        long examId = createDraft(token, 5, null, true);
+        setQuestions(token, examId, createQuestions(token, 5));
+        return examId;
+    }
+
+    private HttpResult changeAttempts(long examId, String token, Map<String, Object> body) {
+        return patch("/api/exams/" + examId + "/attempts", token, body);
     }
 
     private void finish(PublishedExam exam, String attemptToken, String token) {

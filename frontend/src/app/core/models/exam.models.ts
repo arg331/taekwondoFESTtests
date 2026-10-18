@@ -30,7 +30,7 @@ export const EXAM_MIN_QUESTIONS = 5;
 export const EXAM_MAX_QUESTIONS = 50;
 /** Intentos por alumno que puede fijar el profesor al publicar (RF-52). */
 export const EXAM_MIN_ATTEMPTS = 1;
-export const EXAM_MAX_ATTEMPTS = 20;
+export const EXAM_MAX_ATTEMPTS = 4;
 
 export const EXAM_STATUS_ICON: Record<ExamStatus, string> = {
   DRAFT: 'edit_note', PUBLISHED: 'check_circle', EXPIRED: 'schedule'
@@ -57,8 +57,8 @@ export interface ExamResponse {
   code: string | null;
   createdAt: string;
   expiresAt: string | null;
-  /** Intentos por alumno (RF-52). */
-  maxAttempts: number;
+  /** Intentos por alumno (RF-52); null = sin límite. */
+  maxAttempts: number | null;
 }
 
 /**
@@ -84,10 +84,17 @@ export interface PublishExamRequest {
   visibility: Visibility;
   accessMode: AccessMode;
   expiresAt: string | null;
-  /** Abierto hasta que se cierre a mano (RF-48); no se combina con expiresAt. */
-  neverExpires?: boolean;
-  /** Intentos por alumno (RF-52); sin él, 1. */
+  /** Intentos por alumno (RF-52): de 1 a 4, o unlimitedAttempts; sin ninguno, 1. */
   maxAttempts?: number;
+  unlimitedAttempts?: boolean;
+}
+
+/** Cambiar los intentos de un examen publicado: un número de 1 a 4 o sin límite. */
+export type ChangeAttemptsRequest = { maxAttempts: number } | { unlimitedAttempts: true };
+
+/** Cuerpo para pedir n intentos, o sin límite si es null. */
+export function attemptsRequest(maxAttempts: number | null): ChangeAttemptsRequest {
+  return maxAttempts === null ? { unlimitedAttempts: true } : { maxAttempts };
 }
 
 export interface RenameExamRequest {
@@ -126,5 +133,6 @@ export interface ExamAttemptResponse {
   questions: PublicQuestionResponse[];
   /** Qué intento es, de cuántos tiene el alumno (RF-52). */
   attemptNumber: number;
-  maxAttempts: number;
+  /** null = sin límite. */
+  maxAttempts: number | null;
 }

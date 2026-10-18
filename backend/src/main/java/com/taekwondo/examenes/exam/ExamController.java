@@ -77,6 +77,13 @@ public class ExamController {
         return examService.publish(id, request, userId);
     }
 
+    /** Subir o bajar los intentos por alumno de un examen publicado (RF-52). */
+    @PatchMapping("/{id}/attempts")
+    public ExamResponse changeAttempts(@PathVariable Long id, @Valid @RequestBody ChangeAttemptsRequest request,
+                                       @AuthenticationPrincipal Long userId) {
+        return examService.changeAttempts(id, request, userId);
+    }
+
     @PostMapping("/{id}/close")
     public ExamResponse close(@PathVariable Long id, @AuthenticationPrincipal Long userId) {
         return examService.close(id, userId);

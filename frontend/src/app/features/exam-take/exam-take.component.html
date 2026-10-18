@@ -110,6 +110,17 @@
     @case ('result') {
       <div class="center-screen result-screen">
         <app-exam-result-card [result]="result()!" [questions]="questions()" />
+        @if (remainingAttempts() !== 0) {
+          <div class="repeat-row">
+            <button mat-flat-button color="primary" class="repeat-btn" (click)="repeat()" [disabled]="starting()">
+              <mat-icon>replay</mat-icon>
+              Repetir examen
+              @if (remainingAttempts(); as left) {
+                <span class="repeat-left">· Te quedan {{ left }} {{ left === 1 ? 'intento' : 'intentos' }}</span>
+              }
+            </button>
+          </div>
+        }
       </div>
     }
   }

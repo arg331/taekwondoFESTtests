@@ -229,8 +229,8 @@ abstract class ApiCharacterizationTest {
         List<Long> questionIds = createQuestions(token, n);
         long examId = createDraft(token, n, timeLimit, showScore);
         setQuestions(token, examId, questionIds);
-        String code = post("/api/exams/" + examId + "/publish", token,
-                obj("visibility", "PUBLIC", "maxAttempts", maxAttempts)).expectStatus(200).read("$.code");
+        String code = post("/api/exams/" + examId + "/publish", token, obj("visibility", "PUBLIC",
+                "expiresAt", now().plusHours(1).toString(), "maxAttempts", maxAttempts)).expectStatus(200).read("$.code");
         return new PublishedExam(examId, code, questionIds);
     }
 

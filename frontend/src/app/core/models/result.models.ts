@@ -23,6 +23,8 @@ export interface ResultResponse {
   studentName: string;
   studentClub: string | null;
   studentEmail: string | null;
+  /** La entrega la hizo un usuario con cuenta (no un anónimo). */
+  registered: boolean;
   scoreVisible: boolean;
   answers: AnswerResponse[] | null;
   correctAnswers: number | null;

@@ -155,7 +155,8 @@ export class ExamDetailComponent {
   });
 
   publishForm = this.fb.nonNullable.group({
-    visibility: ['PUBLIC' as Visibility],
+    // Por defecto, oficial: solo entra quien tenga el código
+    visibility: ['PRIVATE' as Visibility],
     accessMode: ['OPEN' as 'OPEN' | 'REGISTERED_ONLY'],
     expiresAt:  [''],
     neverExpires: [false],

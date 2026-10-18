@@ -7,6 +7,8 @@ import { QuestionResponse } from '../../../../core/models/question.models';
 import { QrCodeService } from '../../../../core/services/qr-code.service';
 import { QrColorService } from '../../../../core/services/qr-color.service';
 import { By } from '@angular/platform-browser';
+import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
+import { MatSelectHarness } from '@angular/material/select/testing';
 import { ExamQuestionPickerComponent } from '../exam-question-picker/exam-question-picker.component';
 
 const API = 'http://localhost:8080/api';
@@ -153,7 +155,7 @@ describe('ExamDetailComponent', () => {
     expect(save.request.body).toEqual({ questionIds: [1, 3, 4, 5, 6] });
     save.flush(exam('DRAFT', [1, 3, 4, 5, 6]));
     const publish = http.expectOne(`${API}/exams/7/publish`);
-    expect(publish.request.body).toEqual({ visibility: 'PUBLIC', accessMode: 'OPEN', expiresAt: null, neverExpires: false, maxAttempts: 1 });
+    expect(publish.request.body).toEqual({ visibility: 'PRIVATE', accessMode: 'OPEN', expiresAt: null, neverExpires: false, maxAttempts: 1 });
     publish.flush(exam('PUBLISHED', [1, 3, 4, 5, 6]));
     await stable();
 
@@ -173,7 +175,7 @@ describe('ExamDetailComponent', () => {
 
       button('Publicar examen').click();
       const publish = http.expectOne(`${API}/exams/7/publish`);
-      expect(publish.request.body).toEqual({ visibility: 'PUBLIC', accessMode: 'OPEN', expiresAt: null, neverExpires: true, maxAttempts: 1 });
+      expect(publish.request.body).toEqual({ visibility: 'PRIVATE', accessMode: 'OPEN', expiresAt: null, neverExpires: true, maxAttempts: 1 });
       publish.flush(exam('PUBLISHED', [1, 2, 3, 4, 5]));
     });
 
@@ -223,10 +225,17 @@ describe('ExamDetailComponent', () => {
       expect(buttonTexts().join(' | ')).toContain('Pasar a examen de prueba (público)');
     });
 
-    it('al publicar se elige entre examen de prueba u oficial', async () => {
+    it('al publicar, por defecto es oficial; la otra opción es el examen de prueba público', async () => {
       await render(exam('DRAFT'));
+      const select = await TestbedHarnessEnvironment.loader(fixture)
+        .getHarness(MatSelectHarness.with({ selector: '.visibility-select' }));
 
-      expect(el.querySelector('.publish-options mat-select')?.textContent).toContain('De prueba (público)');
+      expect(await select.getValueText()).toBe('OFICIAL / PRIVADO: solo con código');
+      await select.open();
+      expect(await Promise.all((await select.getOptions()).map(o => o.getText()))).toEqual([
+        'OFICIAL / PRIVADO: solo con código',
+        'PÚBLICO: examen de prueba, cualquiera puede entrar en cualquier momento'
+      ]);
     });
   });
 

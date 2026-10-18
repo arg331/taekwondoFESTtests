@@ -5,8 +5,6 @@ import { FULL_GRADE_RANGE, GradeRange } from '../../../../shared/components/grad
 export interface SavedQuestionFilters {
   /** Tags marcados; ninguno = todas las preguntas. */
   selectedTagIds: number[];
-  /** «Sin tag» marcado: suma las preguntas sin tags. */
-  untaggedSelected: boolean;
   /** Índices de GRADES: [desde, hasta], ambos incluidos. */
   gradeRange: GradeRange;
   typeFilter: QuestionTypeFilter;
@@ -18,7 +16,6 @@ export interface QuestionFilters extends SavedQuestionFilters {
 
 export const DEFAULT_FILTERS: SavedQuestionFilters = {
   selectedTagIds: [],
-  untaggedSelected: false,
   gradeRange: FULL_GRADE_RANGE,
   typeFilter: ''
 };
@@ -28,12 +25,10 @@ const STORAGE_KEY = 'fest_exam_picker_filters_v3';
 
 /**
  * Filtro de tags del banco y del selector: sin nada marcado pasan todas; si no, las que
- * tienen alguno de los tags marcados (y, con «Sin tag» marcado, las que no tienen tags).
+ * tienen alguno de los tags marcados.
  */
-export function matchesTags(question: QuestionResponse, selectedTagIds: ReadonlySet<number>, untaggedSelected: boolean): boolean {
-  if (selectedTagIds.size === 0 && !untaggedSelected) return true;
-  if (question.tags.length === 0) return untaggedSelected;
-  return question.tags.some(tag => selectedTagIds.has(tag.id));
+export function matchesTags(question: QuestionResponse, selectedTagIds: ReadonlySet<number>): boolean {
+  return selectedTagIds.size === 0 || question.tags.some(tag => selectedTagIds.has(tag.id));
 }
 
 /** El grado de la pregunta está entre los dos extremos de la barra, ambos incluidos. */
@@ -54,7 +49,7 @@ export function matchesFilters(question: QuestionResponse, filters: QuestionFilt
   if (text && !question.text.toLowerCase().includes(text)) return false;
   return matchesGrade(question, filters.gradeRange)
     && matchesType(question, filters.typeFilter)
-    && matchesTags(question, new Set(filters.selectedTagIds), filters.untaggedSelected);
+    && matchesTags(question, new Set(filters.selectedTagIds));
 }
 
 /** Cuántas preguntas tienen cada tag (id → número). */

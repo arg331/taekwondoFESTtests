@@ -45,6 +45,20 @@
   :host { grid-template-columns: 1fr; }
 }
 
+.results-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.results-title { margin: 0; font-size: 1.15rem; font-weight: 600; }
+
+// «Registrado» en rojo y «No registrado» en gris, antes del nombre
+.registration-tag {
+  display: inline-block; margin-right: 6px; padding: 1px 8px; border-radius: 10px;
+  font-size: 0.7rem; font-weight: 700; text-transform: uppercase; white-space: nowrap;
+  background: #eeeeee; color: #616161;
+  &.registered { background: #fdecea; color: #c62828; }
+}
+
 .participants-header {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   .section-title { margin: 0; }

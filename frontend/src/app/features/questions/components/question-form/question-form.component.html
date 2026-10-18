@@ -63,12 +63,13 @@
       </div>
 
       <div class="type-row">
-        <span class="section-label">Tipo</span>
-        <mat-button-toggle-group class="type-toggle" formControlName="type" hideSingleSelectionIndicator aria-label="Tipo de pregunta">
-          <mat-button-toggle value="">Ninguno</mat-button-toggle>
+        <span class="section-label">Tipo de examen de arbitraje</span>
+        <mat-button-toggle-group class="type-toggle" formControlName="type" hideSingleSelectionIndicator aria-label="Tipo de examen de arbitraje">
           @for (t of questionTypes; track t) {
             <mat-button-toggle [value]="t">{{ typeLabel[t] }}</mat-button-toggle>
           }
+          <!-- Sin tipo: sirve para cualquier examen; es lo marcado por defecto -->
+          <mat-button-toggle value="">Sin tipo definido</mat-button-toggle>
         </mat-button-toggle-group>
       </div>
 

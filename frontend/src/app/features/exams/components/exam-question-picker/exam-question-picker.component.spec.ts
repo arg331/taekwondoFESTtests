@@ -125,15 +125,15 @@ describe('ExamQuestionPickerComponent', () => {
 
       expect(await (await checkbox('Combate')).getLabelText()).toContain('(2)');
       expect(await (await checkbox('Formas')).getLabelText()).toContain('(2)');
-      expect(await (await checkbox('Sin tag')).getLabelText()).toContain('(1)');
+      expect(el.textContent).not.toContain('Sin tag');
     });
 
     it('al principio no hay ninguna marcada y se ven todas las preguntas', async () => {
       await render();
 
       expect(await (await checkbox('Combate')).isChecked()).toBe(false);
-      expect(await (await checkbox('Sin tag')).isChecked()).toBe(false);
       expect(visibleIds()).toEqual([1, 2, 3, 4, 5]);
+      expect(el.querySelector('.list-header')?.textContent).not.toContain('filtrando tags');
     });
 
     it('marcar un tag muestra las preguntas que lo tienen, aunque tengan más tags', async () => {
@@ -143,16 +143,31 @@ describe('ExamQuestionPickerComponent', () => {
       await stable();
 
       expect(visibleIds()).toEqual([1, 2]);
+      expect(el.querySelector('.list-header')?.textContent).toContain('2 de 5 preguntas (filtrando tags)');
     });
 
-    it('«Sin tag» suma las preguntas sin tags', async () => {
+    it('«Desmarcar tags» quita todos los marcados; sin ninguno marcado está desactivado', async () => {
       await render();
+      const clear = () => el.querySelector('.clear-tags') as HTMLButtonElement;
+      expect(clear().disabled).toBe(true);
 
+      await (await checkbox('Combate')).check();
       await (await checkbox('Formas')).check();
-      await (await checkbox('Sin tag')).check();
+      await stable();
+      clear().click();
       await stable();
 
-      expect(visibleIds()).toEqual([3, 4, 5]);
+      expect(await (await checkbox('Combate')).isChecked()).toBe(false);
+      expect(await (await checkbox('Formas')).isChecked()).toBe(false);
+      expect(visibleIds()).toEqual([1, 2, 3, 4, 5]);
+    });
+
+    it('los tags van en una cuadrícula y «Desmarcar tags» queda fuera, pegado a ella', async () => {
+      await render();
+
+      expect(el.querySelectorAll('.tag-grid .tag-pill').length).toBe(3);
+      expect(el.querySelector('.tag-grid .clear-tags')).toBeNull();
+      expect(el.querySelector('.tag-grid')?.nextElementSibling?.classList).toContain('clear-tags');
     });
 
     it('cada tag es una pastilla con el borde de su color', async () => {
@@ -224,6 +239,9 @@ describe('ExamQuestionPickerComponent', () => {
       expect(el.querySelector('.cart-target')?.textContent).toContain('objetivo 3');
       expect(items[0]).toContain('Pregunta 3');
       expect(items[1]).toContain('Pregunta 1');
+      // Sin carrito ni color de cinturón
+      expect(el.querySelector('.cart-header mat-icon')?.textContent).not.toContain('shopping_cart');
+      expect(el.querySelector('.cart-item app-grade-badge')).toBeNull();
 
       (el.querySelector('.cart-item .cart-remove') as HTMLElement).click();
       await stable();

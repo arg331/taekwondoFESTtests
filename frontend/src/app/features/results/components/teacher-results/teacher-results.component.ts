@@ -8,6 +8,7 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { RouterLink } from '@angular/router';
 import { ExamService } from '../../../../core/services/exam.service';
 import { ResultService } from '../../../../core/services/result.service';
 import { EXAM_STATUS_COLOR, EXAM_STATUS_LABEL, ExamResponse } from '../../../../core/models/exam.models';
@@ -29,6 +30,7 @@ import { ExamStatsComponent } from '../exam-stats/exam-stats.component';
     MatDividerModule,
     MatTableModule,
     MatButtonModule,
+    RouterLink,
     ExamStatsComponent
   ],
   templateUrl: './teacher-results.component.html',
@@ -55,6 +57,9 @@ export class TeacherResultsComponent implements OnInit {
   exporting = signal(false);
 
   publishedExams = computed(() => this.exams().filter(e => e.status !== 'DRAFT'));
+  /** Primero los usuarios registrados y, dentro de cada grupo, por nombre. */
+  sortedResults = computed(() => [...this.results()].sort((a, b) =>
+    Number(b.registered) - Number(a.registered) || a.studentName.localeCompare(b.studentName, 'es')));
 
   ngOnInit(): void {
     this.examSvc.getMine().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({

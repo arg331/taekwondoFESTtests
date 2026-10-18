@@ -27,6 +27,7 @@ import {
   pickRandom,
   saveFilters
 } from './question-filters';
+import { TagFilterComponent } from '../../../../shared/components/tag-filter/tag-filter.component';
 
 /**
  * Selector de preguntas de un borrador: filtros por texto, tags, tipo y rango de grados,
@@ -43,7 +44,8 @@ import {
     MatInputModule,
     MatButtonToggleModule,
     GradeBadgeComponent,
-    GradeRangeComponent
+    GradeRangeComponent,
+    TagFilterComponent
   ],
   templateUrl: './exam-question-picker.component.html',
   styleUrl: './exam-question-picker.component.scss',
@@ -65,7 +67,6 @@ export class ExamQuestionPickerComponent {
   private readonly saved = loadSavedFilters();
   search = signal('');
   selectedTagIds = signal<number[]>(this.saved.selectedTagIds);
-  untaggedSelected = signal(this.saved.untaggedSelected);
   gradeRange = signal<GradeRange>(this.saved.gradeRange);
   typeFilter = signal<QuestionTypeFilter>(this.saved.typeFilter);
 
@@ -75,14 +76,14 @@ export class ExamQuestionPickerComponent {
   private filters = computed<QuestionFilters>(() => ({
     search: this.search(),
     selectedTagIds: this.selectedTagIds(),
-    untaggedSelected: this.untaggedSelected(),
     gradeRange: this.gradeRange(),
     typeFilter: this.typeFilter()
   }));
 
   filtered = computed(() => this.questions().filter(q => matchesFilters(q, this.filters())));
   tagCounts = computed(() => countByTag(this.questions()));
-  untaggedCount = computed(() => this.questions().filter(q => q.tags.length === 0).length);
+  /** Hay tags marcados: la lista está filtrada por ellos. */
+  filteringByTags = computed(() => this.selectedTagIds().length > 0);
 
   selectedQuestions = computed(() => {
     const byId = new Map(this.questions().map(q => [q.id, q]));
@@ -99,7 +100,6 @@ export class ExamQuestionPickerComponent {
     // Los filtros de tags, grado y tipo se recuerdan en este navegador
     effect(() => saveFilters({
       selectedTagIds: this.selectedTagIds(),
-      untaggedSelected: this.untaggedSelected(),
       gradeRange: this.gradeRange(),
       typeFilter: this.typeFilter()
     }));
@@ -133,15 +133,6 @@ export class ExamQuestionPickerComponent {
     this.randomNote.set(picked.length < missing
       ? `Solo había ${picked.length} pregunta(s) disponibles con estos filtros; faltan ${missing - picked.length}.`
       : null);
-  }
-
-  // ── Filtros ───────────────────────────────────────
-  isTagSelected(tagId: number): boolean {
-    return this.selectedTagIds().includes(tagId);
-  }
-
-  setTagSelected(tagId: number, selected: boolean): void {
-    this.selectedTagIds.update(ids => selected ? [...ids, tagId] : ids.filter(id => id !== tagId));
   }
 
   // ── Vista previa y alta ───────────────────────────

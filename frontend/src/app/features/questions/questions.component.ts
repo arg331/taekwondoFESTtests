@@ -21,6 +21,7 @@ import { TagManagerComponent } from './components/tag-manager/tag-manager.compon
 import { countByTag, matchesGrade, matchesTags, matchesType } from '../exams/components/exam-question-picker/question-filters';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { FULL_GRADE_RANGE, GradeRange, GradeRangeComponent } from '../../shared/components/grade-range/grade-range.component';
+import { TagFilterComponent } from '../../shared/components/tag-filter/tag-filter.component';
 
 type QuestionsView = 'cards' | 'list';
 const VIEW_STORAGE_KEY = 'questions-view';
@@ -38,6 +39,7 @@ const VIEW_STORAGE_KEY = 'questions-view';
     MatCheckboxModule,
     MatButtonToggleModule,
     GradeRangeComponent,
+    TagFilterComponent,
     MatProgressSpinnerModule,
     QuestionFormComponent,
     QuestionCardComponent,
@@ -67,27 +69,23 @@ export class QuestionsComponent implements OnInit {
   gradeRange   = signal<GradeRange>(FULL_GRADE_RANGE);
   typeFilter   = signal<QuestionTypeFilter>('');
   /** Tags marcados. Ninguno = todas las preguntas; si no, las que tengan alguno de ellos. */
-  selectedTagIds = signal<ReadonlySet<number>>(new Set());
-  /** «Sin tag» marcado: suma las preguntas que no tienen tags. */
-  untaggedSelected = signal(false);
+  selectedTagIds = signal<number[]>([]);
 
   tagCounts     = computed(() => countByTag(this.questions()));
-  untaggedCount = computed(() => this.questions().filter(q => q.tags.length === 0).length);
   hasFilters    = computed(() =>
-    !!this.filterText().trim() || !!this.typeFilter() || this.selectedTagIds().size > 0 || this.untaggedSelected() ||
+    !!this.filterText().trim() || !!this.typeFilter() || this.selectedTagIds().length > 0 ||
     this.gradeRange()[0] !== FULL_GRADE_RANGE[0] || this.gradeRange()[1] !== FULL_GRADE_RANGE[1]);
 
   filtered = computed(() => {
     const text = this.filterText().toLowerCase().trim();
     const grades = this.gradeRange();
     const type = this.typeFilter();
-    const selected = this.selectedTagIds();
-    const untagged = this.untaggedSelected();
+    const selected = new Set(this.selectedTagIds());
     return this.questions().filter(q =>
       (!text || q.text.toLowerCase().includes(text)) &&
       matchesGrade(q, grades) &&
       matchesType(q, type) &&
-      matchesTags(q, selected, untagged));
+      matchesTags(q, selected));
   });
 
   ngOnInit(): void {
@@ -104,22 +102,11 @@ export class QuestionsComponent implements OnInit {
     this.editing.set(undefined);
   }
 
-  isTagSelected(tagId: number): boolean {
-    return this.selectedTagIds().has(tagId);
-  }
-
-  setTagSelected(tagId: number, selected: boolean): void {
-    const ids = new Set(this.selectedTagIds());
-    if (selected) ids.add(tagId); else ids.delete(tagId);
-    this.selectedTagIds.set(ids);
-  }
-
   clearFilters(): void {
     this.filterText.set('');
     this.gradeRange.set(FULL_GRADE_RANGE);
     this.typeFilter.set('');
-    this.selectedTagIds.set(new Set());
-    this.untaggedSelected.set(false);
+    this.selectedTagIds.set([]);
   }
 
   setView(view: QuestionsView): void {

@@ -47,7 +47,7 @@ describe('QuestionsComponent', () => {
   }
 
   function tagCheckbox(label: string): HTMLInputElement {
-    const box = Array.from(el.querySelectorAll('.tag-filters mat-checkbox')).find(c => c.textContent?.includes(label));
+    const box = Array.from(el.querySelectorAll('.tag-grid mat-checkbox')).find(c => c.textContent?.includes(label));
     return box?.querySelector('input') as HTMLInputElement;
   }
 
@@ -126,12 +126,12 @@ describe('QuestionsComponent', () => {
     it('al principio no hay ninguna marcada y se ven todas las preguntas', () => {
       expect(tagCheckbox('Combate (1)').checked).toBe(false);
       expect(tagCheckbox('Formas (2)').checked).toBe(false);
-      expect(tagCheckbox('Sin tag (1)').checked).toBe(false);
+      expect(el.textContent).not.toContain('Sin tag');
       expect(visibleTexts().length).toBe(3);
     });
 
     it('cada tag va rodeado de un borde de su color', () => {
-      const label = Array.from(el.querySelectorAll('.tag-filters .tag-pill')).find(l => l.textContent?.includes('Combate')) as HTMLElement;
+      const label = Array.from(el.querySelectorAll('.tag-grid .tag-pill')).find(l => l.textContent?.includes('Combate')) as HTMLElement;
 
       expect(label.style.getPropertyValue('--tag-color')).toBe('#C62828');
     });
@@ -143,12 +143,15 @@ describe('QuestionsComponent', () => {
       expect(visibleTexts()).toEqual(['Pregunta número 1', 'Pregunta número 2']);
     });
 
-    it('con varios marcados, basta con tener uno de ellos', async () => {
+    it('«Desmarcar tags» quita todos los marcados y vuelven a verse todas', async () => {
       tagCheckbox('Combate').click();
-      tagCheckbox('Sin tag').click();
+      tagCheckbox('Formas').click();
+      await stable();
+      (el.querySelector('.clear-tags') as HTMLButtonElement).click();
       await stable();
 
-      expect(visibleTexts()).toEqual(['Pregunta número 1', 'Pregunta número 3']);
+      expect(tagCheckbox('Combate').checked).toBe(false);
+      expect(visibleTexts().length).toBe(3);
     });
 
     it('desmarcarlos todos vuelve a mostrar todas', async () => {

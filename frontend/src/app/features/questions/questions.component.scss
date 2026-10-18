@@ -21,7 +21,7 @@
 }
 .type-filter { --mat-standard-button-toggle-height: 32px; font-size: 0.8rem; }
 .tag-filters {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  display: flex; flex-direction: column; gap: 6px;
   margin-top: 4px; padding-top: 8px; border-top: 1px solid #eee;
 }
 .filter-title {

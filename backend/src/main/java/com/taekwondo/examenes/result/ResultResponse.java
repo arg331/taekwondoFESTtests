@@ -15,6 +15,8 @@ public record ResultResponse(
         String studentName,
         String studentClub,
         String studentEmail,
+        /** La hizo un usuario con cuenta, no un anónimo. */
+        boolean registered,
         boolean scoreVisible,
         List<AnswerResponse> answers,
         Integer correctAnswers,
@@ -33,7 +35,7 @@ public record ResultResponse(
     /** Vista completa (profesor, o alumno cuando el examen muestra la nota). */
     public static ResultResponse from(Result r, String examTitle) {
         return new ResultResponse(r.getId(), r.getExamId(), examTitle, r.getStudentName(), r.getStudentClub(),
-                r.getStudentEmail(), true,
+                r.getStudentEmail(), r.getStudentUserId() != null, true,
                 r.getAnswers().stream().map(AnswerResponse::from).toList(),
                 r.getCorrectAnswers(), r.getTotalQuestions(), r.getScore(), r.isPassed(),
                 r.getTimeSpentSeconds(), r.getCompletedAt());
@@ -43,7 +45,7 @@ public record ResultResponse(
     public static ResultResponse forStudent(Result r, String examTitle, boolean showScore) {
         if (showScore) return from(r, examTitle);
         return new ResultResponse(r.getId(), r.getExamId(), examTitle, r.getStudentName(), r.getStudentClub(),
-                r.getStudentEmail(), false, null, null, r.getTotalQuestions(), null, null,
+                r.getStudentEmail(), r.getStudentUserId() != null, false, null, null, r.getTotalQuestions(), null, null,
                 r.getTimeSpentSeconds(), r.getCompletedAt());
     }
 }

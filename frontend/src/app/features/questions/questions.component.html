@@ -63,17 +63,9 @@
           </mat-button-toggle-group>
         </div>
       </div>
-      <div class="tag-filters" role="group" aria-label="Filtrar por tags">
+      <div class="tag-filters">
         <span class="filter-title">Tags</span>
-        @for (tag of tags(); track tag.id) {
-          <mat-checkbox class="tag-pill" [style.--tag-color]="tag.color"
-                        [checked]="isTagSelected(tag.id)" (change)="setTagSelected(tag.id, $event.checked)">
-            {{ tag.name }} ({{ tagCounts().get(tag.id) ?? 0 }})
-          </mat-checkbox>
-        }
-        <mat-checkbox class="tag-pill untagged" [checked]="untaggedSelected()" (change)="untaggedSelected.set($event.checked)">
-          Sin tag ({{ untaggedCount() }})
-        </mat-checkbox>
+        <app-tag-filter [tags]="tags()" [counts]="tagCounts()" [(selectedIds)]="selectedTagIds" />
       </div>
     </mat-card-content>
   </mat-card>

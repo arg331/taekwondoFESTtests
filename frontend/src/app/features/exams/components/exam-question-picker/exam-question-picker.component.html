@@ -25,24 +25,16 @@
 
   <div class="filter-block">
     <span class="filter-title">Tags</span>
-    <div class="tag-filters">
-      @for (tag of tags(); track tag.id) {
-        <mat-checkbox class="tag-pill" [style.--tag-color]="tag.color"
-                      [checked]="isTagSelected(tag.id)" (change)="setTagSelected(tag.id, $event.checked)">
-          {{ tag.name }} ({{ tagCounts().get(tag.id) ?? 0 }})
-        </mat-checkbox>
-      }
-      <mat-checkbox class="tag-pill untagged" [checked]="untaggedSelected()" (change)="untaggedSelected.set($event.checked)">
-        Sin tag ({{ untaggedCount() }})
-      </mat-checkbox>
-    </div>
+    <app-tag-filter [tags]="tags()" [counts]="tagCounts()" [(selectedIds)]="selectedTagIds" />
   </div>
 </div>
 
 <div class="picker-layout">
   <section class="picker-list">
     <div class="list-header">
-      <span class="hint">{{ filtered().length }} de {{ questions().length }} preguntas</span>
+      <span class="hint">
+        {{ filtered().length }} de {{ questions().length }} preguntas@if (filteringByTags()) { (filtrando tags)}
+      </span>
       <button mat-button color="primary" type="button" (click)="completeRandomly()"
               [disabled]="missing() === 0 || candidates().length === 0">
         <mat-icon>casino</mat-icon>Completar al azar
@@ -97,7 +89,7 @@
 
   <section class="cart" aria-label="Preguntas seleccionadas">
     <div class="cart-header">
-      <mat-icon>shopping_cart</mat-icon>
+      <mat-icon>checklist</mat-icon>
       <span class="cart-title">Seleccionadas</span>
       <span class="cart-count" [class.over]="overMax()">{{ selectedIds().length }}</span>
       <span class="cart-target">objetivo {{ targetCount() }}</span>
@@ -111,7 +103,6 @@
         <div class="cart-item">
           <span class="cart-position">{{ i + 1 }}</span>
           <span class="cart-text">{{ q.text }}</span>
-          <app-grade-badge [grade]="q.grade" />
           <button mat-icon-button type="button" class="cart-remove" (click)="remove(q.id)" aria-label="Quitar del examen">
             <mat-icon>close</mat-icon>
           </button>

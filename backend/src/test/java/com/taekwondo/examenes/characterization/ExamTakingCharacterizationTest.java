@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
 
     private static final List<String> RESULT_FIELDS = List.of("id", "examId", "examTitle", "studentName",
-            "studentClub", "studentEmail", "scoreVisible", "answers", "correctAnswers", "totalQuestions", "score",
+            "studentClub", "studentEmail", "registered", "scoreVisible", "answers", "correctAnswers", "totalQuestions", "score",
             "passed", "timeSpentSeconds", "completedAt");
     private static final List<String> ANSWER_FIELDS = List.of("questionId", "studentAnswer", "correctAnswer", "correct");
 
@@ -302,6 +302,25 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
         assertThat(stats.asMap()).containsExactlyInAnyOrderEntriesOf(Map.of(
                 "examId", (int) exam.id(), "totalAttempts", 2, "averageScore", 80.0,
                 "passedCount", 1, "failedCount", 1, "highestScore", 100, "lowestScore", 60));
+    }
+
+    @Test
+    @DisplayName("Profesor: cada entrega dice si la hizo un usuario registrado o un anónimo")
+    void teacherResults_registeredFlag() {
+        Session teacher = newTeacher();
+        PublishedExam exam = publishedExam(teacher.token(), 5, null, true);
+        Session student = newStudent();
+        submit(exam.code(), startAttempt(exam.code(), student.token(), "Registrada"), student.token(),
+                answers(exam.questionIds(), allCorrect(5))).expectStatus(201);
+        submit(exam.code(), startAttempt(exam.code(), null, "Anónima"), null,
+                answers(exam.questionIds(), allCorrect(5))).expectStatus(201);
+
+        List<Map<String, Object>> results = get("/api/results/exam/" + exam.id(), teacher.token())
+                .expectStatus(200).asList();
+
+        assertThat(results).extracting(r -> r.get("studentName"), r -> r.get("registered"))
+                .containsExactlyInAnyOrder(org.assertj.core.groups.Tuple.tuple("Registrada", true),
+                        org.assertj.core.groups.Tuple.tuple("Anónima", false));
     }
 
     @Test

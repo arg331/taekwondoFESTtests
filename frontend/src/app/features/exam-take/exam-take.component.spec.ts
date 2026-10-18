@@ -50,6 +50,9 @@ describe('ExamTakeComponent', () => {
     el = fixture.nativeElement;
     await stable();
     http.expectOne(`${API}/exams/by-code/${examResponse.code}`).flush(examResponse);
+    fixture.detectChanges();
+    // La portada pide los clubes para el desplegable
+    http.match(`${API}/clubs`).forEach(req => req.flush([]));
     await stable();
   }
 
@@ -220,7 +223,7 @@ describe('ExamTakeComponent', () => {
 
     const result: ResultResponse = {
       id: 5, examId: 1, examTitle: 'Examen de árbitros', studentName: 'Ana', studentClub: null, studentEmail: null,
-      scoreVisible: true, correctAnswers: 1, totalQuestions: 3, score: 33, passed: false, timeSpentSeconds: 40,
+      registered: false, scoreVisible: true, correctAnswers: 1, totalQuestions: 3, score: 33, passed: false, timeSpentSeconds: 40,
       completedAt: '2026-10-08T10:10:00',
       answers: [
         { questionId: 10, studentAnswer: 1, correctAnswer: 1, correct: true },
@@ -253,7 +256,7 @@ describe('ExamTakeComponent', () => {
 
     http.expectOne(`${API}/results`).flush({
       id: 5, examId: 1, examTitle: 'X', studentName: 'Ana', studentClub: null, studentEmail: null,
-      scoreVisible: false, answers: null, correctAnswers: null, totalQuestions: 3, score: null, passed: null,
+      registered: false, scoreVisible: false, answers: null, correctAnswers: null, totalQuestions: 3, score: null, passed: null,
       timeSpentSeconds: 40, completedAt: '2026-10-08T10:10:00'
     } satisfies ResultResponse);
     await stable();
@@ -301,6 +304,6 @@ describe('ExamTakeComponent', () => {
 
     const inputs = el.querySelectorAll('app-exam-access-card input') as NodeListOf<HTMLInputElement>;
     expect(inputs[0].value).toBe('Alumna Registrada');
-    expect(inputs[2].value).toBe('alu@x.es');
+    expect(inputs[1].value).toBe('alu@x.es');
   });
 });

@@ -120,6 +120,15 @@ describe('QuestionFormComponent', () => {
     });
   });
 
+  it('el tipo es el de examen de arbitraje: Tipo C, Tipo D o «Sin tipo definido», marcado por defecto', async () => {
+    await render(null);
+
+    expect(el.querySelector('.type-row .section-label')?.textContent).toBe('Tipo de examen de arbitraje');
+    expect(Array.from(el.querySelectorAll('.type-toggle button')).map(b => b.textContent?.trim()))
+      .toEqual(['Tipo C', 'Tipo D', 'Sin tipo definido']);
+    expect(typeToggle('Sin tipo definido').getAttribute('aria-checked')).toBe('true');
+  });
+
   it('nueva: envía grado y tipo, descarta las opciones vacías y reindexa la correcta', async () => {
     await render(null);
     await fill('¿Cuántos puntos vale un giro a la cabeza?', ['1 punto', '2 puntos', '3 puntos'], 2, 'Son 3');

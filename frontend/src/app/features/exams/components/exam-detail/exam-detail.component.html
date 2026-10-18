@@ -174,9 +174,9 @@
           <form [formGroup]="publishForm" class="publish-options">
             <mat-form-field appearance="outline">
               <mat-label>Tipo de examen</mat-label>
-              <mat-select formControlName="visibility">
-                <mat-option value="PUBLIC">De prueba (público): cualquiera lo ve para practicar</mat-option>
-                <mat-option value="PRIVATE">Oficial (privado): solo con el código o el QR</mat-option>
+              <mat-select formControlName="visibility" class="visibility-select">
+                <mat-option value="PRIVATE">OFICIAL / PRIVADO: solo con código</mat-option>
+                <mat-option value="PUBLIC">PÚBLICO: examen de prueba, cualquiera puede entrar en cualquier momento</mat-option>
               </mat-select>
             </mat-form-field>
             <mat-form-field appearance="outline">

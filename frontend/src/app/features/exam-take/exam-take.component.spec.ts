@@ -11,7 +11,7 @@ const API = 'http://localhost:8080/api';
 function exam(overrides: Partial<ExamResponse> = {}): ExamResponse {
   return {
     id: 1, title: 'Examen de árbitros', ownerId: 1, status: 'PUBLISHED', visibility: 'PUBLIC', accessMode: 'OPEN',
-    config: { numberOfQuestions: 3, timeLimitMinutes: null, showScore: true, randomizeOptions: true,
+    config: { numberOfQuestions: 3, timeLimitMinutes: null, showScore: true, showAnswers: true, randomizeOptions: true,
       randomizeQuestionOrder: true },
     questionIds: [10, 20, 30], generationTags: [], code: 'EXM-ABC', createdAt: '2026-10-08T10:00:00',
     expiresAt: null, maxAttempts: 1, ...overrides
@@ -266,7 +266,7 @@ describe('ExamTakeComponent', () => {
     http.expectNone(`${API}/results`);
   });
 
-  it('resultado con nota: muestra la puntuación y el detalle con el texto de las opciones', async () => {
+  it('resultado con nota y respuestas: puntuación y sus respuestas bien o mal, sin decir la correcta (RF-53)', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     await render(exam());
     await startAs('Ana');
@@ -279,9 +279,9 @@ describe('ExamTakeComponent', () => {
       registered: false, scoreVisible: true, correctAnswers: 1, totalQuestions: 3, score: 33, passed: false, timeSpentSeconds: 40,
       completedAt: '2026-10-08T10:10:00',
       answers: [
-        { questionId: 10, studentAnswer: 1, correctAnswer: 1, correct: true },
-        { questionId: 20, studentAnswer: null, correctAnswer: 2, correct: false },
-        { questionId: 30, studentAnswer: 0, correctAnswer: 1, correct: false }
+        { questionId: 10, studentAnswer: 1, correctAnswer: null, correct: true },
+        { questionId: 20, studentAnswer: null, correctAnswer: null, correct: false },
+        { questionId: 30, studentAnswer: 0, correctAnswer: null, correct: false }
       ]
     };
     http.expectOne(`${API}/results`).flush(result);
@@ -292,11 +292,31 @@ describe('ExamTakeComponent', () => {
     expect(el.textContent).toContain('SUSPENSO');
     expect(rows[0]).toContain('1. Segunda');
     expect(rows[0]).toContain('Tu respuesta: Sin responder');
-    expect(rows[0]).toContain('Correcta: C');
     expect(rows[1]).toContain('2. Primera');
     expect(rows[1]).toContain('Tu respuesta: Sí');
     expect(rows[2]).toContain('Tu respuesta: X');
-    expect(rows[2]).toContain('Correcta: Y');
+    expect(el.textContent).not.toContain('Correcta:');
+    const classes = Array.from(el.querySelectorAll('.answer-row')).map(r => r.classList.contains('answer-correct'));
+    expect(classes).toEqual([false, true, false]);
+  });
+
+  it('resultado con solo la nota: la puntuación, sin el detalle de respuestas', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await render(exam({ config: { ...exam().config, showAnswers: false } }));
+    await startAs('Ana');
+    await goToQuestion(3);
+    button('Enviar examen').click();
+    await stable();
+
+    http.expectOne(`${API}/results`).flush({
+      id: 5, examId: 1, examTitle: 'X', studentName: 'Ana', studentClub: null, studentEmail: null,
+      registered: false, scoreVisible: true, answers: null, correctAnswers: 2, totalQuestions: 3, score: 67, passed: false,
+      timeSpentSeconds: 40, completedAt: '2026-10-08T10:10:00'
+    } satisfies ResultResponse);
+    await stable();
+
+    expect(el.querySelector('.score-value')?.textContent).toContain('67');
+    expect(el.textContent).not.toContain('Detalle de respuestas');
   });
 
   it('resultado con nota oculta: solo confirma la entrega', async () => {

@@ -20,7 +20,7 @@ class ExamLifecycleCharacterizationTest extends ApiCharacterizationTest {
     private static final List<String> EXAM_FIELDS = List.of("id", "title", "ownerId", "status", "visibility",
             "accessMode", "config", "questionIds", "generationTags", "code", "createdAt", "expiresAt", "maxAttempts");
     private static final List<String> CONFIG_FIELDS = List.of("numberOfQuestions", "timeLimitMinutes",
-            "showScore", "randomizeOptions", "randomizeQuestionOrder");
+            "showScore", "showAnswers", "randomizeOptions", "randomizeQuestionOrder");
 
     // ───── Creación ─────
 
@@ -44,7 +44,7 @@ class ExamLifecycleCharacterizationTest extends ApiCharacterizationTest {
         assertThat((List<?>) result.read("$.questionIds")).isEmpty();
         assertThat((List<?>) result.read("$.generationTags")).isEmpty();
         assertThat((Map<String, Object>) result.read("$.config")).containsExactlyInAnyOrderEntriesOf(Map.of(
-                "numberOfQuestions", 10, "timeLimitMinutes", 30, "showScore", true,
+                "numberOfQuestions", 10, "timeLimitMinutes", 30, "showScore", true, "showAnswers", true,
                 "randomizeOptions", true, "randomizeQuestionOrder", false));
     }
 

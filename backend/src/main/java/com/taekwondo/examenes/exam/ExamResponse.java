@@ -26,11 +26,12 @@ public record ExamResponse(
             int numberOfQuestions,
             Integer timeLimitMinutes,
             boolean showScore,
+            boolean showAnswers,
             boolean randomizeOptions,
             boolean randomizeQuestionOrder
     ) {
         static Config from(ExamConfig c) {
-            return new Config(c.getNumberOfQuestions(), c.getTimeLimitMinutes(), c.isShowScore(),
+            return new Config(c.getNumberOfQuestions(), c.getTimeLimitMinutes(), c.isShowScore(), c.isShowAnswers(),
                     c.isRandomizeOptions(), c.isRandomizeQuestionOrder());
         }
     }

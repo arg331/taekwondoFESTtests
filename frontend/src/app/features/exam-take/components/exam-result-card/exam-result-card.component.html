@@ -26,6 +26,7 @@
         <span class="stat-label">Total</span>
       </div>
     </div>
+    @if (rows().length > 0) {
     <mat-divider />
     <div class="answers-detail">
       <p class="detail-title">Detalle de respuestas</p>
@@ -35,13 +36,14 @@
           <div class="answer-body">
             <span class="answer-label">{{ row.number }}. {{ row.text }}</span>
             <span class="answer-chosen">Tu respuesta: {{ row.chosen ?? 'Sin responder' }}</span>
-            @if (!row.correct) {
+            @if (!row.correct && row.correctOption) {
               <span class="answer-correct-label">Correcta: {{ row.correctOption }}</span>
             }
           </div>
         </div>
       }
     </div>
+    }
   } @else {
     <div class="no-score">
       <mat-icon class="done-icon">check_circle</mat-icon>

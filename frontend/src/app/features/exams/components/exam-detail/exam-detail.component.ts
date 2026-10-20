@@ -29,7 +29,13 @@ import {
   VISIBILITY_COLOR,
   VISIBILITY_ICON,
   VISIBILITY_LABEL,
-  Visibility
+  Visibility,
+  RESULT_DISPLAYS,
+  RESULT_DISPLAY_LABEL,
+  RESULT_DISPLAY_SUMMARY,
+  ResultDisplay,
+  resultDisplayFlags,
+  resultDisplayOf
 } from '../../../../core/models/exam.models';
 import { QuestionResponse } from '../../../../core/models/question.models';
 import { TagResponse } from '../../../../core/models/tag.models';
@@ -146,10 +152,15 @@ export class ExamDetailComponent {
     title:                  ['', [Validators.required, Validators.minLength(3), Validators.maxLength(200)]],
     numberOfQuestions:      [10, [Validators.required, Validators.min(EXAM_MIN_QUESTIONS), Validators.max(EXAM_MAX_QUESTIONS)]],
     timeLimitMinutes:       [0, [Validators.min(0), Validators.max(180)]],
-    showScore:              [true],
+    resultDisplay:          ['SCORE_AND_ANSWERS' as ResultDisplay],
     randomizeOptions:       [false],
     randomizeQuestionOrder: [false]
   });
+
+  readonly resultDisplays = RESULT_DISPLAYS;
+  readonly resultDisplayLabel = RESULT_DISPLAY_LABEL;
+  /** Qué ve el alumno al entregar, para el resumen (RF-53). */
+  resultDisplaySummary = computed(() => RESULT_DISPLAY_SUMMARY[resultDisplayOf(this.exam().config)]);
 
   publishForm = this.fb.nonNullable.group({
     // Por defecto, oficial: solo entra quien tenga el código
@@ -186,7 +197,7 @@ export class ExamDetailComponent {
       title,
       numberOfQuestions: config.numberOfQuestions,
       timeLimitMinutes: config.timeLimitMinutes ?? 0,
-      showScore: config.showScore,
+      resultDisplay: resultDisplayOf(config),
       randomizeOptions: config.randomizeOptions,
       randomizeQuestionOrder: config.randomizeQuestionOrder
     });
@@ -196,8 +207,8 @@ export class ExamDetailComponent {
   saveConfig(): void {
     if (this.configForm.invalid) return;
     const exam = this.exam();
-    const { title, ...config } = this.configForm.getRawValue();
-    const newConfig = { ...config, timeLimitMinutes: config.timeLimitMinutes || null };
+    const { title, resultDisplay, ...config } = this.configForm.getRawValue();
+    const newConfig = { ...config, ...resultDisplayFlags(resultDisplay), timeLimitMinutes: config.timeLimitMinutes || null };
 
     const rename$: Observable<ExamResponse> = title.trim() !== exam.title
       ? this.examSvc.rename(exam.id, { newTitle: title.trim() })

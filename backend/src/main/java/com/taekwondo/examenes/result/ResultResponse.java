@@ -1,5 +1,7 @@
 package com.taekwondo.examenes.result;
 
+import com.taekwondo.examenes.exam.ExamConfig;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -26,13 +28,18 @@ public record ResultResponse(
         int timeSpentSeconds,
         LocalDateTime completedAt
 ) {
-    public record AnswerResponse(Long questionId, Integer studentAnswer, int correctAnswer, boolean correct) {
+    /** correctAnswer es null en la vista del alumno: nunca ve cuál era la correcta (RF-53). */
+    public record AnswerResponse(Long questionId, Integer studentAnswer, Integer correctAnswer, boolean correct) {
         static AnswerResponse from(Answer a) {
             return new AnswerResponse(a.getQuestionId(), a.getStudentAnswer(), a.getCorrectAnswer(), a.isCorrect());
         }
+
+        static AnswerResponse withoutSolution(Answer a) {
+            return new AnswerResponse(a.getQuestionId(), a.getStudentAnswer(), null, a.isCorrect());
+        }
     }
 
-    /** Vista completa (profesor, o alumno cuando el examen muestra la nota). */
+    /** Vista completa, la del profesor. */
     public static ResultResponse from(Result r, String examTitle) {
         return new ResultResponse(r.getId(), r.getExamId(), examTitle, r.getStudentName(), r.getStudentClub(),
                 r.getStudentEmail(), r.getStudentUserId() != null, true,
@@ -41,9 +48,23 @@ public record ResultResponse(
                 r.getTimeSpentSeconds(), r.getCompletedAt());
     }
 
-    /** Vista del alumno: respeta showScore del examen. */
-    public static ResultResponse forStudent(Result r, String examTitle, boolean showScore) {
-        if (showScore) return from(r, examTitle);
+    /**
+     * Vista del alumno según lo que el profesor eligió mostrar (RF-53): nada, la nota, o la nota y
+     * sus respuestas bien o mal, nunca cuál era la correcta.
+     */
+    public static ResultResponse forStudent(Result r, String examTitle, ExamConfig config) {
+        if (!config.isShowScore()) return hidden(r, examTitle);
+        List<AnswerResponse> answers = config.isShowAnswers()
+                ? r.getAnswers().stream().map(AnswerResponse::withoutSolution).toList()
+                : null;
+        return new ResultResponse(r.getId(), r.getExamId(), examTitle, r.getStudentName(), r.getStudentClub(),
+                r.getStudentEmail(), r.getStudentUserId() != null, true, answers,
+                r.getCorrectAnswers(), r.getTotalQuestions(), r.getScore(), r.isPassed(),
+                r.getTimeSpentSeconds(), r.getCompletedAt());
+    }
+
+    /** Vista del alumno sin nota ni respuestas. */
+    public static ResultResponse hidden(Result r, String examTitle) {
         return new ResultResponse(r.getId(), r.getExamId(), examTitle, r.getStudentName(), r.getStudentClub(),
                 r.getStudentEmail(), r.getStudentUserId() != null, false, null, null, r.getTotalQuestions(), null, null,
                 r.getTimeSpentSeconds(), r.getCompletedAt());

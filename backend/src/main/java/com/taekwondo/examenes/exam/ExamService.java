@@ -108,7 +108,8 @@ public class ExamService {
     public ExamResponse changeConfig(Long examId, ExamConfigRequest request, Long ownerId) {
         Exam exam = getOwned(examId, ownerId);
         exam.changeConfig(new ExamConfig(request.numberOfQuestions(), request.timeLimitMinutes(),
-                request.showScore(), request.randomizeOptions(), request.randomizeQuestionOrder()));
+                request.showScore(), showAnswers(request.showScore(), request.showAnswers()),
+                request.randomizeOptions(), request.randomizeQuestionOrder()));
         return ExamResponse.from(exam);
     }
 
@@ -336,7 +337,12 @@ public class ExamService {
 
     private ExamConfig toConfig(ExamDraftRequest r) {
         return new ExamConfig(r.numberOfQuestions(), r.timeLimitMinutes(), r.showScore(),
-                r.randomizeOptions(), r.randomizeQuestionOrder());
+                showAnswers(r.showScore(), r.showAnswers()), r.randomizeOptions(), r.randomizeQuestionOrder());
+    }
+
+    /** Las respuestas solo se muestran con la nota; sin indicarlo, se muestran si se muestra la nota (RF-53). */
+    private static boolean showAnswers(boolean showScore, Boolean requested) {
+        return showScore && (requested == null || requested);
     }
 
     private void requireFuture(LocalDateTime date) {

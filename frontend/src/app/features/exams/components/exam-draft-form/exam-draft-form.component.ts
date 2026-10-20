@@ -9,7 +9,16 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ExamService } from '../../../../core/services/exam.service';
-import { EXAM_MAX_QUESTIONS, EXAM_MIN_QUESTIONS, ExamDraftRequest, ExamResponse } from '../../../../core/models/exam.models';
+import {
+  EXAM_MAX_QUESTIONS,
+  EXAM_MIN_QUESTIONS,
+  ExamDraftRequest,
+  ExamResponse,
+  RESULT_DISPLAYS,
+  RESULT_DISPLAY_LABEL,
+  ResultDisplay,
+  resultDisplayFlags
+} from '../../../../core/models/exam.models';
 import { TagResponse } from '../../../../core/models/tag.models';
 
 export type DraftMode = 'manual' | 'random';
@@ -46,12 +55,14 @@ export class ExamDraftFormComponent implements OnInit {
   saving = signal(false);
   error = signal<string | null>(null);
   isRandom = computed(() => this.mode() === 'random');
+  readonly resultDisplays = RESULT_DISPLAYS;
+  readonly resultDisplayLabel = RESULT_DISPLAY_LABEL;
 
   form = this.fb.nonNullable.group({
     title:                  ['', [Validators.required, Validators.minLength(3), Validators.maxLength(200)]],
     numberOfQuestions:      [10, [Validators.required, Validators.min(EXAM_MIN_QUESTIONS), Validators.max(EXAM_MAX_QUESTIONS)]],
     timeLimitMinutes:       [60, [Validators.min(0), Validators.max(180)]],
-    showScore:              [true],
+    resultDisplay:          ['SCORE_AND_ANSWERS' as ResultDisplay],
     randomizeOptions:       [false],
     randomizeQuestionOrder: [false],
     requiredAnyOfTagIds:    [[] as number[]]
@@ -68,9 +79,10 @@ export class ExamDraftFormComponent implements OnInit {
     this.saving.set(true);
     this.error.set(null);
 
-    const v = this.form.getRawValue();
+    const { resultDisplay, ...v } = this.form.getRawValue();
     const request: ExamDraftRequest = {
       ...v,
+      ...resultDisplayFlags(resultDisplay),
       title: v.title.trim(),
       timeLimitMinutes: v.timeLimitMinutes || null
     };

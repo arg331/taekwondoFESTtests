@@ -40,6 +40,8 @@ export interface ExamConfig {
   numberOfQuestions: number;
   timeLimitMinutes: number | null;
   showScore: boolean;
+  /** Con la nota, el alumno ve sus respuestas bien o mal (nunca la correcta, RF-53). */
+  showAnswers: boolean;
   randomizeOptions: boolean;
   randomizeQuestionOrder: boolean;
 }
@@ -72,6 +74,33 @@ export interface PublishedQuestionResponse {
   correctAnswer: number;
   explanation: string | null;
   editedSincePublished: boolean;
+}
+
+/** Qué ve el alumno al entregar (RF-53). */
+export type ResultDisplay = 'NOTHING' | 'SCORE' | 'SCORE_AND_ANSWERS';
+
+export const RESULT_DISPLAYS: readonly ResultDisplay[] = ['NOTHING', 'SCORE', 'SCORE_AND_ANSWERS'];
+
+export const RESULT_DISPLAY_LABEL: Record<ResultDisplay, string> = {
+  NOTHING: 'Nada',
+  SCORE: 'Nota',
+  SCORE_AND_ANSWERS: 'Nota y respuestas'
+};
+
+/** Cómo lo dice el resumen del examen. */
+export const RESULT_DISPLAY_SUMMARY: Record<ResultDisplay, string> = {
+  NOTHING: 'No muestra nada',
+  SCORE: 'Muestra solo la nota',
+  SCORE_AND_ANSWERS: 'Muestra nota y respuestas'
+};
+
+export function resultDisplayOf(config: Pick<ExamConfig, 'showScore' | 'showAnswers'>): ResultDisplay {
+  if (!config.showScore) return 'NOTHING';
+  return config.showAnswers ? 'SCORE_AND_ANSWERS' : 'SCORE';
+}
+
+export function resultDisplayFlags(display: ResultDisplay): Pick<ExamConfig, 'showScore' | 'showAnswers'> {
+  return { showScore: display !== 'NOTHING', showAnswers: display === 'SCORE_AND_ANSWERS' };
 }
 
 /** Crear borrador vacío o pre-generado (requiredAnyOfTagIds solo aplica al pre-generado). */

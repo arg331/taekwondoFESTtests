@@ -34,6 +34,10 @@ public class ExamConfig {
     @Column(name = "show_score", nullable = false)
     private boolean showScore;
 
+    /** Además de la nota, el alumno ve sus respuestas bien o mal, nunca la correcta (RF-53). Requiere showScore. */
+    @Column(name = "show_answers", nullable = false)
+    private boolean showAnswers;
+
     @Column(name = "randomize_options", nullable = false)
     private boolean randomizeOptions;
 

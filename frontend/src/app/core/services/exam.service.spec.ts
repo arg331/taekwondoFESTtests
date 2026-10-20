@@ -17,7 +17,7 @@ describe('ExamService y ResultService (contrato HTTP)', () => {
   let http: HttpTestingController;
 
   const draft: ExamDraftRequest = {
-    title: 'Examen', numberOfQuestions: 5, timeLimitMinutes: null, showScore: true,
+    title: 'Examen', numberOfQuestions: 5, timeLimitMinutes: null, showScore: true, showAnswers: true,
     randomizeOptions: false, randomizeQuestionOrder: false
   };
 

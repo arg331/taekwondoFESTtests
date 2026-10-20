@@ -63,8 +63,17 @@
         }
       }
 
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Mostrar al alumno al entregar</mat-label>
+        <mat-select formControlName="resultDisplay" class="result-display-select">
+          @for (display of resultDisplays; track display) {
+            <mat-option [value]="display">{{ resultDisplayLabel[display] }}</mat-option>
+          }
+        </mat-select>
+        <mat-hint>Con respuestas, ve cuáles tiene bien y mal, pero nunca la correcta</mat-hint>
+      </mat-form-field>
+
       <div class="toggles">
-        <mat-slide-toggle formControlName="showScore" color="primary">Mostrar puntuación al estudiante</mat-slide-toggle>
         <mat-slide-toggle formControlName="randomizeOptions" color="primary">Opciones en orden aleatorio</mat-slide-toggle>
         <mat-slide-toggle formControlName="randomizeQuestionOrder" color="primary">Preguntas en orden aleatorio</mat-slide-toggle>
       </div>
@@ -77,7 +86,7 @@
 
   <mat-card-actions align="end">
     <button mat-button (click)="cancelled.emit()">Cancelar</button>
-    <button mat-flat-button color="primary" (click)="submit()" [disabled]="form.invalid || saving()">
+    <button mat-flat-button color="primary" class="create-btn" (click)="submit()" [disabled]="form.invalid || saving()">
       @if (saving()) { <mat-spinner diameter="18" /> } @else if (isRandom()) { <mat-icon>auto_awesome</mat-icon> }
       {{ isRandom() ? 'Generar examen' : 'Crear borrador' }}
     </button>

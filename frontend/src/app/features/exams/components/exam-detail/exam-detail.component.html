@@ -39,8 +39,15 @@
             <mat-hint>0 = sin límite</mat-hint>
           </mat-form-field>
         </div>
+        <mat-form-field appearance="outline">
+          <mat-label>Mostrar al alumno al entregar</mat-label>
+          <mat-select formControlName="resultDisplay" class="result-display-select">
+            @for (display of resultDisplays; track display) {
+              <mat-option [value]="display">{{ resultDisplayLabel[display] }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
         <div class="toggles">
-          <mat-slide-toggle formControlName="showScore" color="primary">Mostrar puntuación</mat-slide-toggle>
           <mat-slide-toggle formControlName="randomizeOptions" color="primary">Opciones aleatorias</mat-slide-toggle>
           <mat-slide-toggle formControlName="randomizeQuestionOrder" color="primary">Preguntas aleatorias</mat-slide-toggle>
         </div>
@@ -62,7 +69,7 @@
         }
         <span class="config-item">
           <mat-icon>{{ exam().config.showScore ? 'visibility' : 'visibility_off' }}</mat-icon>
-          {{ exam().config.showScore ? 'Muestra nota' : 'Oculta nota' }}
+          {{ resultDisplaySummary() }}
         </span>
         @if (exam().expiresAt) {
           <span class="config-item"><mat-icon>event</mat-icon>Hasta {{ exam().expiresAt | date:'dd/MM/yyyy HH:mm' }}</span>

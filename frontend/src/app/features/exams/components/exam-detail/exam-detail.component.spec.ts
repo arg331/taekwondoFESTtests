@@ -19,7 +19,7 @@ const fakeQr = (_text: string, size: number, _color?: string): Promise<string> =
 function exam(status: ExamStatus, questionIds: number[] = []): ExamResponse {
   return {
     id: 7, title: 'Examen', ownerId: 1, status, visibility: 'PUBLIC', accessMode: 'OPEN',
-    config: { numberOfQuestions: 10, timeLimitMinutes: null, showScore: true, randomizeOptions: false,
+    config: { numberOfQuestions: 10, timeLimitMinutes: null, showScore: true, showAnswers: true, randomizeOptions: false,
       randomizeQuestionOrder: false },
     questionIds, generationTags: [], code: status === 'DRAFT' ? null : 'EXM-1234ABCD',
     createdAt: '2026-10-08T10:00:00', expiresAt: null, maxAttempts: 1
@@ -526,6 +526,39 @@ describe('ExamDetailComponent', () => {
       await stable();
 
       expect(el.querySelector('.qr-closed')).toBeNull();
+    });
+  });
+
+  describe('qué ve el alumno al entregar (RF-53)', () => {
+    it('el resumen dice qué se muestra', async () => {
+      await render(exam('DRAFT'));
+      expect(el.querySelector('.config-summary')?.textContent).toContain('Muestra nota y respuestas');
+
+      fixture.componentRef.setInput('exam', { ...exam('DRAFT'), config: { ...exam('DRAFT').config, showAnswers: false } });
+      await stable();
+      expect(el.querySelector('.config-summary')?.textContent).toContain('Muestra solo la nota');
+
+      fixture.componentRef.setInput('exam', { ...exam('DRAFT'), config: { ...exam('DRAFT').config, showScore: false, showAnswers: false } });
+      await stable();
+      expect(el.querySelector('.config-summary')?.textContent).toContain('No muestra nada');
+    });
+
+    it('al editar la configuración se elige: nada, nota, o nota y respuestas', async () => {
+      await render(exam('DRAFT'));
+      button('Editar').click();
+      await stable();
+      const select = await TestbedHarnessEnvironment.loader(fixture).getHarness(MatSelectHarness.with({ selector: '.result-display-select' }));
+      expect(await select.getValueText()).toBe('Nota y respuestas');
+
+      await select.clickOptions({ text: 'Nota' });
+      await stable();
+      button('Guardar cambios').click();
+      await stable();
+
+      const req = http.expectOne(`${API}/exams/7/config`);
+      expect(req.request.body).toEqual(expect.objectContaining({ showScore: true, showAnswers: false }));
+      req.flush(exam('DRAFT'));
+      await stable();
     });
   });
 

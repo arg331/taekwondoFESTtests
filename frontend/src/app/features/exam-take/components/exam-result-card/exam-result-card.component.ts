@@ -12,7 +12,8 @@ interface AnswerRow {
   number: number;
   text: string;
   chosen: string | null;
-  correctOption: string;
+  /** null cuando el alumno no recibe la correcta (RF-53). */
+  correctOption: string | null;
   correct: boolean;
 }
 
@@ -47,7 +48,8 @@ export class ExamResultCardComponent {
           number: position + 1,
           text: question?.text ?? '',
           chosen: optionText(answer.studentAnswer),
-          correctOption: optionText(answer.correctAnswer) ?? '—',
+          // El alumno nunca recibe la correcta (RF-53): entonces no se muestra
+          correctOption: optionText(answer.correctAnswer),
           correct: answer.correct
         };
       })

@@ -8,7 +8,8 @@ export interface SubmitExamRequest {
 export interface AnswerResponse {
   questionId: number;
   studentAnswer: number | null;
-  correctAnswer: number;
+  /** null en la vista del alumno: nunca ve cuál era la correcta (RF-53). */
+  correctAnswer: number | null;
   correct: boolean;
 }
 

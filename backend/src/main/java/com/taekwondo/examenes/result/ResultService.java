@@ -88,8 +88,7 @@ public class ResultService {
         Result result = new Result(exam.getId(), attempt.getStudentUserId(), attempt.getStudentName(),
                 attempt.getStudentClub(), attempt.getStudentEmail(), answers,
                 (int) Duration.between(attempt.getStartedAt(), now).toSeconds(), now);
-        return ResultResponse.forStudent(resultRepository.save(result), exam.getTitle(),
-                exam.getConfig().isShowScore());
+        return ResultResponse.forStudent(resultRepository.save(result), exam.getTitle(), exam.getConfig());
     }
 
     private static Map<Long, Integer> chosenByQuestion(SubmitExamRequest request) {
@@ -175,8 +174,8 @@ public class ResultService {
                 .map(r -> {
                     Exam exam = exams.get(r.getExamId());
                     return exam == null
-                            ? ResultResponse.forStudent(r, null, false)
-                            : ResultResponse.forStudent(r, exam.getTitle(), exam.getConfig().isShowScore());
+                            ? ResultResponse.hidden(r, null)
+                            : ResultResponse.forStudent(r, exam.getTitle(), exam.getConfig());
                 })
                 .toList();
     }

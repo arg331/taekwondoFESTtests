@@ -42,14 +42,15 @@ export class ExamResultCardComponent {
       .map(answer => {
         const position = shown.findIndex(q => q.id === answer.questionId);
         const question = shown[position];
-        const optionText = (index: number | null) =>
-          index === null ? null : question?.options.find(o => o.index === index)?.text ?? '—';
+        // Varias opciones se muestran separadas por comas; ninguna, null
+        const optionTexts = (indexes: number[] | null) => !indexes?.length ? null : indexes
+          .map(index => question?.options.find(o => o.index === index)?.text ?? '—').join(', ');
         return {
           number: position + 1,
           text: question?.text ?? '',
-          chosen: optionText(answer.studentAnswer),
+          chosen: optionTexts(answer.studentAnswers),
           // El alumno nunca recibe la correcta (RF-53): entonces no se muestra
-          correctOption: optionText(answer.correctAnswer),
+          correctOption: optionTexts(answer.correctAnswers),
           correct: answer.correct
         };
       })

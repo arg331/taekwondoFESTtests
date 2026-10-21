@@ -8,7 +8,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { MatRadioModule } from '@angular/material/radio';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { QuestionService } from '../../../../core/services/question.service';
@@ -45,7 +45,7 @@ const NO_GRADE = '';
     MatIconModule,
     MatInputModule,
     MatSelectModule,
-    MatRadioModule,
+    MatCheckboxModule,
     MatProgressSpinnerModule,
     MatTooltipModule,
     GradeBadgeComponent
@@ -76,7 +76,8 @@ export class QuestionFormComponent {
   form = this.fb.nonNullable.group({
     text:          ['', [Validators.required, Validators.minLength(10), Validators.maxLength(1000)]],
     options:       this.fb.nonNullable.array(Array.from({ length: MIN_OPTIONS }, () => '')),
-    correctAnswer: [0],
+    /** Índices de las correctas: una o varias (RF-09). Una pregunta nueva no trae ninguna. */
+    correctAnswers: [[] as number[]],
     explanation:   ['', [Validators.maxLength(2000)]],
     // Opcional (RF-43): una pregunta nueva parte sin grado
     grade:         [NO_GRADE as Grade | typeof NO_GRADE],
@@ -88,12 +89,14 @@ export class QuestionFormComponent {
   private formValue = toSignal(this.form.valueChanges, { initialValue: this.form.getRawValue() });
 
   filledOptions = computed(() => (this.formValue().options ?? []).filter(o => o?.trim()).length);
+  noCorrect = computed(() => (this.formValue().correctAnswers ?? []).length === 0);
   correctIsEmpty = computed(() => {
     const v = this.formValue();
-    return !v.options?.[v.correctAnswer ?? 0]?.trim();
+    return (v.correctAnswers ?? []).some(i => !v.options?.[i]?.trim());
   });
   optionsError = computed(() => {
     if (this.filledOptions() < MIN_OPTIONS) return `Necesitas al menos ${MIN_OPTIONS} opciones con texto.`;
+    if (this.noCorrect()) return 'Marca al menos una opción correcta.';
     if (this.correctIsEmpty()) return 'La opción marcada como correcta está vacía.';
     return null;
   });
@@ -110,7 +113,7 @@ export class QuestionFormComponent {
       this.form.reset({
         text: q?.text ?? '',
         options: [...options, ''],
-        correctAnswer: q?.correctAnswer ?? 0,
+        correctAnswers: q ? [...q.correctAnswers] : [],
         explanation: q?.explanation ?? '',
         grade: q?.grade ?? NO_GRADE,
         type: q?.type ?? '',
@@ -129,24 +132,33 @@ export class QuestionFormComponent {
     return index === this.form.controls.options.length - 1;
   }
 
+  isCorrect(index: number): boolean {
+    return this.form.controls.correctAnswers.value.includes(index);
+  }
+
+  setCorrect(index: number, correct: boolean): void {
+    const current = this.form.controls.correctAnswers.value.filter(i => i !== index);
+    this.form.controls.correctAnswers.setValue(correct ? [...current, index].sort((a, b) => a - b) : current);
+  }
+
   removeOption(index: number): void {
     if (!this.canRemoveOptions() || this.isTrailing(index)) return;
-    const correct = this.form.controls.correctAnswer.value;
+    const correct = this.form.controls.correctAnswers.value;
     this.form.controls.options.removeAt(index);
-    // La correcta sigue apuntando a la misma opción; si se quita ella, pasa a la primera
-    this.form.controls.correctAnswer.setValue(index < correct ? correct - 1 : index === correct ? 0 : correct);
+    // Las correctas siguen apuntando a las mismas opciones; si se quita una correcta, deja de serlo
+    this.form.controls.correctAnswers.setValue(correct.filter(i => i !== index).map(i => i > index ? i - 1 : i));
   }
 
   save(): void {
     if (this.form.invalid || this.optionsError() || this.saving()) return;
     const v = this.form.getRawValue();
 
-    // Quita las opciones vacías; la correcta pasa a ser su posición entre las que quedan
+    // Quita las opciones vacías; las correctas pasan a ser su posición entre las que quedan
     const kept = v.options.map((text, index) => ({ text: text.trim(), index })).filter(o => o.text);
     const request: QuestionRequest = {
       text: v.text.trim(),
       options: kept.map(o => o.text),
-      correctAnswer: kept.findIndex(o => o.index === v.correctAnswer),
+      correctAnswers: v.correctAnswers.map(i => kept.findIndex(o => o.index === i)).filter(i => i >= 0),
       explanation: v.explanation.trim(),
       grade: v.grade === NO_GRADE ? null : v.grade,
       type: v.type || null,

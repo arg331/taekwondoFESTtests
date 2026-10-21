@@ -62,9 +62,9 @@
               <div class="question-preview" (click)="$event.stopPropagation()">
                 <ol type="A">
                   @for (option of q.options; track $index) {
-                    <li [class.correct]="$index === q.correctAnswer">
+                    <li [class.correct]="q.correctAnswers.includes($index)">
                       {{ option }}
-                      @if ($index === q.correctAnswer) { <mat-icon class="inline-icon">check</mat-icon> }
+                      @if (q.correctAnswers.includes($index)) { <mat-icon class="inline-icon">check</mat-icon> }
                     </li>
                   }
                 </ol>

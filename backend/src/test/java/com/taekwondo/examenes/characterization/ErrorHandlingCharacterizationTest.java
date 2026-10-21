@@ -29,7 +29,7 @@ class ErrorHandlingCharacterizationTest extends ApiCharacterizationTest {
     @DisplayName("Valor de enum desconocido en el cuerpo devuelve 400 con mensaje genérico")
     void unknownEnumValue_badRequest() {
         HttpResult result = post("/api/questions", adminToken(), obj("text", "x", "options", FOUR_OPTIONS,
-                "correctAnswer", 0, "grade", "IMPOSIBLE", "tagIds", List.of()));
+                "correctAnswers", List.of(0), "grade", "IMPOSIBLE", "tagIds", List.of()));
 
         assertThat(result.expectStatus(400).message()).isEqualTo(BAD_REQUEST_MESSAGE);
     }

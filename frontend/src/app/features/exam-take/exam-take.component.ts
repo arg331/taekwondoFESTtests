@@ -76,14 +76,14 @@ export class ExamTakeComponent implements OnInit, OnDestroy {
 
   currentIndex = signal(0);
   /** questionId → índice original de la opción elegida. */
-  answers      = signal<Record<number, number>>({});
+  answers      = signal<Record<number, number[]>>({});
 
   timeLeft = signal(0);
   private deadline = 0;
   private timerInterval: ReturnType<typeof setInterval> | null = null;
 
   currentQuestion = computed(() => this.questions()[this.currentIndex()]);
-  answeredCount   = computed(() => Object.keys(this.answers()).length);
+  answeredCount   = computed(() => Object.values(this.answers()).filter(chosen => chosen.length > 0).length);
   progress        = computed(() => {
     const total = this.questions().length;
     return total ? Math.round((this.answeredCount() / total) * 100) : 0;
@@ -138,16 +138,26 @@ export class ExamTakeComponent implements OnInit, OnDestroy {
   }
 
   // ── Examen ────────────────────────────────────────
-  selectAnswer(questionId: number, optionIndex: number): void {
-    this.answers.update(a => ({ ...a, [questionId]: optionIndex }));
+  /**
+   * Con varias correctas (RF-09) cada opción se marca o desmarca; con una sola, elegir otra sustituye
+   * a la anterior.
+   */
+  selectAnswer(question: PublicQuestionResponse, optionIndex: number): void {
+    this.answers.update(a => {
+      const chosen = a[question.id] ?? [];
+      const next = !question.multipleCorrect ? [optionIndex]
+        : chosen.includes(optionIndex) ? chosen.filter(i => i !== optionIndex)
+        : [...chosen, optionIndex].sort((x, y) => x - y);
+      return { ...a, [question.id]: next };
+    });
   }
 
   isChosen(questionId: number, optionIndex: number): boolean {
-    return this.answers()[questionId] === optionIndex;
+    return (this.answers()[questionId] ?? []).includes(optionIndex);
   }
 
   isAnswered(questionId: number): boolean {
-    return this.answers()[questionId] !== undefined;
+    return (this.answers()[questionId] ?? []).length > 0;
   }
 
   goTo(index: number): void {
@@ -175,7 +185,7 @@ export class ExamTakeComponent implements OnInit, OnDestroy {
       attemptToken: this.attemptToken,
       answers: this.questions().map(q => ({
         questionId: q.id,
-        chosenOption: this.answers()[q.id] ?? null
+        chosenOptions: this.answers()[q.id] ?? []
       }))
     }).subscribe({
       next: result => {

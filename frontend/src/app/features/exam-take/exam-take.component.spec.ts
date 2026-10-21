@@ -24,9 +24,9 @@ const ATTEMPT: ExamAttemptResponse = {
   attemptNumber: 1,
   maxAttempts: 1,
   questions: [
-    { id: 20, text: 'Segunda', options: [{ index: 2, text: 'C' }, { index: 0, text: 'A' }, { index: 1, text: 'B' }] },
-    { id: 10, text: 'Primera', options: [{ index: 1, text: 'Sí' }, { index: 0, text: 'No' }] },
-    { id: 30, text: 'Tercera', options: [{ index: 0, text: 'X' }, { index: 1, text: 'Y' }] }
+    { id: 20, text: 'Segunda', options: [{ index: 2, text: 'C' }, { index: 0, text: 'A' }, { index: 1, text: 'B' }], multipleCorrect: false },
+    { id: 10, text: 'Primera', options: [{ index: 1, text: 'Sí' }, { index: 0, text: 'No' }], multipleCorrect: false },
+    { id: 30, text: 'Tercera', options: [{ index: 0, text: 'X' }, { index: 1, text: 'Y' }], multipleCorrect: false }
   ]
 };
 
@@ -160,13 +160,61 @@ describe('ExamTakeComponent', () => {
       examCode: 'EXM-ABC',
       attemptToken: 'intento-123',
       answers: [
-        { questionId: 20, chosenOption: 0 },
-        { questionId: 10, chosenOption: 1 },
-        { questionId: 30, chosenOption: null }
+        { questionId: 20, chosenOptions: [0] },
+        { questionId: 10, chosenOptions: [1] },
+        { questionId: 30, chosenOptions: [] }
       ]
     });
     expect(window.confirm).toHaveBeenCalledWith('Tienes 1 pregunta(s) sin responder. ¿Enviar el examen igualmente?');
     req.flush(null);
+  });
+
+  describe('varias respuestas correctas (RF-09)', () => {
+    const MULTIPLE: ExamAttemptResponse = {
+      ...ATTEMPT,
+      questions: [
+        { id: 20, text: 'Varias', options: [{ index: 0, text: 'A' }, { index: 1, text: 'B' }, { index: 2, text: 'C' }], multipleCorrect: true },
+        { id: 10, text: 'Una', options: [{ index: 0, text: 'No' }, { index: 1, text: 'Sí' }], multipleCorrect: false },
+        { id: 30, text: 'Otra', options: [{ index: 0, text: 'X' }, { index: 1, text: 'Y' }], multipleCorrect: false }
+      ]
+    };
+
+    it('la pregunta con varias correctas avisa y deja marcar varias; volver a pulsar desmarca', async () => {
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      await render(exam());
+      await startAs('Ana', MULTIPLE);
+
+      expect(el.querySelector('.multiple-hint')?.textContent).toContain('Marca todas las correctas');
+      await choose('A');
+      await choose('C');
+      await choose('B');
+      await choose('B');
+      await goToQuestion(3);
+      button('Enviar examen').click();
+      await stable();
+
+      const req = http.expectOne(`${API}/results`);
+      expect(req.request.body.answers[0]).toEqual({ questionId: 20, chosenOptions: [0, 2] });
+      req.flush(null);
+    });
+
+    it('en una pregunta de una sola correcta, elegir otra opción sustituye a la anterior y no hay aviso', async () => {
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      await render(exam());
+      await startAs('Ana', MULTIPLE);
+      await goToQuestion(2);
+
+      expect(el.querySelector('.multiple-hint')).toBeNull();
+      await choose('No');
+      await choose('Sí');
+      await goToQuestion(3);
+      button('Enviar examen').click();
+      await stable();
+
+      const req = http.expectOne(`${API}/results`);
+      expect(req.request.body.answers[1]).toEqual({ questionId: 10, chosenOptions: [1] });
+      req.flush(null);
+    });
   });
 
   describe('intentos (RF-52)', () => {
@@ -279,9 +327,9 @@ describe('ExamTakeComponent', () => {
       registered: false, studentKey: 'n:ana', scoreVisible: true, correctAnswers: 1, totalQuestions: 3, score: 33, passed: false, timeSpentSeconds: 40,
       completedAt: '2026-10-08T10:10:00',
       answers: [
-        { questionId: 10, studentAnswer: 1, correctAnswer: null, correct: true },
-        { questionId: 20, studentAnswer: null, correctAnswer: null, correct: false },
-        { questionId: 30, studentAnswer: 0, correctAnswer: null, correct: false }
+        { questionId: 10, studentAnswers: [1], correctAnswers: null, correct: true },
+        { questionId: 20, studentAnswers: [], correctAnswers: null, correct: false },
+        { questionId: 30, studentAnswers: [0], correctAnswers: null, correct: false }
       ]
     };
     http.expectOne(`${API}/results`).flush(result);
@@ -352,7 +400,7 @@ describe('ExamTakeComponent', () => {
     await stable();
 
     const req = http.expectOne(`${API}/results`);
-    expect(req.request.body.answers.every((a: { chosenOption: number | null }) => a.chosenOption === null)).toBe(true);
+    expect(req.request.body.answers.every((a: { chosenOptions: number[] }) => a.chosenOptions.length === 0)).toBe(true);
     expect(confirm).not.toHaveBeenCalled();
     req.flush(null);
   });

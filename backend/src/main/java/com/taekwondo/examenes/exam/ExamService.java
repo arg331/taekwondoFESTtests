@@ -334,7 +334,8 @@ public class ExamService {
         if (shuffleOptions) {
             Collections.shuffle(options);
         }
-        return new PublicQuestionResponse(question.getQuestionId(), question.getText(), options);
+        return new PublicQuestionResponse(question.getQuestionId(), question.getText(), options,
+                question.getCorrectAnswers().size() > 1);
     }
 
     private ExamConfig toConfig(ExamDraftRequest r) {

@@ -47,9 +47,9 @@
 <ng-template #details>
   <div class="options-list">
     @for (opt of question().options; track $index) {
-      <div class="option-item" [class.correct]="$index === question().correctAnswer">
+      <div class="option-item" [class.correct]="question().correctAnswers.includes($index)">
         <mat-icon class="option-icon">
-          {{ $index === question().correctAnswer ? 'check_circle' : 'radio_button_unchecked' }}
+          {{ question().correctAnswers.includes($index) ? 'check_circle' : 'radio_button_unchecked' }}
         </mat-icon>
         <span>{{ opt }}</span>
       </div>

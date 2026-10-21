@@ -83,13 +83,13 @@ class ExamFlowIntegrationTest {
     @Test
     void invalidPayloadsAreRejectedWith400() throws Exception {
         post("/api/questions", adminToken, """
-                {"text":"¿?","options":["a"],"correctAnswer":0,"grade":"BLANCO"}
+                {"text":"¿?","options":["a"],"correctAnswers":[0],"grade":"BLANCO"}
                 """).andExpect(status().isBadRequest());
         post("/api/questions", adminToken, """
-                {"text":"¿?","options":["a","b","c"],"correctAnswer":3,"grade":"BLANCO"}
+                {"text":"¿?","options":["a","b","c"],"correctAnswers":[3],"grade":"BLANCO"}
                 """).andExpect(status().isBadRequest());
         post("/api/questions", adminToken, """
-                {"text":"¿Verdadero o falso?","options":["Verdadero","Falso"],"correctAnswer":1,"grade":"BLANCO"}
+                {"text":"¿Verdadero o falso?","options":["Verdadero","Falso"],"correctAnswers":[1],"grade":"BLANCO"}
                 """).andExpect(status().isCreated());
         post("/api/auth/register", null, """
                 {"username":"x","email":"no-es-email","plainPassword":"1","displayName":""}
@@ -119,7 +119,7 @@ class ExamFlowIntegrationTest {
                 json(Map.of("studentName", "  Juan Pérez ")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.questions", hasSize(5)))
-                .andExpect(jsonPath("$.questions[0].correctAnswer").doesNotExist())
+                .andExpect(jsonPath("$.questions[0].correctAnswers").doesNotExist())
                 .andExpect(jsonPath("$.questions[0].options[0].index").exists())
                 .andReturn().getResponse().getContentAsString();
         String attemptToken = JsonPath.read(attempt, "$.attemptToken");
@@ -132,7 +132,7 @@ class ExamFlowIntegrationTest {
             Map<String, Object> a = new java.util.HashMap<>();
             a.put("questionId", questionIds.get(i));
             Integer chosen = i < 3 ? Integer.valueOf(i % 4) : i == 3 ? Integer.valueOf(0) : null;
-            a.put("chosenOption", chosen);
+            a.put("chosenOptions", chosen == null ? List.of() : List.of(chosen));
             answers.add(a);
         }
         String submission = json(Map.of("examCode", code, "attemptToken", attemptToken, "answers", answers));
@@ -154,7 +154,7 @@ class ExamFlowIntegrationTest {
                 .andExpect(jsonPath("$[0].studentName").value("Juan Pérez"))
                 .andExpect(jsonPath("$[0].score").value(60))
                 .andExpect(jsonPath("$[0].correctAnswers").value(3))
-                .andExpect(jsonPath("$[0].answers[4].studentAnswer").value(nullValue()));
+                .andExpect(jsonPath("$[0].answers[4].studentAnswers", hasSize(0)));
         mvc.perform(get("/api/results/exam/" + examId + "/statistics")
                         .header("Authorization", "Bearer " + adminToken))
                 .andExpect(jsonPath("$.totalAttempts").value(1))
@@ -176,7 +176,7 @@ class ExamFlowIntegrationTest {
         clock.advance(Duration.ofMinutes(13));
 
         List<Map<String, Object>> answers = questionIds.stream()
-                .map(id -> Map.<String, Object>of("questionId", id, "chosenOption", 0))
+                .map(id -> Map.<String, Object>of("questionId", id, "chosenOptions", List.of(0)))
                 .toList();
         post("/api/results", null, json(Map.of("examCode", code, "attemptToken", attemptToken, "answers", answers)))
                 .andExpect(status().isConflict());
@@ -195,7 +195,7 @@ class ExamFlowIntegrationTest {
                 .andReturn().getResponse().getContentAsString();
         List<Map<String, Object>> answers = new ArrayList<>();
         for (int i = 0; i < 5; i++) {
-            answers.add(Map.of("questionId", questionIds.get(i), "chosenOption", i % 4));
+            answers.add(Map.of("questionId", questionIds.get(i), "chosenOptions", List.of(i % 4)));
         }
         post("/api/results", studentToken, json(Map.of("examCode", code,
                 "attemptToken", JsonPath.read(attempt, "$.attemptToken"), "answers", answers)))
@@ -231,7 +231,7 @@ class ExamFlowIntegrationTest {
             String body = post("/api/questions", adminToken, json(Map.of(
                     "text", "Pregunta " + i,
                     "options", List.of("A", "B", "C", "D"),
-                    "correctAnswer", i % 4,
+                    "correctAnswers", List.of(i % 4),
                     "grade", "VERDE")))
                     .andExpect(status().isCreated())
                     .andReturn().getResponse().getContentAsString();

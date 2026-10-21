@@ -64,7 +64,8 @@ export interface QuestionResponse {
   id: number;
   text: string;
   options: string[];
-  correctAnswer: number;
+  /** Una o varias, de menor a mayor (RF-09). */
+  correctAnswers: number[];
   explanation: string | null;
   /** Cinturón mínimo; opcional (null = sin grado). */
   grade: Grade | null;
@@ -78,7 +79,8 @@ export interface QuestionResponse {
 export interface QuestionRequest {
   text: string;
   options: string[];
-  correctAnswer: number;
+  /** Una o varias, de menor a mayor (RF-09). */
+  correctAnswers: number[];
   explanation: string;
   /** Cinturón mínimo; opcional (null = sin grado). */
   grade: Grade | null;

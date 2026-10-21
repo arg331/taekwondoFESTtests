@@ -1,15 +1,16 @@
 export interface SubmitExamRequest {
   examCode: string;
   attemptToken: string;
-  /** chosenOption null = sin responder. */
-  answers: { questionId: number; chosenOption: number | null }[];
+  /** Opciones marcadas; vacío = sin responder. */
+  answers: { questionId: number; chosenOptions: number[] }[];
 }
 
 export interface AnswerResponse {
   questionId: number;
-  studentAnswer: number | null;
-  /** null en la vista del alumno: nunca ve cuál era la correcta (RF-53). */
-  correctAnswer: number | null;
+  /** Opciones que marcó; vacío = en blanco. */
+  studentAnswers: number[];
+  /** null en la vista del alumno: nunca ve cuáles eran las correctas (RF-53). */
+  correctAnswers: number[] | null;
   correct: boolean;
 }
 

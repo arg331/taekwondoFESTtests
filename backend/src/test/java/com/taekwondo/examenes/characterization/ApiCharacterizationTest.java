@@ -170,7 +170,7 @@ abstract class ApiCharacterizationTest {
         return post("/api/questions", token, obj(
                 "text", text,
                 "options", options,
-                "correctAnswer", correctAnswer,
+                "correctAnswers", List.of(correctAnswer),
                 "explanation", "Explicación de " + text,
                 "grade", "VERDE",
                 "tagIds", tagIds))
@@ -256,7 +256,8 @@ abstract class ApiCharacterizationTest {
     static List<Map<String, Object>> answers(List<Long> questionIds, List<Integer> chosen) {
         List<Map<String, Object>> answers = new ArrayList<>();
         for (int i = 0; i < questionIds.size(); i++) {
-            answers.add(obj("questionId", questionIds.get(i), "chosenOption", chosen.get(i)));
+            Integer option = chosen.get(i);
+            answers.add(obj("questionId", questionIds.get(i), "chosenOptions", option == null ? List.of() : List.of(option)));
         }
         return answers;
     }

@@ -62,11 +62,14 @@
             <mat-card-content>
               <p class="question-num">Pregunta {{ currentIndex() + 1 }} de {{ questions().length }}</p>
               <p class="question-text">{{ currentQuestion().text }}</p>
-              <div class="options-list">
+              @if (currentQuestion().multipleCorrect) {
+                <p class="multiple-hint"><mat-icon>checklist</mat-icon>Marca todas las correctas</p>
+              }
+              <div class="options-list" [class.multiple]="currentQuestion().multipleCorrect">
                 @for (opt of currentQuestion().options; track opt.index; let i = $index) {
                   <div class="option-item"
                        [class.option-selected]="isChosen(currentQuestion().id, opt.index)"
-                       (click)="selectAnswer(currentQuestion().id, opt.index)">
+                       (click)="selectAnswer(currentQuestion(), opt.index)">
                     <div class="option-letter">{{ letters[i] }}</div>
                     <span>{{ opt.text }}</span>
                   </div>

@@ -17,11 +17,12 @@
       </mat-form-field>
 
       <p class="section-label">Opciones de respuesta</p>
-      <p class="hint">Al menos {{ minOptions }}. Al escribir en la última aparece otra casilla. Marca la correcta.</p>
-      <mat-radio-group formControlName="correctAnswer" class="options-grid" color="primary">
+      <p class="hint">Al menos {{ minOptions }}. Al escribir en la última aparece otra casilla. Marca la correcta o, si hay varias, todas.</p>
+      <div class="options-grid">
         @for (ctrl of form.controls.options.controls; track ctrl) {
           <div class="option-row" [class.trailing]="isTrailing($index)">
-            <mat-radio-button [value]="$index" [attr.aria-label]="'Opción ' + ($index + 1) + ' es la correcta'" />
+            <mat-checkbox color="primary" [checked]="isCorrect($index)" (change)="setCorrect($index, $event.checked)"
+                          [aria-label]="'Opción ' + ($index + 1) + ' es correcta'" />
             <mat-form-field appearance="outline" class="option-field" subscriptSizing="dynamic">
               <mat-label>{{ isTrailing($index) ? 'Añadir opción' : 'Opción ' + ($index + 1) }}</mat-label>
               <input matInput [formControl]="ctrl" />
@@ -34,7 +35,7 @@
             }
           </div>
         }
-      </mat-radio-group>
+      </div>
       @if (optionsError()) {
         <p class="hint-warn">{{ optionsError() }}</p>
       }

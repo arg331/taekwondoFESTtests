@@ -28,14 +28,14 @@ function exam(status: ExamStatus, questionIds: number[] = []): ExamResponse {
 
 function question(id: number): QuestionResponse {
   return {
-    id, text: `Pregunta ${id}`, options: ['A', 'B'], correctAnswer: 0, explanation: '', grade: 'BLANCO', type: null,
+    id, text: `Pregunta ${id}`, options: ['A', 'B'], correctAnswers: [0], explanation: '', grade: 'BLANCO', type: null,
     tags: [], createdAt: '2026-10-08T10:00:00', updatedAt: '2026-10-08T10:00:00'
   };
 }
 
 /** La copia publicada de una pregunta (DE-03); por defecto, igual que la del banco. */
 function published(id: number, text = `Pregunta ${id}`, editedSincePublished = false): PublishedQuestionResponse {
-  return { questionId: id, text, options: ['A', 'B'], correctAnswer: 0, explanation: null, editedSincePublished };
+  return { questionId: id, text, options: ['A', 'B'], correctAnswers: [0], explanation: null, editedSincePublished };
 }
 
 /** Caracterización del panel de un examen: acciones disponibles por estado y llamadas al publicar. */

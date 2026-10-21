@@ -33,14 +33,16 @@ class ResultVisibilityCharacterizationTest extends ApiCharacterizationTest {
         assertThat((Integer) result.read("$.score")).isEqualTo(80);
         List<Map<String, Object>> answers = result.read("$.answers");
         assertThat(answers).extracting(a -> a.get("correct")).containsExactly(false, true, true, true, true);
-        assertThat(answers).extracting(a -> a.get("studentAnswer")).containsExactly(1, 1, 2, 3, 0);
-        assertThat(answers).allMatch(a -> a.containsKey("correctAnswer") && a.get("correctAnswer") == null);
+        assertThat(answers).extracting(a -> a.get("studentAnswers"))
+                .containsExactly(List.of(1), List.of(1), List.of(2), List.of(3), List.of(0));
+        assertThat(answers).allMatch(a -> a.containsKey("correctAnswers") && a.get("correctAnswers") == null);
 
         List<Map<String, Object>> history = get("/api/results/me", student.token()).expectStatus(200).asList();
-        assertThat((List<Map<String, Object>>) history.get(0).get("answers")).allMatch(a -> a.get("correctAnswer") == null);
+        assertThat((List<Map<String, Object>>) history.get(0).get("answers")).allMatch(a -> a.get("correctAnswers") == null);
         List<Map<String, Object>> teacher = get("/api/results/exam/" + exam.id(), token).expectStatus(200).asList();
         assertThat((List<Map<String, Object>>) teacher.get(0).get("answers"))
-                .extracting(a -> a.get("correctAnswer")).containsExactly(0, 1, 2, 3, 0);
+                .extracting(a -> a.get("correctAnswers"))
+                .containsExactly(List.of(0), List.of(1), List.of(2), List.of(3), List.of(0));
     }
 
     @Test

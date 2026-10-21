@@ -94,7 +94,7 @@ describe('ExamService y ResultService (contrato HTTP)', () => {
   it('resultados', () => {
     const submission = {
       examCode: 'EXM-1', attemptToken: 't',
-      answers: [{ questionId: 1, chosenOption: null }]
+      answers: [{ questionId: 1, chosenOptions: [] }]
     };
     results.submit(submission).subscribe();
     expectCall('POST', `${API}/results`, submission);

@@ -11,7 +11,7 @@ const FORMAS: TagResponse = { id: 2, name: 'Formas', color: '#1565C0', createdAt
 
 function question(id: number, tags: TagResponse[] = [], type: QuestionType | null = null): QuestionResponse {
   return {
-    id, text: `Pregunta número ${id}`, options: ['Sí', 'No'], correctAnswer: 0, explanation: '', grade: 'BLANCO', type,
+    id, text: `Pregunta número ${id}`, options: ['Sí', 'No'], correctAnswers: [0], explanation: '', grade: 'BLANCO', type,
     tags, createdAt: '2026-10-12T10:00:00', updatedAt: '2026-10-12T10:00:00'
   };
 }

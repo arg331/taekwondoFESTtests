@@ -10,7 +10,8 @@ public record QuestionResponse(
         Long id,
         String text,
         List<String> options,
-        int correctAnswer,
+        /** Una o varias, de menor a mayor (RF-09). */
+        List<Integer> correctAnswers,
         String explanation,
         Grade grade,
         QuestionType type,
@@ -20,7 +21,7 @@ public record QuestionResponse(
 ) {
     public static QuestionResponse from(Question q) {
         return new QuestionResponse(q.getId(), q.getText(), List.copyOf(q.getOptions()),
-                q.getCorrectAnswer(), q.getExplanation(), q.getGrade(), q.getType(),
+                q.getCorrectAnswers(), q.getExplanation(), q.getGrade(), q.getType(),
                 q.getTags().stream().map(TagResponse::from).collect(Collectors.toSet()),
                 q.getCreatedAt(), q.getUpdatedAt());
     }

@@ -7,7 +7,9 @@ import java.util.List;
  * ni explicación. Cada opción lleva su índice original, que es el que el
  * alumno envía al entregar (así las opciones se pueden mostrar barajadas).
  */
-public record PublicQuestionResponse(Long id, String text, List<Option> options) {
+public record PublicQuestionResponse(Long id, String text, List<Option> options,
+                                     /** Tiene varias correctas: hay que marcarlas todas (RF-09). */
+                                     boolean multipleCorrect) {
 
     public record Option(int index, String text) {}
 }

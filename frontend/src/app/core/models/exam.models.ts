@@ -71,7 +71,7 @@ export interface PublishedQuestionResponse {
   questionId: number;
   text: string;
   options: string[];
-  correctAnswer: number;
+  correctAnswers: number[];
   explanation: string | null;
   editedSincePublished: boolean;
 }
@@ -148,6 +148,8 @@ export interface PublicQuestionResponse {
   id: number;
   text: string;
   options: { index: number; text: string }[];
+  /** Tiene varias correctas: hay que marcarlas todas (RF-09). */
+  multipleCorrect: boolean;
 }
 
 /** El alumno se identifica al empezar (DE-04); la entrega queda a su nombre. */

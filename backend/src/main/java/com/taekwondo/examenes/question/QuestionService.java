@@ -86,7 +86,7 @@ public class QuestionService {
         question.update(
                 request.text().trim(),
                 request.options().stream().map(String::trim).toList(),
-                request.correctAnswer(),
+                request.correctAnswers(),
                 request.explanation(),
                 request.grade(),
                 request.type(),

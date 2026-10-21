@@ -76,13 +76,13 @@ public class ResultService {
             throw invalid;
         }
 
-        Map<Long, Integer> chosenByQuestion = chosenByQuestion(request);
+        Map<Long, List<Integer>> chosenByQuestion = chosenByQuestion(request);
         if (!chosenByQuestion.keySet().equals(Set.copyOf(exam.getQuestionIds()))) {
             throw new BusinessRuleException("Las respuestas no coinciden con las preguntas del examen");
         }
         // Se corrige contra la copia publicada (DE-03), no contra el banco
         List<Answer> answers = exam.getPublishedQuestions().stream()
-                .map(q -> new Answer(q.getQuestionId(), chosenOption(q, chosenByQuestion), q.getCorrectAnswer()))
+                .map(q -> new Answer(q.getQuestionId(), chosenOptions(q, chosenByQuestion), q.getCorrectAnswers()))
                 .toList();
 
         attempt.markSubmitted(now);
@@ -92,23 +92,23 @@ public class ResultService {
         return ResultResponse.forStudent(resultRepository.save(result), exam.getTitle(), exam.getConfig());
     }
 
-    private static Map<Long, Integer> chosenByQuestion(SubmitExamRequest request) {
-        Map<Long, Integer> chosen = new HashMap<>();
+    private static Map<Long, List<Integer>> chosenByQuestion(SubmitExamRequest request) {
+        Map<Long, List<Integer>> chosen = new HashMap<>();
         for (SubmitExamRequest.Answer answer : request.answers()) {
             if (chosen.containsKey(answer.questionId())) {
                 throw new BusinessRuleException("Hay respuestas duplicadas para la pregunta " + answer.questionId());
             }
-            chosen.put(answer.questionId(), answer.chosenOption());
+            chosen.put(answer.questionId(), answer.chosenOptions() == null ? List.of() : answer.chosenOptions());
         }
         return chosen;
     }
 
-    /** La opción elegida en esa pregunta (null = en blanco); tiene que existir en la pregunta publicada. */
-    private static Integer chosenOption(PublishedQuestion question, Map<Long, Integer> chosenByQuestion) {
-        Integer chosen = chosenByQuestion.get(question.getQuestionId());
-        if (chosen != null && chosen >= question.getOptions().size()) {
-            throw new BusinessRuleException("La opción " + chosen + " no existe en la pregunta " + question.getQuestionId());
-        }
+    /** Las opciones marcadas en esa pregunta (vacío = en blanco); tienen que existir en la pregunta publicada. */
+    private static List<Integer> chosenOptions(PublishedQuestion question, Map<Long, List<Integer>> chosenByQuestion) {
+        List<Integer> chosen = chosenByQuestion.get(question.getQuestionId());
+        chosen.stream().filter(option -> option >= question.getOptions().size()).findFirst().ifPresent(option -> {
+            throw new BusinessRuleException("La opción " + option + " no existe en la pregunta " + question.getQuestionId());
+        });
         return chosen;
     }
 

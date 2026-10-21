@@ -31,14 +31,18 @@ public record ResultResponse(
         int timeSpentSeconds,
         LocalDateTime completedAt
 ) {
-    /** correctAnswer es null en la vista del alumno: nunca ve cuál era la correcta (RF-53). */
-    public record AnswerResponse(Long questionId, Integer studentAnswer, Integer correctAnswer, boolean correct) {
+    /**
+     * Opciones que marcó el alumno (vacío = en blanco) y las correctas (RF-09). correctAnswers es null en la
+     * vista del alumno: nunca ve cuáles eran las correctas (RF-53).
+     */
+    public record AnswerResponse(Long questionId, List<Integer> studentAnswers, List<Integer> correctAnswers,
+                                 boolean correct) {
         static AnswerResponse from(Answer a) {
-            return new AnswerResponse(a.getQuestionId(), a.getStudentAnswer(), a.getCorrectAnswer(), a.isCorrect());
+            return new AnswerResponse(a.getQuestionId(), a.getStudentAnswers(), a.getCorrectAnswers(), a.isCorrect());
         }
 
         static AnswerResponse withoutSolution(Answer a) {
-            return new AnswerResponse(a.getQuestionId(), a.getStudentAnswer(), null, a.isCorrect());
+            return new AnswerResponse(a.getQuestionId(), a.getStudentAnswers(), null, a.isCorrect());
         }
     }
 

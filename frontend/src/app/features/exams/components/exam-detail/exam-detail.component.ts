@@ -16,6 +16,7 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ExamService } from '../../../../core/services/exam.service';
+import { ShareService } from '../../../../core/services/share.service';
 import { QR_PANEL_SIZE_PX, QrCodeService } from '../../../../core/services/qr-code.service';
 import { QrColorService } from '../../../../core/services/qr-color.service';
 import {
@@ -42,6 +43,7 @@ import { TagResponse } from '../../../../core/models/tag.models';
 import { ExamQuestionPickerComponent } from '../exam-question-picker/exam-question-picker.component';
 import { AttemptsSliderComponent } from '../attempts-slider/attempts-slider.component';
 import { ExamQrDialogComponent, ExamQrDialogData } from '../exam-qr-dialog/exam-qr-dialog.component';
+import { ExamShareComponent } from '../exam-share/exam-share.component';
 
 /** Cuánto se ve un aviso breve (enlace copiado, etc.). */
 const NOTICE_DURATION_MS = 3000;
@@ -49,7 +51,7 @@ const NOTICE_DURATION_MS = 3000;
 /**
  * Panel de un examen: configuración, preguntas, publicación y ciclo de vida.
  * En borrador todo es editable; publicado o cerrado solo se gestionan
- * plazo, visibilidad y estado.
+ * plazo, visibilidad y estado. Un examen que me han compartido (RF-51) solo se consulta y se proyecta.
  */
 @Component({
   selector: 'app-exam-detail',
@@ -67,7 +69,8 @@ const NOTICE_DURATION_MS = 3000;
     MatTooltipModule,
     MatDividerModule,
     ExamQuestionPickerComponent,
-    AttemptsSliderComponent
+    AttemptsSliderComponent,
+    ExamShareComponent
   ],
   templateUrl: './exam-detail.component.html',
   styleUrl: './exam-detail.component.scss',
@@ -76,6 +79,7 @@ const NOTICE_DURATION_MS = 3000;
 export class ExamDetailComponent {
   private fb = inject(FormBuilder);
   private examSvc = inject(ExamService);
+  private shareSvc = inject(ShareService);
   private snackBar = inject(MatSnackBar);
   private dialog = inject(MatDialog);
   private qrCode = inject(QrCodeService);
@@ -108,6 +112,10 @@ export class ExamDetailComponent {
 
   busy = signal(false);
   error = linkedSignal<number, string | null>({ source: this.examId, computation: () => null });
+  /** Me lo han compartido (RF-51): puedo consultarlo y proyectarlo, no cambiarlo. */
+  readOnly = computed(() => !!this.exam().sharedBy);
+  /** Panel para compartirlo con otros profesores; se carga al abrirlo. */
+  showShare = linkedSignal({ source: this.examId, computation: () => false });
   editingConfig = linkedSignal({ source: this.examId, computation: () => false });
   showQr = linkedSignal({ source: this.examId, computation: () => false });
 
@@ -276,6 +284,20 @@ export class ExamDetailComponent {
     if (!confirm(`¿Eliminar el borrador "${exam.title}"?`)) return;
     this.busy.set(true);
     this.examSvc.deleteDraft(exam.id).subscribe({
+      next: () => {
+        this.busy.set(false);
+        this.deleted.emit(exam.id);
+      },
+      error: err => this.handleError(err)
+    });
+  }
+
+  /** «Dejar de ver» un examen que me compartieron (RF-51): sale de mi lista. */
+  leave(): void {
+    const exam = this.exam();
+    if (!confirm(`¿Dejar de ver «${exam.title}»? Ya no tendrás acceso a sus resultados.`)) return;
+    this.busy.set(true);
+    this.shareSvc.leave(exam.id).subscribe({
       next: () => {
         this.busy.set(false);
         this.deleted.emit(exam.id);

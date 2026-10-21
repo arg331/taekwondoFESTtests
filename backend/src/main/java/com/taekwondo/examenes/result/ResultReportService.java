@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -39,8 +40,8 @@ public class ResultReportService {
     }
 
     /** Cada pregunta del examen, en su orden, con cómo se ha respondido en todas las entregas. */
-    public List<QuestionStatsResponse> questionStats(Long examId, Long ownerId) {
-        Exam exam = examService.getOwned(examId, ownerId);
+    public List<QuestionStatsResponse> questionStats(Long examId, Long teacherId) {
+        Exam exam = examService.getViewable(examId, teacherId);
         if (exam.isDraft()) {
             throw new BusinessRuleException("El examen todavía no está publicado");
         }
@@ -56,12 +57,13 @@ public class ResultReportService {
 
     /**
      * Las entregas de un usuario con la vista completa del profesor. El profesor ve las de sus propios
-     * exámenes (RN-14); el administrador, todas.
+     * exámenes y las de los que le han compartido (RN-14, RF-51); el administrador, todas.
      */
     public UserResultsResponse userResults(Long userId, Long requesterId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("No existe un usuario con id " + userId));
         boolean admin = userRepository.findById(requesterId).map(User::isAdmin).orElse(false);
+        Set<Long> shared = examService.sharedExamIds(requesterId);
         resultService.autoSubmitExpiredOf(userId);
         List<Result> results = resultRepository.findAllByStudentUserIdOrderByCompletedAtDesc(userId);
         Map<Long, Exam> exams = examRepository.findAllById(results.stream().map(Result::getExamId)
@@ -69,7 +71,8 @@ public class ResultReportService {
                 .collect(Collectors.toMap(Exam::getId, Function.identity()));
         List<ResultResponse> visible = results.stream()
                 .filter(r -> exams.containsKey(r.getExamId()))
-                .filter(r -> admin || exams.get(r.getExamId()).getOwnerId().equals(requesterId))
+                .filter(r -> admin || shared.contains(r.getExamId())
+                        || exams.get(r.getExamId()).getOwnerId().equals(requesterId))
                 .map(r -> ResultResponse.from(r, exams.get(r.getExamId()).getTitle()))
                 .toList();
         return new UserResultsResponse(user.getId(), user.getUsername(), user.getDisplayName(),

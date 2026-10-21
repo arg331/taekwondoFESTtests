@@ -4,8 +4,13 @@ import com.taekwondo.examenes.common.BusinessRuleException;
 import com.taekwondo.examenes.common.ResourceNotFoundException;
 import com.taekwondo.examenes.question.Question;
 import com.taekwondo.examenes.question.QuestionRepository;
+import com.taekwondo.examenes.share.ExamShare;
+import com.taekwondo.examenes.share.ExamShareRepository;
+import com.taekwondo.examenes.share.ShareStatus;
 import com.taekwondo.examenes.tag.Tag;
 import com.taekwondo.examenes.tag.TagService;
+import com.taekwondo.examenes.user.User;
+import com.taekwondo.examenes.user.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,6 +18,7 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -21,6 +27,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.taekwondo.examenes.question.QuestionSpecifications.hasAnyTag;
 import static com.taekwondo.examenes.question.QuestionSpecifications.ownedBy;
@@ -34,13 +41,18 @@ public class ExamService {
     private final ExamRepository examRepository;
     private final QuestionRepository questionRepository;
     private final TagService tagService;
+    private final ExamShareRepository shareRepository;
+    private final UserRepository userRepository;
     private final Clock clock;
 
     public ExamService(ExamRepository examRepository, QuestionRepository questionRepository,
-                       TagService tagService, Clock clock) {
+                       TagService tagService, ExamShareRepository shareRepository, UserRepository userRepository,
+                       Clock clock) {
         this.examRepository = examRepository;
         this.questionRepository = questionRepository;
         this.tagService = tagService;
+        this.shareRepository = shareRepository;
+        this.userRepository = userRepository;
         this.clock = clock;
     }
 
@@ -186,16 +198,33 @@ public class ExamService {
 
     // ───── Consultas del profesor ─────
 
+    /** Un examen propio, o uno que me han compartido: entonces dice quién (RF-51). */
     @Transactional(readOnly = true)
-    public ExamResponse get(Long examId, Long ownerId) {
-        return ExamResponse.from(getOwned(examId, ownerId));
+    public ExamResponse get(Long examId, Long teacherId) {
+        Exam exam = getViewable(examId, teacherId);
+        return exam.getOwnerId().equals(teacherId) ? ExamResponse.from(exam) : ExamResponse.from(exam, ownerName(exam));
     }
 
+    /** Mis exámenes y los que me han compartido (RF-51), del más reciente al más antiguo. */
     @Transactional(readOnly = true)
-    public List<ExamResponse> listMine(Long ownerId) {
-        return examRepository.findAllByOwnerIdOrderByCreatedAtDesc(ownerId).stream()
-                .map(ExamResponse::from)
+    public List<ExamResponse> listMine(Long teacherId) {
+        List<Exam> shared = examRepository.findAllById(sharedExamIds(teacherId));
+        Map<Long, String> owners = userRepository.findAllById(shared.stream().map(Exam::getOwnerId).collect(Collectors.toSet()))
+                .stream()
+                .collect(Collectors.toMap(User::getId, User::getDisplayName));
+        return Stream.concat(
+                        examRepository.findAllByOwnerIdOrderByCreatedAtDesc(teacherId).stream().map(ExamResponse::from),
+                        shared.stream().map(exam -> ExamResponse.from(exam, owners.get(exam.getOwnerId()))))
+                .sorted(Comparator.comparing(ExamResponse::createdAt).reversed())
                 .toList();
+    }
+
+    /** Los exámenes que me han compartido y he aceptado (RF-51). */
+    @Transactional(readOnly = true)
+    public Set<Long> sharedExamIds(Long teacherId) {
+        return shareRepository.findAllByTeacherIdAndStatusOrderByCreatedAtDesc(teacherId, ShareStatus.ACCEPTED).stream()
+                .map(ExamShare::getExamId)
+                .collect(Collectors.toSet());
     }
 
     /** Exámenes públicos y abiertos ahora mismo, de otros profesores. */
@@ -221,8 +250,8 @@ public class ExamService {
      * editado en el banco después. Solo el profesor del examen.
      */
     @Transactional(readOnly = true)
-    public List<PublishedQuestionResponse> publishedQuestions(Long examId, Long ownerId) {
-        Exam exam = getOwned(examId, ownerId);
+    public List<PublishedQuestionResponse> publishedQuestions(Long examId, Long teacherId) {
+        Exam exam = getViewable(examId, teacherId);
         if (exam.isDraft()) {
             throw new BusinessRuleException("El examen todavía no está publicado");
         }
@@ -250,6 +279,21 @@ public class ExamService {
             throw new BusinessRuleException("Este examen no está disponible en este momento");
         }
         return exam;
+    }
+
+    /**
+     * Un examen para consultarlo: propio o compartido conmigo y aceptado (RF-51). Lo que lo cambia usa
+     * getOwned: para el invitado, el examen responde como inexistente.
+     */
+    public Exam getViewable(Long examId, Long teacherId) {
+        return examRepository.findById(examId)
+                .filter(exam -> exam.getOwnerId().equals(teacherId)
+                        || shareRepository.existsByExamIdAndTeacherIdAndStatus(examId, teacherId, ShareStatus.ACCEPTED))
+                .orElseThrow(() -> new ResourceNotFoundException("No existe un examen con id " + examId));
+    }
+
+    private String ownerName(Exam exam) {
+        return userRepository.findById(exam.getOwnerId()).map(User::getDisplayName).orElse(null);
     }
 
     public Exam getOwned(Long examId, Long ownerId) {

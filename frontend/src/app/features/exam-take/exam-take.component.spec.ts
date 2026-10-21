@@ -14,7 +14,7 @@ function exam(overrides: Partial<ExamResponse> = {}): ExamResponse {
     config: { numberOfQuestions: 3, timeLimitMinutes: null, showScore: true, showAnswers: true, randomizeOptions: true,
       randomizeQuestionOrder: true },
     questionIds: [10, 20, 30], generationTags: [], code: 'EXM-ABC', createdAt: '2026-10-08T10:00:00',
-    expiresAt: null, maxAttempts: 1, ...overrides
+    expiresAt: null, maxAttempts: 1, sharedBy: null, ...overrides
   };
 }
 

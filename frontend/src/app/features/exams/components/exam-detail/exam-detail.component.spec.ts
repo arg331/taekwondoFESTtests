@@ -22,7 +22,7 @@ function exam(status: ExamStatus, questionIds: number[] = []): ExamResponse {
     config: { numberOfQuestions: 10, timeLimitMinutes: null, showScore: true, showAnswers: true, randomizeOptions: false,
       randomizeQuestionOrder: false },
     questionIds, generationTags: [], code: status === 'DRAFT' ? null : 'EXM-1234ABCD',
-    createdAt: '2026-10-08T10:00:00', expiresAt: null, maxAttempts: 1
+    createdAt: '2026-10-08T10:00:00', expiresAt: null, maxAttempts: 1, sharedBy: null
   };
 }
 
@@ -629,6 +629,62 @@ describe('ExamDetailComponent', () => {
       await render(exam('DRAFT'));
 
       expect(button('Hacer una copia')).toBeTruthy();
+    });
+  });
+
+  describe('compartir con otros profesores (RF-51)', () => {
+    const SHARED = (status: ExamStatus, questionIds: number[] = [1, 2]): ExamResponse =>
+      ({ ...exam(status, questionIds), ownerId: 2, sharedBy: 'Ana Pérez' });
+
+    it('el invitado ve quién se lo compartió y solo puede consultarlo y proyectarlo', async () => {
+      await render(SHARED('PUBLISHED'));
+
+      expect(el.querySelector('.shared-note')?.textContent).toContain('Este examen te lo ha compartido Ana Pérez');
+      const actions = buttonTexts().join(' | ');
+      for (const forbidden of ['Cambiar plazo', 'Cambiar intentos', 'Cerrar examen', 'Pasar a', 'Hacer una copia', 'Compartir']) {
+        expect(actions).not.toContain(forbidden);
+      }
+      expect(actions).toContain('Dejar de ver');
+      expect(el.querySelector('.edit-btn')).toBeNull();
+      expect(button('Proyectar')).toBeTruthy();
+      expect(el.querySelectorAll('.assigned-list li').length).toBe(2);
+    });
+
+    it('un borrador compartido no tiene selector ni se puede publicar o borrar', async () => {
+      await render(SHARED('DRAFT'));
+
+      expect(el.querySelector('app-exam-question-picker')).toBeNull();
+      expect(el.textContent).toContain('Todavía es un borrador');
+      const actions = buttonTexts().join(' | ');
+      expect(actions).not.toContain('Publicar examen');
+      expect(actions).not.toContain('Eliminar borrador');
+    });
+
+    it('«Dejar de ver» lo quita de su lista', async () => {
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      await render(SHARED('PUBLISHED'));
+      const deleted: number[] = [];
+      fixture.componentInstance.deleted.subscribe(id => deleted.push(id));
+
+      button('Dejar de ver').click();
+      const req = http.expectOne(`${API}/exams/7/shares/me`);
+      expect(req.request.method).toBe('DELETE');
+      req.flush(null);
+      await stable();
+
+      expect(deleted).toEqual([7]);
+    });
+
+    it('el dueño abre con «Compartir» el panel para invitar', async () => {
+      await render(exam('PUBLISHED', [1, 2]));
+      expect(el.querySelector('app-exam-share')).toBeNull();
+
+      button('Compartir').click();
+      fixture.detectChanges();
+      http.expectOne(`${API}/exams/7/shares`).flush([]);
+      await stable();
+
+      expect(el.querySelector('app-exam-share')).not.toBeNull();
     });
   });
 

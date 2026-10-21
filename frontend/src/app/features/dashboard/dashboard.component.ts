@@ -10,6 +10,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDividerModule } from '@angular/material/divider';
 import { AuthService } from '../../core/services/auth.service';
 import { ExamCodeEntryComponent } from '../../shared/components/exam-code-entry/exam-code-entry.component';
+import { ShareInvitationsComponent } from './components/share-invitations/share-invitations.component';
 import { ExamService } from '../../core/services/exam.service';
 import { ScraperService } from '../../core/services/scraper.service';
 import { EXAM_STATUS_LABEL, ExamResponse, ExamStatus, VISIBILITY_COLOR, VISIBILITY_ICON, VISIBILITY_LABEL } from '../../core/models/exam.models';
@@ -28,7 +29,8 @@ import { APP_NAME } from '../../core/app-brand';
     MatChipsModule,
     MatProgressSpinnerModule,
     MatDividerModule,
-    ExamCodeEntryComponent
+    ExamCodeEntryComponent,
+    ShareInvitationsComponent
   ],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
@@ -60,7 +62,8 @@ export class DashboardComponent implements OnInit {
     if (this.auth.canTeach()) {
       this.loading.set(true);
       this.examSvc.getMine().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-        next: exams => { this.exams.set(exams); this.loading.set(false); },
+        // Solo los propios: los compartidos conmigo (RF-51) están en «Exámenes» y «Resultados»
+        next: exams => { this.exams.set(exams.filter(e => !e.sharedBy)); this.loading.set(false); },
         error: () => this.loading.set(false)
       });
       this.loadingCursos.set(true);

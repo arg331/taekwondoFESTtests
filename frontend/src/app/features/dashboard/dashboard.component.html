@@ -10,6 +10,9 @@
 
   <!-- ── ADMIN ── -->
   @if (auth.canTeach()) {
+    <!-- Invitaciones a exámenes compartidos (RF-51) -->
+    <app-share-invitations />
+
     <div class="stats-grid">
       <mat-card class="stat-card">
         <mat-card-content>

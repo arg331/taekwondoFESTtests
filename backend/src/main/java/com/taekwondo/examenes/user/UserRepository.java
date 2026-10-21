@@ -4,6 +4,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -35,4 +36,14 @@ public interface UserRepository extends JpaRepository<User, Long> {
             order by lower(u.displayName)
             """)
     List<User> searchClubCandidates(String text, Long clubId, boolean onlyWithoutClub, Pageable page);
+
+    /** Usuarios activos con alguno de esos roles cuyo usuario o nombre visible contiene el texto. */
+    @Query("""
+            select u from User u
+            where u.active = true and u.role in :roles
+              and (lower(u.username) like lower(concat('%', :text, '%'))
+                   or lower(u.displayName) like lower(concat('%', :text, '%')))
+            order by lower(u.displayName)
+            """)
+    List<User> searchActiveByRoles(String text, Collection<UserRole> roles, Pageable page);
 }

@@ -18,6 +18,7 @@
         }
       </div>
       @if (exam.code) { <p class="exam-code">{{ exam.code }}</p> }
+      @if (exam.sharedBy) { <p class="shared-by">Este examen te lo ha compartido {{ exam.sharedBy }}</p> }
     </mat-card-content>
   </mat-card>
 }

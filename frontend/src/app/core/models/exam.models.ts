@@ -61,6 +61,8 @@ export interface ExamResponse {
   expiresAt: string | null;
   /** Intentos por alumno (RF-52); null = sin límite. */
   maxAttempts: number | null;
+  /** Quién me lo ha compartido (RF-51): solo puedo consultarlo. null en los exámenes propios. */
+  sharedBy: string | null;
 }
 
 /**

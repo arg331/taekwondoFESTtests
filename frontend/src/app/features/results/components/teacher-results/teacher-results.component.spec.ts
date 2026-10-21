@@ -11,7 +11,8 @@ const API = 'http://localhost:8080/api';
 const EXAM: ExamResponse = {
   id: 7, title: 'Examen de Árbitros 2026', ownerId: 1, status: 'PUBLISHED', visibility: 'PRIVATE', accessMode: 'OPEN',
   config: { numberOfQuestions: 5, timeLimitMinutes: null, showScore: true, showAnswers: true, randomizeOptions: false, randomizeQuestionOrder: false },
-  questionIds: [1, 2, 3, 4, 5], generationTags: [], code: 'EXM-1234ABCD', createdAt: '2026-10-12T10:00:00', expiresAt: null, maxAttempts: 1
+  questionIds: [1, 2, 3, 4, 5], generationTags: [], code: 'EXM-1234ABCD', createdAt: '2026-10-12T10:00:00', expiresAt: null, maxAttempts: 1,
+  sharedBy: null
 };
 
 function result(id: number, studentName: string, registered: boolean, score = 100): ResultResponse {

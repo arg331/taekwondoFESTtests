@@ -1,0 +1,53 @@
+<section class="exam-share" aria-label="Compartir con profesores">
+  <p class="section-title">Compartir con profesores</p>
+  <p class="hint">
+    Los profesores que acepten verán sus resultados con los datos de los alumnos (nombre, email y club) y podrán
+    consultar y proyectar el examen, pero no cambiarlo.
+  </p>
+
+  @if (shares.isLoading()) {
+    <mat-spinner diameter="24" />
+  } @else if (shares.hasValue()) {
+    @for (share of shares.value(); track share.teacherId) {
+      <div class="share-row">
+        <mat-icon class="avatar">account_circle</mat-icon>
+        <span class="share-name">{{ share.displayName }}</span>
+        <span class="share-username">{{ share.username }}</span>
+        <span class="share-status" [attr.data-status]="share.status">{{ statusLabel[share.status] }}</span>
+        <button mat-button color="warn" type="button" (click)="revoke(share)" [disabled]="busy()">
+          {{ share.status === 'PENDING' ? 'Cancelar invitación' : 'Quitar' }}
+        </button>
+      </div>
+    } @empty {
+      <p class="hint">Todavía no lo has compartido con nadie.</p>
+    }
+  }
+
+  <form class="search" (submit)="$event.preventDefault(); search()">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search-field">
+      <mat-label>Buscar profesor por nombre o usuario</mat-label>
+      <input matInput [value]="query()" (input)="query.set($any($event.target).value)" />
+    </mat-form-field>
+    <button mat-stroked-button type="submit" [disabled]="busy()">
+      <mat-icon>search</mat-icon>Buscar
+    </button>
+  </form>
+
+  @for (candidate of candidates() ?? []; track candidate.id) {
+    <div class="candidate">
+      <mat-icon class="avatar">account_circle</mat-icon>
+      <span class="share-name">{{ candidate.displayName }}</span>
+      <span class="share-username">{{ candidate.username }}</span>
+      <button mat-flat-button color="primary" type="button" (click)="invite(candidate)" [disabled]="busy()">
+        <mat-icon>send</mat-icon>Invitar
+      </button>
+    </div>
+  }
+  @if (noCandidates()) {
+    <p class="hint">No hay profesores que coincidan a los que no hayas invitado ya.</p>
+  }
+
+  @if (error()) {
+    <p class="share-error">{{ error() }}</p>
+  }
+</section>

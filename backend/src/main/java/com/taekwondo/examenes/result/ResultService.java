@@ -155,8 +155,8 @@ public class ResultService {
         return ResultResponse.from(result, exam.getTitle());
     }
 
-    public List<ResultResponse> listByExam(Long examId, Long ownerId) {
-        Exam exam = examService.getOwned(examId, ownerId);
+    public List<ResultResponse> listByExam(Long examId, Long teacherId) {
+        Exam exam = examService.getViewable(examId, teacherId);
         autoSubmitExpired(examId);
         return resultRepository.findAllByExamIdOrderByCompletedAtDesc(examId).stream()
                 .map(r -> ResultResponse.from(r, exam.getTitle()))
@@ -164,8 +164,8 @@ public class ResultService {
     }
 
     /** Excel con las entregas de un examen propio, ordenadas por club (RF-27). */
-    public ExportedFile exportByExam(Long examId, Long ownerId) {
-        Exam exam = examService.getOwned(examId, ownerId);
+    public ExportedFile exportByExam(Long examId, Long teacherId) {
+        Exam exam = examService.getViewable(examId, teacherId);
         autoSubmitExpired(examId);
         List<Result> results = resultRepository.findAllByExamIdOrderByCompletedAtDesc(examId);
         return new ExportedFile("resultados-" + asciiSlug(exam.getTitle()) + ".xlsx",
@@ -182,8 +182,8 @@ public class ResultService {
         return slug.isEmpty() ? "examen" : slug;
     }
 
-    public ExamStatisticsResponse statistics(Long examId, Long ownerId) {
-        examService.getOwned(examId, ownerId);
+    public ExamStatisticsResponse statistics(Long examId, Long teacherId) {
+        examService.getViewable(examId, teacherId);
         autoSubmitExpired(examId);
         List<Result> results = resultRepository.findAllByExamIdOrderByCompletedAtDesc(examId);
         if (results.isEmpty()) {

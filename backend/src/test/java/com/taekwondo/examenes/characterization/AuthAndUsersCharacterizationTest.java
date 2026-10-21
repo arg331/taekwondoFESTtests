@@ -88,8 +88,8 @@ class AuthAndUsersCharacterizationTest extends ApiCharacterizationTest {
     }
 
     @Test
-    @DisplayName("Registro: email con espacios alrededor se rechaza (400); sin Accept-Language el mensaje estándar sale en inglés")
-    void register_emailWithSurroundingSpaces_rejectedWithEnglishMessage() {
+    @DisplayName("Registro: email con espacios alrededor se rechaza (400), con el mensaje en español (RNF-13)")
+    void register_emailWithSurroundingSpaces_rejected() {
         String username = unique("Espacios");
 
         HttpResult result = post("/api/auth/register", null, obj(
@@ -98,7 +98,7 @@ class AuthAndUsersCharacterizationTest extends ApiCharacterizationTest {
                 "plainPassword", "secreto1",
                 "displayName", "Nombre"));
 
-        assertThat(result.expectStatus(400).message()).isEqualTo("email: must be a well-formed email address");
+        assertThat(result.expectStatus(400).message()).isEqualTo("Email: debe ser una dirección de correo electrónico con formato correcto");
     }
 
     @Test
@@ -121,14 +121,14 @@ class AuthAndUsersCharacterizationTest extends ApiCharacterizationTest {
 
     @ParameterizedTest(name = "{0}={1}")
     @CsvSource({
-            "username, ab",
-            "username, con espacios",
-            "email, no-es-un-email",
-            "plainPassword, 12345",
-            "displayName, ' '"
+            "username, ab, Usuario",
+            "username, con espacios, Usuario",
+            "email, no-es-un-email, Email",
+            "plainPassword, 12345, Contraseña",
+            "displayName, ' ', Nombre"
     })
-    @DisplayName("Registro: datos inválidos devuelven 400 con el campo en el mensaje")
-    void register_invalidField_badRequest(String field, String value) {
+    @DisplayName("Registro: datos inválidos devuelven 400 con el campo, como lo ve el usuario, en el mensaje (RNF-13)")
+    void register_invalidField_badRequest(String field, String value, String label) {
         Map<String, Object> body = obj(
                 "username", unique("valido"), "email", unique("valido") + "@test.com",
                 "plainPassword", "secreto1", "displayName", "Válido");
@@ -136,7 +136,7 @@ class AuthAndUsersCharacterizationTest extends ApiCharacterizationTest {
 
         HttpResult result = post("/api/auth/register", null, body).expectStatus(400);
 
-        assertThat(result.message()).startsWith(field + ": ");
+        assertThat(result.message()).startsWith(label + ": ");
         assertThat(result.asMap()).containsOnlyKeys("timestamp", "status", "error", "message");
     }
 
@@ -259,7 +259,7 @@ class AuthAndUsersCharacterizationTest extends ApiCharacterizationTest {
         Session student = newStudent();
         String url = "/api/users/" + student.id() + "/role";
 
-        assertThat(patch(url, adminToken(), obj()).expectStatus(400).message()).isEqualTo("role: must not be null");
+        assertThat(patch(url, adminToken(), obj()).expectStatus(400).message()).isEqualTo("Rol: no debe ser nulo");
         assertThat(patch(url, adminToken(), obj("role", "SUPERADMIN")).expectStatus(400).message())
                 .isEqualTo("JSON malformado o petición inválida");
     }

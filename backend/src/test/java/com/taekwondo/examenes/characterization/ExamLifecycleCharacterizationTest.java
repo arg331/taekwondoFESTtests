@@ -60,11 +60,11 @@ class ExamLifecycleCharacterizationTest extends ApiCharacterizationTest {
 
     @ParameterizedTest(name = "preguntas={0}, minutos={1}, título=''{2}''")
     @CsvSource({
-            "4, 10, Válido, numberOfQuestions",
-            "51, 10, Válido, numberOfQuestions",
-            "10, 181, Válido, timeLimitMinutes",
-            "10, -1, Válido, timeLimitMinutes",
-            "10, 10, ' ', title"
+            "4, 10, Válido, Número de preguntas",
+            "51, 10, Válido, Número de preguntas",
+            "10, 181, Válido, Tiempo límite",
+            "10, -1, Válido, Tiempo límite",
+            "10, 10, ' ', Título"
     })
     @DisplayName("Borrador: límites de configuración devuelven 400")
     void createDraft_outOfRange_badRequest(int questions, int minutes, String title, String field) {
@@ -245,7 +245,7 @@ class ExamLifecycleCharacterizationTest extends ApiCharacterizationTest {
 
         assertThat(past.expectStatus(409).message())
                 .isEqualTo("La fecha de expiración debe ser posterior al momento actual");
-        assertThat(noVisibility.expectStatus(400).message()).startsWith("visibility:");
+        assertThat(noVisibility.expectStatus(400).message()).startsWith("Tipo de examen:");
     }
 
     @Test

@@ -47,6 +47,10 @@ public class Tag {
         this.name = newName;
     }
 
+    public void changeColor(String newColor) {
+        this.color = newColor;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

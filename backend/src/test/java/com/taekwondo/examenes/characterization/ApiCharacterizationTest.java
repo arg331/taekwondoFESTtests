@@ -42,7 +42,8 @@ import static com.taekwondo.examenes.characterization.support.Json.write;
  * nombres únicos y no depende de lo que hagan los demás.
  */
 // La entrega automática se prueba llamándola: la tarea periódica movería datos a mitad de un test
-@SpringBootTest(properties = "app.attempts.auto-submit.enabled=false")
+// El límite de intentos (RNF-07) tiene su propio test: aquí cientos de logins por minuto lo dispararían
+@SpringBootTest(properties = {"app.attempts.auto-submit.enabled=false", "app.rate-limit.enabled=false"})
 @AutoConfigureMockMvc
 @Import({TestcontainersConfiguration.class, ApiCharacterizationTest.ClockConfig.class})
 abstract class ApiCharacterizationTest {

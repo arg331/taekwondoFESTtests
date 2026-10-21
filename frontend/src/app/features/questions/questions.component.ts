@@ -137,6 +137,21 @@ export class QuestionsComponent implements OnInit {
     this.editing.set(undefined);
   }
 
+  /** Un tag renombrado o con otro color cambia en sus preguntas sin recargar (RF-08). */
+  onTagUpdated(tag: TagResponse): void {
+    this.questions.update(list => list.map(q => q.tags.some(t => t.id === tag.id)
+      ? { ...q, tags: q.tags.map(t => t.id === tag.id ? tag : t) }
+      : q));
+  }
+
+  /** Un tag borrado desaparece de sus preguntas y del filtro (RF-08). */
+  onTagRemoved(tagId: number): void {
+    this.questions.update(list => list.map(q => q.tags.some(t => t.id === tagId)
+      ? { ...q, tags: q.tags.filter(t => t.id !== tagId) }
+      : q));
+    this.selectedTagIds.update(ids => ids.filter(id => id !== tagId));
+  }
+
   clearFilters(): void {
     this.filterText.set('');
     this.gradeRange.set(FULL_GRADE_RANGE);

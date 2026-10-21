@@ -54,7 +54,7 @@ class QuestionBankCharacterizationTest extends ApiCharacterizationTest {
     void createTag_invalidColor_badRequest() {
         HttpResult result = post("/api/tags", adminToken(), obj("name", unique("t"), "color", "rojo"));
 
-        assertThat(result.expectStatus(400).message()).isEqualTo("color: debe ser un color hex válido (ej: #3B8BD4)");
+        assertThat(result.expectStatus(400).message()).isEqualTo("Color: debe ser un color hex válido (ej: #3B8BD4)");
     }
 
     @Test
@@ -139,10 +139,10 @@ class QuestionBankCharacterizationTest extends ApiCharacterizationTest {
         HttpResult blankOption = post("/api/questions", token, obj("text", "x", "options", List.of("A", " "),
                 "correctAnswers", List.of(0), "grade", "BLANCO"));
 
-        assertThat(oneOption.expectStatus(400).message()).isEqualTo("options: debe tener entre 2 y 20 opciones");
-        assertThat(tooMany.expectStatus(400).message()).isEqualTo("options: debe tener entre 2 y 20 opciones");
-        assertThat(outOfRange.expectStatus(400).message()).isEqualTo("correctAnswersValid: debe señalar una o más opciones de la pregunta, sin repetir");
-        assertThat(blankOption.expectStatus(400).message()).startsWith("options[1]");
+        assertThat(oneOption.expectStatus(400).message()).isEqualTo("Opciones: debe tener entre 2 y 20 opciones");
+        assertThat(tooMany.expectStatus(400).message()).isEqualTo("Opciones: debe tener entre 2 y 20 opciones");
+        assertThat(outOfRange.expectStatus(400).message()).isEqualTo("Respuestas correctas: debe señalar una o más opciones de la pregunta, sin repetir");
+        assertThat(blankOption.expectStatus(400).message()).isEqualTo("Opciones: no debe estar vacío");
     }
 
     @Test

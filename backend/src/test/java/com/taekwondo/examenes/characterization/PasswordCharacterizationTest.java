@@ -53,7 +53,7 @@ class PasswordCharacterizationTest extends ApiCharacterizationTest {
         assertThat(changeOwn(student.token(), STUDENT_PASSWORD, STUDENT_PASSWORD).expectStatus(409).message())
                 .isEqualTo("La nueva contraseña tiene que ser distinta de la actual");
         assertThat(changeOwn(student.token(), STUDENT_PASSWORD, "12345").expectStatus(400).message())
-                .startsWith("newPassword");
+                .startsWith("Contraseña nueva: ");
         changeOwn(null, STUDENT_PASSWORD, NEW_PASSWORD).expectStatus(401);
     }
 
@@ -111,7 +111,7 @@ class PasswordCharacterizationTest extends ApiCharacterizationTest {
         reset(student.id(), newTeacher().token(), TEMPORARY).expectStatus(403);
         assertThat(reset(adminId, adminToken(), TEMPORARY).expectStatus(409).message())
                 .isEqualTo("Para tu propia contraseña usa «Cambiar contraseña»");
-        assertThat(reset(student.id(), adminToken(), "12345").expectStatus(400).message()).startsWith("temporaryPassword");
+        assertThat(reset(student.id(), adminToken(), "12345").expectStatus(400).message()).startsWith("Contraseña temporal");
         reset(999_999, adminToken(), TEMPORARY).expectStatus(404);
     }
 

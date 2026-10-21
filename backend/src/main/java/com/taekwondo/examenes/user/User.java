@@ -23,7 +23,8 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 50)
+    /** No cambia después del alta (RF-37): si se olvida, el administrador lo busca por el email. */
+    @Column(nullable = false, length = 50, updatable = false)
     private String username;
 
     /** Opcional (RF-01): quien no lo tiene recupera la cuenta a través del administrador. */

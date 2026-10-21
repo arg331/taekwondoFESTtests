@@ -113,6 +113,34 @@ describe('QuestionsComponent', () => {
     });
   });
 
+  describe('al cambiar o borrar un tag, las preguntas lo reflejan sin recargar (RF-08)', () => {
+    function tagManager(): import('./components/tag-manager/tag-manager.component').TagManagerComponent {
+      return fixture.debugElement.query(d => d.name === 'app-tag-manager').componentInstance;
+    }
+
+    function chipsOf(card: HTMLElement): string[] {
+      return Array.from(card.querySelectorAll('.tag-chip-small')).map(c => c.textContent?.trim() ?? '');
+    }
+
+    it('un tag borrado desaparece de sus preguntas y del filtro', async () => {
+      tagCheckbox('Combate').click();
+      await stable();
+
+      tagManager().removed.emit(COMBATE.id);
+      await stable();
+
+      expect(chipsOf(cards()[0])).toEqual(['Formas']);
+      expect(visibleTexts().length).toBe(3);
+    });
+
+    it('un tag renombrado cambia en sus preguntas', async () => {
+      tagManager().updated.emit({ ...COMBATE, name: 'Reglas' });
+      await stable();
+
+      expect(chipsOf(cards()[0])).toContain('Reglas');
+    });
+  });
+
   it('al editar, el formulario aparece justo debajo de esa pregunta (RF-45)', async () => {
     const second = cards()[1];
     (Array.from(second.querySelectorAll('button')).find(b => b.textContent?.includes('edit')) as HTMLElement).click();

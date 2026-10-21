@@ -1,10 +1,12 @@
-import { ChangeDetectionStrategy, Component, inject, signal, OnInit, DestroyRef } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal, OnInit, DestroyRef } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelect, MatSelectModule } from '@angular/material/select';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
@@ -25,6 +27,8 @@ const MESSAGE_DURATION_MS = 5000;
     MatIconModule,
     MatProgressSpinnerModule,
     MatSelectModule,
+    MatFormFieldModule,
+    MatInputModule,
     RouterLink
   ],
   templateUrl: './users.component.html',
@@ -43,6 +47,13 @@ export class UsersComponent implements OnInit {
 
   loading = signal(true);
   users   = signal<UserResponse[]>([]);
+  /** Por nombre, usuario o email (RF-37: quien olvida su usuario se busca por su email). */
+  query   = signal('');
+  visibleUsers = computed(() => {
+    const q = normalize(this.query());
+    return !q ? this.users() : this.users().filter(u =>
+      [u.displayName, u.username, u.email ?? ''].some(value => normalize(value).includes(q)));
+  });
 
   ngOnInit(): void {
     this.userSvc.getAll().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
@@ -90,4 +101,9 @@ export class UsersComponent implements OnInit {
   private replace(updated: UserResponse): void {
     this.users.update(list => list.map(u => u.id === updated.id ? updated : u));
   }
+}
+
+/** Sin mayúsculas, tildes ni espacios alrededor, para buscar. */
+function normalize(text: string): string {
+  return text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
 }

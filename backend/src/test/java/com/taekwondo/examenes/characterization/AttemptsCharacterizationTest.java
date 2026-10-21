@@ -44,9 +44,9 @@ class AttemptsCharacterizationTest extends ApiCharacterizationTest {
     void identity_required() {
         PublishedExam exam = publishedExam(adminToken(), 5, null, true);
 
-        assertThat(start(exam.code(), null, obj("studentName", " ")).expectStatus(400).message()).startsWith("studentName");
+        assertThat(start(exam.code(), null, obj("studentName", " ")).expectStatus(400).message()).startsWith("Nombre");
         assertThat(start(exam.code(), null, obj("studentName", "Ana", "studentEmail", "no-es-email"))
-                .expectStatus(400).message()).startsWith("studentEmail");
+                .expectStatus(400).message()).startsWith("Email");
     }
 
     @Test
@@ -108,9 +108,9 @@ class AttemptsCharacterizationTest extends ApiCharacterizationTest {
         long examId = draftWithQuestions(token);
 
         assertThat(publish(token, examId, obj("visibility", "PUBLIC", "maxAttempts", 0)).expectStatus(400).message())
-                .startsWith("maxAttempts");
+                .startsWith("Intentos: ");
         assertThat(publish(token, examId, obj("visibility", "PUBLIC", "maxAttempts", 5)).expectStatus(400).message())
-                .startsWith("maxAttempts");
+                .startsWith("Intentos: ");
         assertThat(publish(token, examId, obj("visibility", "PUBLIC", "maxAttempts", 2, "unlimitedAttempts", true))
                 .expectStatus(409).message()).isEqualTo(BOTH_LIMITS);
         assertThat((Integer) publish(token, examId, obj("visibility", "PUBLIC", "maxAttempts", 4))
@@ -170,7 +170,7 @@ class AttemptsCharacterizationTest extends ApiCharacterizationTest {
                 .isEqualTo("Los intentos de un borrador se eligen al publicarlo");
         changeAttempts(exam.id(), newTeacher().token(), obj("maxAttempts", 2)).expectStatus(404);
         assertThat(changeAttempts(exam.id(), token, obj("maxAttempts", 5)).expectStatus(400).message())
-                .startsWith("maxAttempts");
+                .startsWith("Intentos: ");
         assertThat(changeAttempts(exam.id(), token, obj("maxAttempts", 2, "unlimitedAttempts", true))
                 .expectStatus(409).message()).isEqualTo(BOTH_LIMITS);
     }

@@ -60,7 +60,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
         String message = ex.getBindingResult().getFieldErrors().stream()
-                .map(err -> err.getField() + ": " + err.getDefaultMessage())
+                // Con el nombre del campo que ve el usuario (RNF-13)
+                .map(err -> FieldLabels.of(err.getField()) + ": " + err.getDefaultMessage())
                 .findFirst()
                 .orElse("Datos de petición inválidos");
         return build(HttpStatus.BAD_REQUEST, message);

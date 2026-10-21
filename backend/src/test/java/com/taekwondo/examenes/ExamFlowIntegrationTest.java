@@ -32,7 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Recorre la API de punta a punta: roles, creación y publicación de un
  * examen, intento anónimo con tiempo límite y nota oculta, y resultados.
  */
-@SpringBootTest
+@SpringBootTest(properties = "app.rate-limit.enabled=false")
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
 class ExamFlowIntegrationTest {

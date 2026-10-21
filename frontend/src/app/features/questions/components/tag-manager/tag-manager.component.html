@@ -4,7 +4,7 @@
       <mat-icon class="title-icon">label</mat-icon>
       Gestión de tags ({{ tags().length }})
     </mat-panel-title>
-    <mat-panel-description>Crear y renombrar etiquetas para clasificar preguntas</mat-panel-description>
+    <mat-panel-description>Crear, renombrar, cambiar de color y borrar etiquetas para clasificar preguntas</mat-panel-description>
   </mat-expansion-panel-header>
 
   <div class="tags-content">
@@ -14,16 +14,19 @@
           <mat-label>Nombre del tag</mat-label>
           <input matInput formControlName="name" />
         </mat-form-field>
-        @if (!editingId()) {
-          <mat-form-field appearance="outline" class="tag-color-field">
-            <mat-label>Color</mat-label>
-            <input matInput type="color" formControlName="color" />
-          </mat-form-field>
-        }
+        <mat-form-field appearance="outline" class="tag-color-field">
+          <mat-label>Color</mat-label>
+          <input matInput type="color" formControlName="color" />
+        </mat-form-field>
         <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || saving()">
-          {{ editingId() ? 'Renombrar' : 'Crear' }}
+          {{ editing() ? 'Guardar' : 'Crear' }}
         </button>
         <button mat-button type="button" (click)="cancel()">Cancelar</button>
+        @if (editing()) {
+          <button mat-button color="warn" type="button" class="delete-tag" (click)="remove()" [disabled]="saving()">
+            <mat-icon>delete</mat-icon>Borrar tag
+          </button>
+        }
       </form>
       @if (error()) {
         <p class="hint-warn">{{ error() }}</p>
@@ -41,7 +44,7 @@
           <span class="tag-chip" [style.background]="tag.color">{{ tag.name }}</span>
           <!-- Pegado al tag, como una pestaña de su mismo color -->
           <button type="button" class="tag-rename" [style.background]="tag.color" (click)="openEdit(tag)"
-                  matTooltip="Renombrar" [attr.aria-label]="'Renombrar ' + tag.name">
+                  matTooltip="Editar" [attr.aria-label]="'Editar ' + tag.name">
             <mat-icon>edit</mat-icon>
           </button>
         </div>

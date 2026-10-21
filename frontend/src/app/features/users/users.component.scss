@@ -115,3 +115,7 @@
 }
 
 .role-field { width: 180px; }
+
+// Buscar por nombre, usuario o email (RF-37)
+.user-search { width: min(360px, 100%); }
+.no-match { color: #777; margin: 8px 0; }

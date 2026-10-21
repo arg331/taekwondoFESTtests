@@ -5,6 +5,11 @@
       <h1>Gestión de usuarios</h1>
       <p class="subtitle">{{ users().length }} usuarios registrados</p>
     </div>
+    <mat-form-field appearance="outline" class="user-search" subscriptSizing="dynamic">
+      <mat-label>Buscar por nombre, usuario o email</mat-label>
+      <input matInput [value]="query()" (input)="query.set($any($event.target).value)" />
+      <mat-icon matPrefix>search</mat-icon>
+    </mat-form-field>
   </div>
 
   @if (loading()) {
@@ -13,7 +18,7 @@
     </div>
   } @else {
     <div class="users-list">
-      @for (user of users(); track user.id) {
+      @for (user of visibleUsers(); track user.id) {
         <mat-card class="user-card" [class.inactive]="!user.active" [attr.data-id]="user.id">
           <mat-card-content>
             <div class="user-row">
@@ -76,6 +81,8 @@
             </div>
           </mat-card-content>
         </mat-card>
+      } @empty {
+        <p class="no-match">Ningún usuario coincide con «{{ query().trim() }}».</p>
       }
     </div>
   }

@@ -38,4 +38,17 @@ public class TagController {
                               @AuthenticationPrincipal Long userId) {
         return tagService.rename(id, request, userId);
     }
+
+    @PatchMapping("/{id}/color")
+    public TagResponse changeColor(@PathVariable Long id, @Valid @RequestBody ChangeTagColorRequest request,
+                                   @AuthenticationPrincipal Long userId) {
+        return tagService.changeColor(id, request, userId);
+    }
+
+    /** Lo quita de las preguntas y exámenes que lo tienen (RF-08). */
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Long id, @AuthenticationPrincipal Long userId) {
+        tagService.delete(id, userId);
+    }
 }

@@ -20,8 +20,10 @@ import { passwordMatchValidator } from '../../../shared/utils/password-match';
 /** Valor de «Sin club» en el desplegable: con null, el desplegable se mostraría vacío. */
 const NO_CLUB = 0;
 
-function registerError(status: number | undefined): string {
+function registerError(status: number | undefined, message?: string): string {
   if (status === 409) return 'El usuario o email ya existe';
+  // Demasiados intentos (RNF-07): el servidor dice cuánto esperar
+  if (status === 429) return message ?? 'Demasiados intentos. Espera un minuto.';
   if (status === 404) return 'Ese club ya no existe: elige otro o déjalo en «Sin club»';
   return 'Error al registrarse. Inténtalo de nuevo.';
 }
@@ -88,7 +90,7 @@ export class RegisterComponent {
         this.loading.set(false);
       },
       error: (err) => {
-        this.error.set(registerError(err?.status));
+        this.error.set(registerError(err?.status, err?.error?.message));
         this.loading.set(false);
       }
     });

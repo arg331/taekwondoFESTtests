@@ -30,7 +30,7 @@
 
   <!-- El selector de vista va a la altura de «Gestión de tags» -->
   <div class="tags-row">
-    <app-tag-manager class="tags-manager" [(tags)]="tags" />
+    <app-tag-manager class="tags-manager" [(tags)]="tags" (updated)="onTagUpdated($event)" (removed)="onTagRemoved($event)" />
     <div class="view-switch" role="group" aria-label="Vista de las preguntas">
       <button type="button" aria-label="Ver como tarjetas" [attr.aria-pressed]="view() === 'cards'"
               (click)="setView('cards')">

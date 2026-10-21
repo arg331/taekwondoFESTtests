@@ -257,7 +257,7 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
         HttpResult missing = submit(exam.code(), startAttempt(exam.code(), null), null,
                 answers(exam.questionIds(), Arrays.asList(4, 0, 0, 0, 0)));
 
-        assertThat(negative.expectStatus(400).message()).startsWith("answers[0].chosenOptions");
+        assertThat(negative.expectStatus(400).message()).startsWith("Opciones marcadas: ");
         assertThat(missing.expectStatus(409).message())
                 .isEqualTo("La opción 4 no existe en la pregunta " + exam.questionIds().get(0));
     }

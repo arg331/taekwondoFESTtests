@@ -66,7 +66,7 @@ class ClubCharacterizationTest extends ApiCharacterizationTest {
     @Test
     @DisplayName("Crear: el nombre no puede estar vacío")
     void create_blankName_badRequest() {
-        assertThat(post("/api/clubs", newTeacher().token(), obj("name", " ")).expectStatus(400).message()).startsWith("name");
+        assertThat(post("/api/clubs", newTeacher().token(), obj("name", " ")).expectStatus(400).message()).startsWith("Nombre: ");
     }
 
     // ───── Listar ─────

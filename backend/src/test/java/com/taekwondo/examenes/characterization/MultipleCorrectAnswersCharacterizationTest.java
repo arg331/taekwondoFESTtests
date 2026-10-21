@@ -18,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DisplayName("Caracterización: varias respuestas correctas (RF-09)")
 class MultipleCorrectAnswersCharacterizationTest extends ApiCharacterizationTest {
 
-    private static final String INVALID = "correctAnswersValid: debe señalar una o más opciones de la pregunta, sin repetir";
+    private static final String INVALID = "Respuestas correctas: debe señalar una o más opciones de la pregunta, sin repetir";
 
     @Test
     @DisplayName("Una pregunta guarda varias correctas; vacías, repetidas o fuera de las opciones dan 400")

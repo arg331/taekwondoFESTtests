@@ -3,7 +3,7 @@
   <div class="page-header">
     <div>
       <h1>Banco de preguntas</h1>
-      <p class="subtitle">{{ filtered().length }} de {{ questions().length }} preguntas</p>
+      <p class="subtitle">{{ filtered().length }} de {{ pool().length }} preguntas</p>
     </div>
     <button mat-flat-button color="primary" (click)="editing.set(null)">
       <mat-icon>add</mat-icon>
@@ -15,6 +15,17 @@
   @if (editing() === null) {
     <app-question-form [question]="null" [tags]="tags()"
                        (saved)="onSaved($event)" (cancelled)="editing.set(undefined)" />
+  }
+
+  <!-- Qué preguntas se ven (RF-57) -->
+  <mat-button-toggle-group class="source-switch" hideSingleSelectionIndicator aria-label="Qué preguntas ver"
+                           [value]="source()" (change)="source.set($event.value)">
+    <mat-button-toggle value="mine">Mi banco de preguntas</mat-button-toggle>
+    <mat-button-toggle value="shared">Preguntas compartidas conmigo</mat-button-toggle>
+    <mat-button-toggle value="all">Todas las preguntas disponibles</mat-button-toggle>
+  </mat-button-toggle-group>
+  @if (source() !== 'mine' && sharedQuestions().length > 0) {
+    <p class="shared-hint">No puedes modificar las preguntas que han compartido contigo</p>
   }
 
   <!-- El selector de vista va a la altura de «Gestión de tags» -->
@@ -87,8 +98,12 @@
       } @empty {
         <div class="empty">
           <mat-icon>quiz</mat-icon>
-          <p>No hay preguntas que mostrar.</p>
-          <button mat-flat-button color="primary" (click)="editing.set(null)">Crear pregunta</button>
+          @if (source() === 'shared') {
+            <p>Nadie te ha compartido preguntas todavía: llegan con los exámenes que aceptas.</p>
+          } @else {
+            <p>No hay preguntas que mostrar.</p>
+            <button mat-flat-button color="primary" (click)="editing.set(null)">Crear pregunta</button>
+          }
         </div>
       }
     </div>

@@ -6,6 +6,9 @@ import com.taekwondo.examenes.exam.Exam;
 import com.taekwondo.examenes.exam.ExamRepository;
 import com.taekwondo.examenes.exam.ExamResponse;
 import com.taekwondo.examenes.exam.ExamService;
+import com.taekwondo.examenes.question.Question;
+import com.taekwondo.examenes.question.QuestionRepository;
+import com.taekwondo.examenes.question.QuestionResponse;
 import com.taekwondo.examenes.share.ShareDtos.ExamShareResponse;
 import com.taekwondo.examenes.share.ShareDtos.InvitationResponse;
 import com.taekwondo.examenes.share.ShareDtos.ShareCandidateResponse;
@@ -18,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -41,14 +45,17 @@ public class ExamShareService {
     private final ExamService examService;
     private final ExamRepository examRepository;
     private final UserRepository userRepository;
+    private final QuestionRepository questionRepository;
     private final Clock clock;
 
     public ExamShareService(ExamShareRepository shareRepository, ExamService examService,
-                            ExamRepository examRepository, UserRepository userRepository, Clock clock) {
+                            ExamRepository examRepository, UserRepository userRepository,
+                            QuestionRepository questionRepository, Clock clock) {
         this.shareRepository = shareRepository;
         this.examService = examService;
         this.examRepository = examRepository;
         this.userRepository = userRepository;
+        this.questionRepository = questionRepository;
         this.clock = clock;
     }
 
@@ -134,6 +141,21 @@ public class ExamShareService {
                 .filter(s -> !s.isPending())
                 .orElseThrow(() -> new ResourceNotFoundException("No existe un examen con id " + examId));
         shareRepository.delete(share);
+    }
+
+    /**
+     * Preguntas de los exámenes que me han compartido y he aceptado (RF-57): las del banco del dueño, al
+     * día y una vez cada una, de la más reciente a la más antigua. Solo se consultan.
+     */
+    @Transactional(readOnly = true)
+    public List<QuestionResponse> sharedQuestions(Long teacherId) {
+        List<Exam> exams = examRepository.findAllById(examService.sharedExamIds(teacherId));
+        Set<Long> questionIds = exams.stream().flatMap(e -> e.getQuestionIds().stream()).collect(Collectors.toSet());
+        Map<Long, User> owners = usersById(exams.stream().map(Exam::getOwnerId).collect(Collectors.toSet()));
+        return questionRepository.findAllById(questionIds).stream()
+                .sorted(Comparator.comparing(Question::getCreatedAt).reversed())
+                .map(q -> QuestionResponse.from(q, owners.get(q.getOwnerId()).getDisplayName()))
+                .toList();
     }
 
     // ───── Auxiliares ─────

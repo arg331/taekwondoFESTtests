@@ -15,7 +15,7 @@ class QuestionBankCharacterizationTest extends ApiCharacterizationTest {
 
     private static final List<String> TAG_FIELDS = List.of("id", "name", "color", "createdAt");
     private static final List<String> QUESTION_FIELDS = List.of("id", "text", "options", "correctAnswers",
-            "explanation", "grade", "type", "tags", "createdAt", "updatedAt");
+            "explanation", "grade", "type", "tags", "createdAt", "updatedAt", "sharedBy");
 
     // ───── Tags ─────
 

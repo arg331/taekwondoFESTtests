@@ -35,12 +35,15 @@
 
 <ng-template #actions>
   <div class="question-actions">
-    <button mat-icon-button (click)="edit.emit()" matTooltip="Editar">
-      <mat-icon>edit</mat-icon>
-    </button>
-    <button mat-icon-button color="warn" (click)="remove.emit()" matTooltip="Eliminar">
-      <mat-icon>delete</mat-icon>
-    </button>
+    <!-- Las compartidas conmigo solo se consultan (RF-57) -->
+    @if (!question().sharedBy) {
+      <button mat-icon-button (click)="edit.emit()" matTooltip="Editar">
+        <mat-icon>edit</mat-icon>
+      </button>
+      <button mat-icon-button color="warn" (click)="remove.emit()" matTooltip="Eliminar">
+        <mat-icon>delete</mat-icon>
+      </button>
+    }
   </div>
 </ng-template>
 
@@ -64,6 +67,9 @@
 </ng-template>
 
 <ng-template #badges>
+  @if (question().sharedBy; as sharedBy) {
+    <span class="shared-by">Compartida por {{ sharedBy }}</span>
+  }
   <app-grade-badge [grade]="question().grade" />
   @if (question().type; as type) {
     <span class="type-chip">{{ typeLabel[type] }}</span>

@@ -17,7 +17,7 @@ const ITF = tag(3, 'ITF');
 function question(id: number, grade: Grade | null, tags: TagResponse[], text = `Pregunta ${id}`, type: QuestionType | null = null): QuestionResponse {
   return {
     id, text, options: ['Sí', 'No'], correctAnswers: [1], explanation: `Explicación ${id}`, grade, type, tags,
-    createdAt: '2026-10-10T10:00:00', updatedAt: '2026-10-10T10:00:00'
+    createdAt: '2026-10-10T10:00:00', updatedAt: '2026-10-10T10:00:00', sharedBy: null
   };
 }
 

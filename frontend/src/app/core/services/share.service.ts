@@ -3,6 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ExamResponse } from '../models/exam.models';
+import { QuestionResponse } from '../models/question.models';
 import { ExamShareResponse, InvitationResponse, ShareCandidateResponse } from '../models/share.models';
 
 /**
@@ -44,6 +45,11 @@ export class ShareService {
 
   reject(invitationId: number): Observable<void> {
     return this.http.delete<void>(`${this.api}/shares/invitations/${invitationId}`);
+  }
+
+  /** Preguntas de los exámenes que me han compartido (RF-57): solo se consultan. */
+  questions(): Observable<QuestionResponse[]> {
+    return this.http.get<QuestionResponse[]>(`${this.api}/shares/questions`);
   }
 
   /** «Dejar de ver» un examen que me compartieron. */

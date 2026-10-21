@@ -73,6 +73,8 @@ export interface QuestionResponse {
   tags: TagResponse[];
   createdAt: string;
   updatedAt: string;
+  /** Quién me la ha compartido (RF-57): solo puedo consultarla. null en las propias. */
+  sharedBy: string | null;
 }
 
 /** Cuerpo para crear y para editar una pregunta. */

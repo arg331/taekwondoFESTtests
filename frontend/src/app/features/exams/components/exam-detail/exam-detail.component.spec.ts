@@ -29,7 +29,7 @@ function exam(status: ExamStatus, questionIds: number[] = []): ExamResponse {
 function question(id: number): QuestionResponse {
   return {
     id, text: `Pregunta ${id}`, options: ['A', 'B'], correctAnswers: [0], explanation: '', grade: 'BLANCO', type: null,
-    tags: [], createdAt: '2026-10-08T10:00:00', updatedAt: '2026-10-08T10:00:00'
+    tags: [], createdAt: '2026-10-08T10:00:00', updatedAt: '2026-10-08T10:00:00', sharedBy: null
   };
 }
 
@@ -658,6 +658,15 @@ describe('ExamDetailComponent', () => {
       const actions = buttonTexts().join(' | ');
       expect(actions).not.toContain('Publicar examen');
       expect(actions).not.toContain('Eliminar borrador');
+    });
+
+    it('un borrador compartido lista sus preguntas con las compartidas conmigo (RF-57)', async () => {
+      await render(SHARED('DRAFT', [2, 1]));
+      fixture.componentRef.setInput('sharedQuestions', [question(1), question(2)].map(q => ({ ...q, sharedBy: 'Ana Pérez' })));
+      await stable();
+
+      expect(Array.from(el.querySelectorAll('.assigned-list li')).map(li => li.textContent?.trim()))
+        .toEqual(['Pregunta 2', 'Pregunta 1']);
     });
 
     it('«Dejar de ver» lo quita de su lista', async () => {

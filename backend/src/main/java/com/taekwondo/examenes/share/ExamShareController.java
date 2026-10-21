@@ -1,6 +1,7 @@
 package com.taekwondo.examenes.share;
 
 import com.taekwondo.examenes.exam.ExamResponse;
+import com.taekwondo.examenes.question.QuestionResponse;
 import com.taekwondo.examenes.share.ShareDtos.ExamShareResponse;
 import com.taekwondo.examenes.share.ShareDtos.InvitationResponse;
 import com.taekwondo.examenes.share.ShareDtos.InviteRequest;
@@ -18,6 +19,7 @@ import java.util.List;
  *   <li>/api/exams/{id}/shares: el dueño invita, ve con quién lo comparte y retira el acceso;
  *       /shares/me: el invitado deja de verlo.</li>
  *   <li>/api/shares/invitations: el invitado ve sus invitaciones y las acepta o rechaza.</li>
+ *   <li>/api/shares/questions: las preguntas de los exámenes que me han compartido (RF-57).</li>
  * </ul>
  */
 @RestController
@@ -69,6 +71,12 @@ public class ExamShareController {
     @PostMapping("/shares/invitations/{invitationId}/accept")
     public ExamResponse accept(@PathVariable Long invitationId, @AuthenticationPrincipal Long userId) {
         return shareService.accept(invitationId, userId);
+    }
+
+    /** Preguntas de los exámenes que me han compartido (RF-57), para consultarlas. */
+    @GetMapping("/shares/questions")
+    public List<QuestionResponse> sharedQuestions(@AuthenticationPrincipal Long userId) {
+        return shareService.sharedQuestions(userId);
     }
 
     @DeleteMapping("/shares/invitations/{invitationId}")

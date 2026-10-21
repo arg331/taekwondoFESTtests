@@ -87,6 +87,8 @@ export class ExamDetailComponent {
 
   exam = input.required<ExamResponse>();
   questions = input<QuestionResponse[]>([]);
+  /** Las de los exámenes que me han compartido: las de un borrador compartido se ven aquí (RF-57). */
+  sharedQuestions = input<QuestionResponse[]>([]);
   /** Tags del profesor, para filtrar y para crear preguntas desde el selector. */
   tags = input<TagResponse[]>([]);
   /** Códigos de los otros exámenes abiertos: al publicar, el QR toma un color distinto (RF-50). */
@@ -114,6 +116,11 @@ export class ExamDetailComponent {
   error = linkedSignal<number, string | null>({ source: this.examId, computation: () => null });
   /** Me lo han compartido (RF-51): puedo consultarlo y proyectarlo, no cambiarlo. */
   readOnly = computed(() => !!this.exam().sharedBy);
+  /** Las preguntas elegidas de un borrador compartido, en su orden. */
+  sharedDraftQuestions = computed(() => {
+    const byId = new Map(this.sharedQuestions().map(q => [q.id, q]));
+    return this.exam().questionIds.map(id => byId.get(id)).filter((q): q is QuestionResponse => !!q);
+  });
   /** Panel para compartirlo con otros profesores; se carga al abrirlo. */
   showShare = linkedSignal({ source: this.examId, computation: () => false });
   editingConfig = linkedSignal({ source: this.examId, computation: () => false });

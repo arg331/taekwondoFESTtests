@@ -157,6 +157,11 @@
       </p>
       @if (exam().status === 'DRAFT' && readOnly()) {
         <p class="published-hint">Todavía es un borrador: {{ exam().sharedBy }} lo está preparando.</p>
+        <ol class="assigned-list">
+          @for (q of sharedDraftQuestions(); track q.id) {
+            <li>{{ q.text }}</li>
+          }
+        </ol>
       } @else if (exam().status === 'DRAFT') {
         <app-exam-question-picker [questions]="questions()" [tags]="tags()"
                                   [targetCount]="exam().config.numberOfQuestions"

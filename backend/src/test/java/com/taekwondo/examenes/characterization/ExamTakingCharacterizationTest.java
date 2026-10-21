@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
 
     private static final List<String> RESULT_FIELDS = List.of("id", "examId", "examTitle", "studentName",
-            "studentClub", "studentEmail", "registered", "scoreVisible", "answers", "correctAnswers", "totalQuestions", "score",
+            "studentClub", "studentEmail", "registered", "studentKey", "scoreVisible", "answers", "correctAnswers", "totalQuestions", "score",
             "passed", "timeSpentSeconds", "completedAt");
     private static final List<String> ANSWER_FIELDS = List.of("questionId", "studentAnswer", "correctAnswer", "correct");
 
@@ -300,7 +300,7 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
         assertThat(results).extracting(r -> r.get("studentName")).containsExactly("Segunda", "Primera");
         assertThat(results).allMatch(r -> Boolean.TRUE.equals(r.get("scoreVisible")));
         assertThat(stats.asMap()).containsExactlyInAnyOrderEntriesOf(Map.of(
-                "examId", (int) exam.id(), "totalAttempts", 2, "averageScore", 80.0,
+                "examId", (int) exam.id(), "totalAttempts", 2, "totalStudents", 2, "averageScore", 80.0,
                 "passedCount", 1, "failedCount", 1, "highestScore", 100, "lowestScore", 60));
     }
 
@@ -332,7 +332,7 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
         HttpResult stats = get("/api/results/exam/" + exam.id() + "/statistics", teacher.token()).expectStatus(200);
 
         assertThat(stats.asMap()).containsExactlyInAnyOrderEntriesOf(Map.of(
-                "examId", (int) exam.id(), "totalAttempts", 0, "averageScore", 0.0,
+                "examId", (int) exam.id(), "totalAttempts", 0, "totalStudents", 0, "averageScore", 0.0,
                 "passedCount", 0, "failedCount", 0, "highestScore", 0, "lowestScore", 0));
     }
 

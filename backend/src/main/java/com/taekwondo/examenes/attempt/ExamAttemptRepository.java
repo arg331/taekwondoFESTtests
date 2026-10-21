@@ -9,6 +9,6 @@ public interface ExamAttemptRepository extends JpaRepository<ExamAttempt, Long> 
     /** Intentos de un alumno registrado en un examen. */
     List<ExamAttempt> findAllByExamIdAndStudentUserId(Long examId, Long studentUserId);
 
-    /** Intentos anónimos con ese nombre, sin distinguir mayúsculas (RN-08). */
-    List<ExamAttempt> findAllByExamIdAndStudentUserIdIsNullAndStudentNameIgnoreCase(Long examId, String studentName);
+    /** Intentos anónimos con ese nombre, sin distinguir mayúsculas, tildes ni espacios (RN-08): studentKey = nameKey. */
+    List<ExamAttempt> findAllByExamIdAndStudentUserIdIsNullAndStudentKey(Long examId, String studentKey);
 }

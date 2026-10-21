@@ -21,7 +21,22 @@
 .results-panel { min-height: 200px; }
 .section-title { font-weight: 600; margin: 16px 0 8px; color: #333; }
 .table-wrapper { overflow-x: auto; border-radius: 4px; border: 1px solid #eee; }
-.results-table { width: 100%; }
+.results-table {
+  width: 100%; border-collapse: collapse; font-size: 0.9rem;
+  th { text-align: left; font-weight: 600; color: #555; font-size: 0.8rem; padding: 10px 12px; border-bottom: 1px solid #ddd; }
+  td { padding: 10px 12px; border-bottom: 1px solid #eee; }
+}
+
+// RF-54: los intentos de un alumno se despliegan bajo su fila
+.attempts-toggle {
+  display: inline-flex; align-items: center; gap: 2px; margin-left: 8px; padding: 1px 8px 1px 4px;
+  border: 1px solid #ccc; border-radius: 12px; background: #fafafa; cursor: pointer;
+  font: inherit; font-size: 0.75rem; color: #444;
+  mat-icon { font-size: 18px; width: 18px; height: 18px; }
+  &:hover { background: #f0f0f0; }
+}
+.attempt-row td { background: #fafafa; font-size: 0.85rem; color: #555; }
+.attempt-label { padding-left: 32px !important; }
 .score-badge {
   color: white; background: #f44336; padding: 2px 10px; border-radius: 12px;
   font-size: 0.85rem; font-weight: 600;

@@ -26,6 +26,8 @@ export interface ResultResponse {
   studentEmail: string | null;
   /** La entrega la hizo un usuario con cuenta (no un anónimo). */
   registered: boolean;
+  /** Qué alumno la hizo, para agrupar sus intentos (RF-54). */
+  studentKey: string;
   scoreVisible: boolean;
   answers: AnswerResponse[] | null;
   correctAnswers: number | null;
@@ -38,7 +40,9 @@ export interface ResultResponse {
 
 export interface ExamStatisticsResponse {
   examId: number;
+  /** Entregas; el resto de cifras es por alumno, con su mejor nota (RF-54). */
   totalAttempts: number;
+  totalStudents: number;
   averageScore: number;
   passedCount: number;
   failedCount: number;

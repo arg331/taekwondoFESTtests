@@ -5,7 +5,6 @@ import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDividerModule } from '@angular/material/divider';
-import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { RouterLink } from '@angular/router';
@@ -16,6 +15,13 @@ import { ExamStatisticsResponse, ResultResponse } from '../../../../core/models/
 import { formatDuration } from '../../../../shared/utils/format';
 import { fileSlug, saveBlob } from '../../../../shared/utils/download';
 import { ExamStatsComponent } from '../exam-stats/exam-stats.component';
+
+/** Un alumno en los resultados: su mejor entrega y todas, de la más reciente a la más antigua. */
+interface StudentResults {
+  key: string;
+  best: ResultResponse;
+  attempts: ResultResponse[];
+}
 
 /**
  * Vista del profesor: elige uno de sus exámenes publicados y ve estadísticas y participantes.
@@ -28,7 +34,6 @@ import { ExamStatsComponent } from '../exam-stats/exam-stats.component';
     MatIconModule,
     MatProgressSpinnerModule,
     MatDividerModule,
-    MatTableModule,
     MatButtonModule,
     RouterLink,
     ExamStatsComponent
@@ -46,7 +51,6 @@ export class TeacherResultsComponent implements OnInit {
   readonly statusLabel = EXAM_STATUS_LABEL;
   readonly statusColor = EXAM_STATUS_COLOR;
   readonly formatDuration = formatDuration;
-  readonly columns = ['studentName', 'studentClub', 'score', 'passed', 'time', 'date'];
 
   loadingExams = signal(true);
   exams = signal<ExamResponse[]>([]);
@@ -57,9 +61,28 @@ export class TeacherResultsComponent implements OnInit {
   exporting = signal(false);
 
   publishedExams = computed(() => this.exams().filter(e => e.status !== 'DRAFT'));
-  /** Primero los usuarios registrados y, dentro de cada grupo, por nombre. */
-  sortedResults = computed(() => [...this.results()].sort((a, b) =>
-    Number(b.registered) - Number(a.registered) || a.studentName.localeCompare(b.studentName, 'es')));
+  /**
+   * Cada alumno una vez, con su mejor nota y sus intentos del más reciente al más antiguo (RF-54).
+   * Primero los usuarios registrados y, dentro de cada grupo, por nombre.
+   */
+  students = computed<StudentResults[]>(() => {
+    const byStudent = new Map<string, ResultResponse[]>();
+    for (const r of this.results()) byStudent.set(r.studentKey, [...(byStudent.get(r.studentKey) ?? []), r]);
+    return [...byStudent.entries()]
+      .map(([key, attempts]) => {
+        const sorted = [...attempts].sort((a, b) => b.completedAt.localeCompare(a.completedAt));
+        const best = sorted.reduce((top, r) => (r.score ?? 0) > (top.score ?? 0) ? r : top);
+        return { key, best, attempts: sorted };
+      })
+      .sort((a, b) => Number(b.best.registered) - Number(a.best.registered)
+        || a.best.studentName.localeCompare(b.best.studentName, 'es'));
+  });
+  /** Alumno con los intentos desplegados; se cierra al cambiar de examen. */
+  expandedKey = signal<string | null>(null);
+
+  toggleAttempts(key: string): void {
+    this.expandedKey.update(current => current === key ? null : key);
+  }
 
   ngOnInit(): void {
     this.examSvc.getMine().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
@@ -72,6 +95,7 @@ export class TeacherResultsComponent implements OnInit {
     this.selectedExam.set(exam);
     this.loadingResults.set(true);
     this.results.set([]);
+    this.expandedKey.set(null);
     this.stats.set(null);
 
     this.resultSvc.getByExam(exam.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({

@@ -2,6 +2,7 @@ package com.taekwondo.examenes.exam;
 
 import com.taekwondo.examenes.attempt.ExamAttempt;
 import com.taekwondo.examenes.attempt.ExamAttemptRepository;
+import com.taekwondo.examenes.attempt.StudentIdentity;
 import com.taekwondo.examenes.common.BusinessRuleException;
 import com.taekwondo.examenes.common.ResourceNotFoundException;
 import com.taekwondo.examenes.question.PublicQuestionResponse;
@@ -246,7 +247,8 @@ public class ExamService {
         Duration validity = attemptValidity(exam.getConfig());
         List<ExamAttempt> previous = studentUserId != null
                 ? attemptRepository.findAllByExamIdAndStudentUserId(exam.getId(), studentUserId)
-                : attemptRepository.findAllByExamIdAndStudentUserIdIsNullAndStudentNameIgnoreCase(exam.getId(), studentName);
+                : attemptRepository.findAllByExamIdAndStudentUserIdIsNullAndStudentKey(exam.getId(),
+                        StudentIdentity.nameKey(studentName));
         if (previous.stream().anyMatch(a -> a.isOpenAt(now, validity))) {
             throw new BusinessRuleException("Ya tienes un intento empezado en este examen");
         }

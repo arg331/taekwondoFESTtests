@@ -1,5 +1,6 @@
 package com.taekwondo.examenes.result;
 
+import com.taekwondo.examenes.attempt.StudentIdentity;
 import com.taekwondo.examenes.exam.ExamConfig;
 
 import java.time.LocalDateTime;
@@ -19,6 +20,8 @@ public record ResultResponse(
         String studentEmail,
         /** La hizo un usuario con cuenta, no un anónimo. */
         boolean registered,
+        /** Qué alumno la hizo, para agrupar sus intentos (RF-54): «u:<id>» o «n:<nombre normalizado>». */
+        String studentKey,
         boolean scoreVisible,
         List<AnswerResponse> answers,
         Integer correctAnswers,
@@ -42,7 +45,8 @@ public record ResultResponse(
     /** Vista completa, la del profesor. */
     public static ResultResponse from(Result r, String examTitle) {
         return new ResultResponse(r.getId(), r.getExamId(), examTitle, r.getStudentName(), r.getStudentClub(),
-                r.getStudentEmail(), r.getStudentUserId() != null, true,
+                r.getStudentEmail(), r.getStudentUserId() != null,
+                StudentIdentity.key(r.getStudentUserId(), r.getStudentName()), true,
                 r.getAnswers().stream().map(AnswerResponse::from).toList(),
                 r.getCorrectAnswers(), r.getTotalQuestions(), r.getScore(), r.isPassed(),
                 r.getTimeSpentSeconds(), r.getCompletedAt());
@@ -58,7 +62,8 @@ public record ResultResponse(
                 ? r.getAnswers().stream().map(AnswerResponse::withoutSolution).toList()
                 : null;
         return new ResultResponse(r.getId(), r.getExamId(), examTitle, r.getStudentName(), r.getStudentClub(),
-                r.getStudentEmail(), r.getStudentUserId() != null, true, answers,
+                r.getStudentEmail(), r.getStudentUserId() != null,
+                StudentIdentity.key(r.getStudentUserId(), r.getStudentName()), true, answers,
                 r.getCorrectAnswers(), r.getTotalQuestions(), r.getScore(), r.isPassed(),
                 r.getTimeSpentSeconds(), r.getCompletedAt());
     }
@@ -66,7 +71,8 @@ public record ResultResponse(
     /** Vista del alumno sin nota ni respuestas. */
     public static ResultResponse hidden(Result r, String examTitle) {
         return new ResultResponse(r.getId(), r.getExamId(), examTitle, r.getStudentName(), r.getStudentClub(),
-                r.getStudentEmail(), r.getStudentUserId() != null, false, null, null, r.getTotalQuestions(), null, null,
+                r.getStudentEmail(), r.getStudentUserId() != null,
+                StudentIdentity.key(r.getStudentUserId(), r.getStudentName()), false, null, null, r.getTotalQuestions(), null, null,
                 r.getTimeSpentSeconds(), r.getCompletedAt());
     }
 }

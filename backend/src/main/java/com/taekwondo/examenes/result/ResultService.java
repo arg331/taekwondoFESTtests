@@ -2,6 +2,7 @@ package com.taekwondo.examenes.result;
 
 import com.taekwondo.examenes.attempt.ExamAttempt;
 import com.taekwondo.examenes.attempt.ExamAttemptRepository;
+import com.taekwondo.examenes.attempt.StudentIdentity;
 import com.taekwondo.examenes.common.BusinessRuleException;
 import com.taekwondo.examenes.common.ResourceNotFoundException;
 import com.taekwondo.examenes.exam.Exam;
@@ -153,12 +154,15 @@ public class ResultService {
         examService.getOwned(examId, ownerId);
         List<Result> results = resultRepository.findAllByExamIdOrderByCompletedAtDesc(examId);
         if (results.isEmpty()) {
-            return new ExamStatisticsResponse(examId, 0, 0.0, 0, 0, 0, 0);
+            return new ExamStatisticsResponse(examId, 0, 0, 0.0, 0, 0, 0, 0);
         }
-        IntSummaryStatistics scores = results.stream().mapToInt(Result::getScore).summaryStatistics();
-        int passed = (int) results.stream().filter(Result::isPassed).count();
-        return new ExamStatisticsResponse(examId, results.size(), scores.getAverage(), passed,
-                results.size() - passed, scores.getMax(), scores.getMin());
+        // Cada alumno cuenta una vez, con su mejor nota (RF-54)
+        Map<String, Integer> bestByStudent = results.stream().collect(Collectors.toMap(
+                r -> StudentIdentity.key(r.getStudentUserId(), r.getStudentName()), Result::getScore, Math::max));
+        IntSummaryStatistics scores = bestByStudent.values().stream().mapToInt(Integer::intValue).summaryStatistics();
+        int passed = (int) bestByStudent.values().stream().filter(score -> score >= Result.PASSING_SCORE).count();
+        return new ExamStatisticsResponse(examId, results.size(), bestByStudent.size(), scores.getAverage(), passed,
+                bestByStudent.size() - passed, scores.getMax(), scores.getMin());
     }
 
     // ───── Consultas del alumno ─────

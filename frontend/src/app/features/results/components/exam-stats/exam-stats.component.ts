@@ -18,7 +18,7 @@ export class ExamStatsComponent {
 
   passedPct = computed(() => {
     const s = this.stats();
-    return s.totalAttempts ? s.passedCount / s.totalAttempts : 0;
+    return s.totalStudents ? s.passedCount / s.totalStudents : 0;
   });
 
   /** Sector de aprobados, empezando arriba y en sentido horario (círculo de radio 1). */

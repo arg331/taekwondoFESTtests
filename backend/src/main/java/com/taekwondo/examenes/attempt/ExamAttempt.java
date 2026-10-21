@@ -33,6 +33,10 @@ public class ExamAttempt {
     @Column(name = "student_name", nullable = false, length = 100)
     private String studentName;
 
+    /** Nombre sin mayúsculas, tildes ni espacios de más: así se reconoce al anónimo (RN-08). */
+    @Column(name = "student_key", nullable = false, length = 100)
+    private String studentKey;
+
     @Column(name = "student_club", length = 100)
     private String studentClub;
 
@@ -50,6 +54,7 @@ public class ExamAttempt {
         this.examId = examId;
         this.studentUserId = studentUserId;
         this.studentName = studentName;
+        this.studentKey = StudentIdentity.nameKey(studentName);
         this.studentClub = studentClub;
         this.studentEmail = studentEmail;
         this.startedAt = startedAt;

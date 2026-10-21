@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
 
     private static final List<String> RESULT_FIELDS = List.of("id", "examId", "examTitle", "studentName",
-            "studentClub", "studentEmail", "registered", "studentKey", "scoreVisible", "answers", "correctAnswers", "totalQuestions", "score",
+            "studentClub", "studentEmail", "registered", "studentUserId", "studentKey", "scoreVisible", "answers", "correctAnswers", "totalQuestions", "score",
             "passed", "timeSpentSeconds", "completedAt", "autoSubmitted");
     private static final List<String> ANSWER_FIELDS = List.of("questionId", "studentAnswers", "correctAnswers", "correct");
 

@@ -68,7 +68,12 @@
                   <span class="registration-tag" [class.registered]="student.best.registered">
                     {{ student.best.registered ? 'Registrado' : 'No registrado' }}
                   </span>
-                  <span class="student-name">{{ student.best.studentName }}</span>
+                  @if (student.best.studentUserId !== null) {
+                    <!-- Todos sus resultados (RF-55) -->
+                    <a class="student-name" [routerLink]="['/results/user', student.best.studentUserId]">{{ student.best.studentName }}</a>
+                  } @else {
+                    <span class="student-name">{{ student.best.studentName }}</span>
+                  }
                   @if (student.attempts.length > 1) {
                     <button type="button" class="attempts-toggle" (click)="toggleAttempts(student.key)"
                             [attr.aria-expanded]="expandedKey() === student.key">
@@ -108,6 +113,9 @@
           </tbody>
         </table>
       </div>
+
+      <mat-divider />
+      <app-question-stats [examId]="selectedExam()!.id" />
     }
   }
 </div>

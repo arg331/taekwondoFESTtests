@@ -309,7 +309,7 @@ describe('ExamTakeComponent', () => {
       await stable();
       http.expectOne(`${API}/results`).flush({
         id: 5, examId: 1, examTitle: 'Examen de árbitros', studentName: 'Ana', studentClub: null, studentEmail: null,
-        registered: false, studentKey: 'n:ana', scoreVisible: false, answers: null, correctAnswers: null, totalQuestions: 3,
+        registered: false, studentUserId: null, studentKey: 'n:ana', scoreVisible: false, answers: null, correctAnswers: null, totalQuestions: 3,
         score: null, passed: null, timeSpentSeconds: 40, completedAt: '2026-10-08T10:10:00', autoSubmitted: false
       } satisfies ResultResponse);
       await stable();
@@ -327,7 +327,7 @@ describe('ExamTakeComponent', () => {
       await stable();
       http.expectOne(`${API}/results`).flush({
         id: 5, examId: 1, examTitle: 'Examen de árbitros', studentName: 'Ana', studentClub: null, studentEmail: null,
-        registered: false, studentKey: 'n:ana', scoreVisible: true, answers: [], correctAnswers: 0, totalQuestions: 3, score: 0, passed: false,
+        registered: false, studentUserId: null, studentKey: 'n:ana', scoreVisible: true, answers: [], correctAnswers: 0, totalQuestions: 3, score: 0, passed: false,
         timeSpentSeconds: 40, completedAt: '2026-10-08T10:10:00', autoSubmitted: false
       } satisfies ResultResponse);
       await stable();
@@ -425,7 +425,7 @@ describe('ExamTakeComponent', () => {
 
     const result: ResultResponse = {
       id: 5, examId: 1, examTitle: 'Examen de árbitros', studentName: 'Ana', studentClub: null, studentEmail: null,
-      registered: false, studentKey: 'n:ana', scoreVisible: true, correctAnswers: 1, totalQuestions: 3, score: 33, passed: false, timeSpentSeconds: 40,
+      registered: false, studentUserId: null, studentKey: 'n:ana', scoreVisible: true, correctAnswers: 1, totalQuestions: 3, score: 33, passed: false, timeSpentSeconds: 40,
       completedAt: '2026-10-08T10:10:00', autoSubmitted: false,
       answers: [
         { questionId: 10, studentAnswers: [1], correctAnswers: null, correct: true },
@@ -459,7 +459,7 @@ describe('ExamTakeComponent', () => {
 
     http.expectOne(`${API}/results`).flush({
       id: 5, examId: 1, examTitle: 'X', studentName: 'Ana', studentClub: null, studentEmail: null,
-      registered: false, studentKey: 'n:ana', scoreVisible: true, answers: null, correctAnswers: 2, totalQuestions: 3, score: 67, passed: false,
+      registered: false, studentUserId: null, studentKey: 'n:ana', scoreVisible: true, answers: null, correctAnswers: 2, totalQuestions: 3, score: 67, passed: false,
       timeSpentSeconds: 40, completedAt: '2026-10-08T10:10:00', autoSubmitted: false
     } satisfies ResultResponse);
     await stable();
@@ -478,7 +478,7 @@ describe('ExamTakeComponent', () => {
 
     http.expectOne(`${API}/results`).flush({
       id: 5, examId: 1, examTitle: 'X', studentName: 'Ana', studentClub: null, studentEmail: null,
-      registered: false, studentKey: 'n:ana', scoreVisible: false, answers: null, correctAnswers: null, totalQuestions: 3, score: null, passed: null,
+      registered: false, studentUserId: null, studentKey: 'n:ana', scoreVisible: false, answers: null, correctAnswers: null, totalQuestions: 3, score: null, passed: null,
       timeSpentSeconds: 40, completedAt: '2026-10-08T10:10:00', autoSubmitted: false
     } satisfies ResultResponse);
     await stable();

@@ -17,6 +17,7 @@ const EXAM: ExamResponse = {
 function result(id: number, studentName: string, registered: boolean, score = 100): ResultResponse {
   return {
     id, examId: 7, examTitle: EXAM.title, studentName, studentClub: 'Club Badajoz', studentEmail: null, registered,
+    studentUserId: registered ? 100 + id : null,
     studentKey: registered ? `u:${studentName}` : `n:${studentName.toLowerCase()}`,
     scoreVisible: true, answers: [], correctAnswers: score / 20, totalQuestions: 5, score, passed: score >= 70,
     timeSpentSeconds: 125, completedAt: `2026-10-12T11:0${id}:00`, autoSubmitted: false
@@ -57,6 +58,10 @@ describe('TeacherResultsComponent', () => {
     (el.querySelector('.exam-item') as HTMLElement).click();
     http.expectOne(`${API}/results/exam/7`).flush(RESULTS);
     http.expectOne(`${API}/results/exam/7/statistics`).flush(null);
+    // Debajo, el acierto por pregunta (RF-28): su resource tiene la app ocupada hasta que responde
+    fixture.detectChanges();
+    fixture.detectChanges();
+    http.expectOne(`${API}/results/exam/7/questions`).flush([]);
     await stable();
   });
 
@@ -81,6 +86,10 @@ describe('TeacherResultsComponent', () => {
     expect(tags.map(tag => tag?.classList.contains('registered'))).toEqual([true, true, false, false]);
   });
 
+  it('debajo de los participantes, el acierto por pregunta del examen (RF-28)', () => {
+    expect(el.querySelector('app-question-stats')).not.toBeNull();
+  });
+
   describe('cada alumno una vez, con sus intentos desplegables (RF-54)', () => {
     function row(name: string): HTMLElement {
       return Array.from(el.querySelectorAll('.results-table tr.student-row'))
@@ -92,6 +101,12 @@ describe('TeacherResultsComponent', () => {
       expect(row('Ana').querySelector('.score-badge')?.textContent?.trim()).toBe('100');
       expect(row('Ana').textContent).toContain('2 intentos');
       expect(row('Bruno').textContent).not.toContain('intentos');
+    });
+
+    it('el nombre de un alumno registrado lleva a todos sus resultados; el de un anónimo, no (RF-55)', () => {
+      expect(row('Bruno').querySelector('a.student-name')?.getAttribute('href')).toBe('/results/user/101');
+      expect(row('Zoe').querySelector('a.student-name')?.getAttribute('href')).toBe('/results/user/103');
+      expect(row('Ana').querySelector('a.student-name')).toBeNull();
     });
 
     it('al desplegarlo se ven todos sus intentos, el más reciente primero', async () => {

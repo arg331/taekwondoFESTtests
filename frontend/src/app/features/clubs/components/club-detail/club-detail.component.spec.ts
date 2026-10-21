@@ -50,6 +50,13 @@ describe('ClubDetailComponent', () => {
     return Array.from(el.querySelectorAll('.member-name')).map(m => m.textContent?.trim() ?? '');
   }
 
+  it('el nombre de cada miembro lleva a sus resultados (RF-55)', async () => {
+    await render(true);
+
+    expect(Array.from(el.querySelectorAll('a.member-name')).map(a => a.getAttribute('href')))
+      .toEqual(['/results/user/7', '/results/user/8']);
+  });
+
   function type(selector: string, value: string): void {
     const input = el.querySelector(selector) as HTMLInputElement;
     input.value = value;

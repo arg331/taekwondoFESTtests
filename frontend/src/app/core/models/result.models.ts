@@ -27,6 +27,8 @@ export interface ResultResponse {
   studentEmail: string | null;
   /** La entrega la hizo un usuario con cuenta (no un anónimo). */
   registered: boolean;
+  /** Su cuenta, para ver todos sus resultados (RF-55); null si es anónimo. */
+  studentUserId: number | null;
   /** Qué alumno la hizo, para agrupar sus intentos (RF-54). */
   studentKey: string;
   scoreVisible: boolean;
@@ -39,6 +41,30 @@ export interface ResultResponse {
   completedAt: string;
   /** Se corrigió sola al acabarse el plazo, sin que el alumno la entregara (RF-24). */
   autoSubmitted: boolean;
+}
+
+/** Cómo se ha respondido una pregunta en todas las entregas de un examen (RF-28). */
+export interface QuestionStatsResponse {
+  questionId: number;
+  text: string;
+  options: string[];
+  correctAnswers: number[];
+  submissions: number;
+  correct: number;
+  blank: number;
+  /** optionCounts[i]: entregas que marcaron la opción i. */
+  optionCounts: number[];
+  /** % de acierto redondeado; null si nadie ha entregado. */
+  successRate: number | null;
+}
+
+/** Un usuario y sus entregas, la más reciente primero (RF-55). */
+export interface UserResultsResponse {
+  userId: number;
+  username: string;
+  displayName: string;
+  clubName: string | null;
+  results: ResultResponse[];
 }
 
 export interface ExamStatisticsResponse {

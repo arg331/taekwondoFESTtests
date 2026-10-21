@@ -81,8 +81,13 @@ public class ResultService {
     }
 
     /** Lo mismo, solo en un examen: antes de enseñar sus resultados al profesor. */
-    private void autoSubmitExpired(Long examId) {
+    void autoSubmitExpired(Long examId) {
         autoSubmit(attemptRepository.findAllByExamIdAndSubmittedAtIsNull(examId));
+    }
+
+    /** Lo mismo, solo los de un usuario: antes de enseñar sus resultados (RF-55). */
+    void autoSubmitExpiredOf(Long studentUserId) {
+        autoSubmit(attemptRepository.findAllByStudentUserIdAndSubmittedAtIsNull(studentUserId));
     }
 
     private void autoSubmit(List<ExamAttempt> open) {

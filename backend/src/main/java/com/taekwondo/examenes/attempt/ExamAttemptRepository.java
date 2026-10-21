@@ -22,6 +22,8 @@ public interface ExamAttemptRepository extends JpaRepository<ExamAttempt, Long> 
 
     List<ExamAttempt> findAllByExamIdAndSubmittedAtIsNull(Long examId);
 
+    List<ExamAttempt> findAllByStudentUserIdAndSubmittedAtIsNull(Long studentUserId);
+
     /**
      * Marca el intento como entregado si nadie lo ha hecho antes. Si dos peticiones lo intentan a la vez
      * (un doble clic, o la tarea periódica y una consulta del profesor), solo una lo consigue: devuelve 1,

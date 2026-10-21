@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, signal, OnInit, DestroyRef } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -23,7 +24,8 @@ const MESSAGE_DURATION_MS = 5000;
     MatCardModule,
     MatIconModule,
     MatProgressSpinnerModule,
-    MatSelectModule
+    MatSelectModule,
+    RouterLink
   ],
   templateUrl: './users.component.html',
   styleUrl: './users.component.scss',

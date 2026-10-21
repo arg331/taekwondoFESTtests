@@ -20,6 +20,8 @@ public record ResultResponse(
         String studentEmail,
         /** La hizo un usuario con cuenta, no un anónimo. */
         boolean registered,
+        /** Su cuenta, para ver todos sus resultados (RF-55); null si es anónimo. */
+        Long studentUserId,
         /** Qué alumno la hizo, para agrupar sus intentos (RF-54): «u:<id>» o «n:<nombre normalizado>». */
         String studentKey,
         boolean scoreVisible,
@@ -51,7 +53,7 @@ public record ResultResponse(
     /** Vista completa, la del profesor. */
     public static ResultResponse from(Result r, String examTitle) {
         return new ResultResponse(r.getId(), r.getExamId(), examTitle, r.getStudentName(), r.getStudentClub(),
-                r.getStudentEmail(), r.getStudentUserId() != null,
+                r.getStudentEmail(), r.getStudentUserId() != null, r.getStudentUserId(),
                 StudentIdentity.key(r.getStudentUserId(), r.getStudentName()), true,
                 r.getAnswers().stream().map(AnswerResponse::from).toList(),
                 r.getCorrectAnswers(), r.getTotalQuestions(), r.getScore(), r.isPassed(),
@@ -68,7 +70,7 @@ public record ResultResponse(
                 ? r.getAnswers().stream().map(AnswerResponse::withoutSolution).toList()
                 : null;
         return new ResultResponse(r.getId(), r.getExamId(), examTitle, r.getStudentName(), r.getStudentClub(),
-                r.getStudentEmail(), r.getStudentUserId() != null,
+                r.getStudentEmail(), r.getStudentUserId() != null, r.getStudentUserId(),
                 StudentIdentity.key(r.getStudentUserId(), r.getStudentName()), true, answers,
                 r.getCorrectAnswers(), r.getTotalQuestions(), r.getScore(), r.isPassed(),
                 r.getTimeSpentSeconds(), r.getCompletedAt(), r.isAutoSubmitted());
@@ -77,7 +79,7 @@ public record ResultResponse(
     /** Vista del alumno sin nota ni respuestas. */
     public static ResultResponse hidden(Result r, String examTitle) {
         return new ResultResponse(r.getId(), r.getExamId(), examTitle, r.getStudentName(), r.getStudentClub(),
-                r.getStudentEmail(), r.getStudentUserId() != null,
+                r.getStudentEmail(), r.getStudentUserId() != null, r.getStudentUserId(),
                 StudentIdentity.key(r.getStudentUserId(), r.getStudentName()), false, null, null, r.getTotalQuestions(), null, null,
                 r.getTimeSpentSeconds(), r.getCompletedAt(), r.isAutoSubmitted());
     }

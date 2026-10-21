@@ -21,9 +21,11 @@ import java.util.List;
 public class ResultController {
 
     private final ResultService resultService;
+    private final ResultReportService reportService;
 
-    public ResultController(ResultService resultService) {
+    public ResultController(ResultService resultService, ResultReportService reportService) {
         this.resultService = resultService;
+        this.reportService = reportService;
     }
 
     /** Pública: el token del intento dice quién la hace. */
@@ -46,6 +48,18 @@ public class ResultController {
     @GetMapping("/exam/{examId}")
     public List<ResultResponse> listByExam(@PathVariable Long examId, @AuthenticationPrincipal Long userId) {
         return resultService.listByExam(examId, userId);
+    }
+
+    /** Acierto de cada pregunta del examen (RF-28). */
+    @GetMapping("/exam/{examId}/questions")
+    public List<QuestionStatsResponse> questionStats(@PathVariable Long examId, @AuthenticationPrincipal Long userId) {
+        return reportService.questionStats(examId, userId);
+    }
+
+    /** Resultados de un usuario (RF-55): el profesor, los de sus exámenes; el administrador, todos. */
+    @GetMapping("/user/{studentUserId}")
+    public UserResultsResponse userResults(@PathVariable Long studentUserId, @AuthenticationPrincipal Long userId) {
+        return reportService.userResults(studentUserId, userId);
     }
 
     @GetMapping("/exam/{examId}/export")

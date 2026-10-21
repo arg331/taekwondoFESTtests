@@ -81,6 +81,8 @@
   background: #eeeeee; color: #616161;
 }
 
+a.student-name { color: inherit; font-weight: 600; text-decoration: none; &:hover { text-decoration: underline; } }
+
 .participants-header {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   .section-title { margin: 0; }

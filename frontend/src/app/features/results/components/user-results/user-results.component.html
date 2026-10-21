@@ -1,0 +1,57 @@
+<div class="user-results">
+  <button mat-button type="button" class="back" (click)="back()">
+    <mat-icon>arrow_back</mat-icon>Volver
+  </button>
+
+  @if (user.isLoading()) {
+    <div class="empty"><mat-spinner diameter="40" /></div>
+  } @else if (user.error()) {
+    <div class="empty">
+      <mat-icon>person_off</mat-icon>
+      <p>{{ notFound() ? 'No existe ese usuario.' : 'No se han podido cargar sus resultados.' }}</p>
+    </div>
+  } @else if (user.hasValue()) {
+    @let u = user.value();
+    <header class="user-header">
+      <mat-icon class="avatar">account_circle</mat-icon>
+      <div>
+        <h2 class="user-title">{{ u.displayName }}</h2>
+        <p class="user-meta">
+          {{ u.username }}
+          @if (u.clubName) { · {{ u.clubName }} }
+          · {{ u.results.length }} {{ u.results.length === 1 ? 'entrega' : 'entregas' }}
+        </p>
+      </div>
+    </header>
+
+    @if (u.results.length === 0) {
+      <div class="empty">
+        <mat-icon>assignment_late</mat-icon>
+        <p>No hay entregas de este usuario en los exámenes que puedes ver.</p>
+      </div>
+    } @else {
+      <div class="table-wrapper">
+        <table class="results-table">
+          <thead>
+            <tr><th>Examen</th><th>Aciertos</th><th>Nota</th><th>Tiempo</th><th>Fecha</th></tr>
+          </thead>
+          <tbody>
+            @for (r of u.results; track r.id) {
+              <tr class="result-row">
+                <td class="exam-title">{{ r.examTitle }}</td>
+                <td>{{ r.correctAnswers }}/{{ r.totalQuestions }}</td>
+                <td>
+                  <span class="score-badge" [class.passed]="r.passed">{{ r.score }}</span>
+                  {{ r.passed ? 'Aprobado' : 'Suspenso' }}
+                  @if (r.autoSubmitted) { <span class="auto-tag">Entrega automática</span> }
+                </td>
+                <td>{{ formatDuration(r.timeSpentSeconds) }}</td>
+                <td>{{ r.completedAt | date:'dd/MM/yy HH:mm' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+</div>

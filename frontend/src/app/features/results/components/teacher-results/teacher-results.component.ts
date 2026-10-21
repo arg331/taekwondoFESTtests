@@ -15,6 +15,7 @@ import { ExamStatisticsResponse, ResultResponse } from '../../../../core/models/
 import { formatDuration } from '../../../../shared/utils/format';
 import { fileSlug, saveBlob } from '../../../../shared/utils/download';
 import { ExamStatsComponent } from '../exam-stats/exam-stats.component';
+import { QuestionStatsComponent } from '../question-stats/question-stats.component';
 
 /** Un alumno en los resultados: su mejor entrega y todas, de la más reciente a la más antigua. */
 interface StudentResults {
@@ -36,7 +37,8 @@ interface StudentResults {
     MatDividerModule,
     MatButtonModule,
     RouterLink,
-    ExamStatsComponent
+    ExamStatsComponent,
+    QuestionStatsComponent
   ],
   templateUrl: './teacher-results.component.html',
   styleUrl: './teacher-results.component.scss',

@@ -53,6 +53,13 @@ describe('UsersComponent', () => {
     localStorage.clear();
   });
 
+  it('cada usuario lleva a sus resultados (RF-55)', () => {
+    const link = el.querySelector('[data-id="2"] a.user-results') as HTMLAnchorElement;
+
+    expect(link.getAttribute('href')).toBe('/results/user/2');
+    expect(link.textContent).toContain('Ver resultados');
+  });
+
   async function stable(): Promise<void> {
     fixture.detectChanges();
     await fixture.whenStable();

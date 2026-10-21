@@ -11,7 +11,7 @@ import java.util.List;
  * Exámenes. Todo es del profesor (ADMIN) salvo:
  * <ul>
  *   <li>GET /public: cualquier usuario con sesión.</li>
- *   <li>GET /by-code/{code} y POST /by-code/{code}/attempts: públicos, flujo del alumno desde el QR.</li>
+ *   <li>GET /by-code/{code} y /by-code/{code}/attempts/**: públicos, flujo del alumno desde el QR.</li>
  * </ul>
  */
 @RestController
@@ -19,9 +19,11 @@ import java.util.List;
 public class ExamController {
 
     private final ExamService examService;
+    private final AttemptService attemptService;
 
-    public ExamController(ExamService examService) {
+    public ExamController(ExamService examService, AttemptService attemptService) {
         this.examService = examService;
+        this.attemptService = attemptService;
     }
 
     // ───── Creación y edición ─────
@@ -141,6 +143,19 @@ public class ExamController {
     @PostMapping("/by-code/{code}/attempts")
     public ExamAttemptResponse startAttempt(@PathVariable String code, @Valid @RequestBody StartAttemptRequest request,
                                             @AuthenticationPrincipal Long userId) {
-        return examService.startAttempt(code, request, userId);
+        return attemptService.start(code, request, userId);
+    }
+
+    /** Recuperar el intento tras recargar o perder la conexión (RF-24). */
+    @PostMapping("/by-code/{code}/attempts/resume")
+    public ExamAttemptResponse resumeAttempt(@PathVariable String code, @Valid @RequestBody ResumeAttemptRequest request) {
+        return attemptService.resume(code, request);
+    }
+
+    /** Guardar lo marcado en una pregunta al contestarla (DE-05). */
+    @PutMapping("/by-code/{code}/attempts/answers")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void saveAnswer(@PathVariable String code, @Valid @RequestBody SaveAnswerRequest request) {
+        attemptService.saveAnswer(code, request);
     }
 }

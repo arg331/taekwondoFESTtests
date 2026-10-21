@@ -1,4 +1,4 @@
-package com.taekwondo.examenes.result;
+package com.taekwondo.examenes.common;
 
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;

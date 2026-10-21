@@ -84,6 +84,7 @@
                     <mat-icon>{{ student.best.passed ? 'check_circle' : 'cancel' }}</mat-icon>
                     {{ student.best.passed ? 'Aprobado' : 'Suspenso' }}
                   </span>
+                  @if (student.best.autoSubmitted) { <span class="auto-tag">Entrega automática</span> }
                 </td>
                 <td>{{ formatDuration(student.best.timeSpentSeconds) }}</td>
                 <td>{{ student.best.completedAt | date:'dd/MM/yy HH:mm' }}</td>
@@ -94,7 +95,10 @@
                     <td class="attempt-label">Intento {{ student.attempts.length - i }}</td>
                     <td></td>
                     <td><span class="score-badge" [class.passed]="attempt.passed">{{ attempt.score }}</span></td>
-                    <td>{{ attempt.passed ? 'Aprobado' : 'Suspenso' }}</td>
+                    <td>
+                      {{ attempt.passed ? 'Aprobado' : 'Suspenso' }}
+                      @if (attempt.autoSubmitted) { <span class="auto-tag">Entrega automática</span> }
+                    </td>
                     <td>{{ formatDuration(attempt.timeSpentSeconds) }}</td>
                     <td>{{ attempt.completedAt | date:'dd/MM/yy HH:mm' }}</td>
                   </tr>

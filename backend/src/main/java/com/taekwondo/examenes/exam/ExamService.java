@@ -1,21 +1,15 @@
 package com.taekwondo.examenes.exam;
 
-import com.taekwondo.examenes.attempt.ExamAttempt;
-import com.taekwondo.examenes.attempt.ExamAttemptRepository;
-import com.taekwondo.examenes.attempt.StudentIdentity;
 import com.taekwondo.examenes.common.BusinessRuleException;
 import com.taekwondo.examenes.common.ResourceNotFoundException;
-import com.taekwondo.examenes.question.PublicQuestionResponse;
 import com.taekwondo.examenes.question.Question;
 import com.taekwondo.examenes.question.QuestionRepository;
-import com.taekwondo.examenes.security.JwtService;
 import com.taekwondo.examenes.tag.Tag;
 import com.taekwondo.examenes.tag.TagService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -27,7 +21,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static com.taekwondo.examenes.question.QuestionSpecifications.hasAnyTag;
 import static com.taekwondo.examenes.question.QuestionSpecifications.ownedBy;
@@ -36,26 +29,18 @@ import static com.taekwondo.examenes.question.QuestionSpecifications.ownedBy;
 @Transactional
 public class ExamService {
 
-    /** Margen sobre el tiempo límite para absorber la latencia del envío. */
-    public static final Duration SUBMIT_GRACE = Duration.ofMinutes(2);
-    private static final Duration UNLIMITED_ATTEMPT_VALIDITY = Duration.ofHours(12);
     private static final int MAX_CODE_ATTEMPTS = 5;
 
     private final ExamRepository examRepository;
     private final QuestionRepository questionRepository;
-    private final ExamAttemptRepository attemptRepository;
     private final TagService tagService;
-    private final JwtService jwtService;
     private final Clock clock;
 
     public ExamService(ExamRepository examRepository, QuestionRepository questionRepository,
-                       ExamAttemptRepository attemptRepository, TagService tagService,
-                       JwtService jwtService, Clock clock) {
+                       TagService tagService, Clock clock) {
         this.examRepository = examRepository;
         this.questionRepository = questionRepository;
-        this.attemptRepository = attemptRepository;
         this.tagService = tagService;
-        this.jwtService = jwtService;
         this.clock = clock;
     }
 
@@ -232,58 +217,6 @@ public class ExamService {
     }
 
     /**
-     * Empieza un intento (DE-04): lo registra a nombre del alumno y devuelve las preguntas sin la
-     * respuesta correcta, barajadas según la configuración, y el token del intento. Cada alumno
-     * tiene un intento abierto como mucho y tantos en total como fije el profesor (RF-52):
-     * los registrados se cuentan por su cuenta y los anónimos por su nombre.
-     */
-    public ExamAttemptResponse startAttempt(String code, StartAttemptRequest identity, Long studentUserId) {
-        Exam exam = getAccessible(code);
-        if (exam.requiresRegistration() && studentUserId == null) {
-            throw new BusinessRuleException("Este examen requiere estar registrado e iniciar sesión");
-        }
-        String studentName = identity.studentName().trim();
-        LocalDateTime now = now();
-        Duration validity = attemptValidity(exam.getConfig());
-        List<ExamAttempt> previous = studentUserId != null
-                ? attemptRepository.findAllByExamIdAndStudentUserId(exam.getId(), studentUserId)
-                : attemptRepository.findAllByExamIdAndStudentUserIdIsNullAndStudentKey(exam.getId(),
-                        StudentIdentity.nameKey(studentName));
-        if (previous.stream().anyMatch(a -> a.isOpenAt(now, validity))) {
-            throw new BusinessRuleException("Ya tienes un intento empezado en este examen");
-        }
-        // Cuentan los entregados y los que se quedaron sin entregar fuera de plazo
-        if (exam.attemptsUsedUp(previous.size())) {
-            throw new BusinessRuleException("Ya has hecho todos los intentos de este examen");
-        }
-        ExamAttempt attempt = attemptRepository.save(new ExamAttempt(exam.getId(), studentUserId, studentName,
-                blankToNull(identity.studentClub()), blankToNull(identity.studentEmail()), now));
-
-        ExamConfig config = exam.getConfig();
-        List<PublicQuestionResponse> questions = new ArrayList<>(exam.getPublishedQuestions().stream()
-                .map(q -> toPublicQuestion(q, config.isRandomizeOptions()))
-                .toList());
-        if (config.isRandomizeQuestionOrder()) {
-            Collections.shuffle(questions);
-        }
-
-        String token = jwtService.generateAttemptToken(attempt.getId(), exam.getId(),
-                now.atZone(clock.getZone()).toInstant(), validity);
-        return new ExamAttemptResponse(token, questions, previous.size() + 1, exam.getMaxAttempts());
-    }
-
-    /** Cuánto dura un intento: el tiempo límite más el margen de entrega, o 12 horas sin límite (RN-07). */
-    public static Duration attemptValidity(ExamConfig config) {
-        return config.hasTimeLimit()
-                ? Duration.ofMinutes(config.getTimeLimitMinutes()).plus(SUBMIT_GRACE)
-                : UNLIMITED_ATTEMPT_VALIDITY;
-    }
-
-    private static String blankToNull(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
-    }
-
-    /**
      * Preguntas tal como se publicaron (DE-03), con solución y explicación, y si se han
      * editado en el banco después. Solo el profesor del examen.
      */
@@ -325,18 +258,6 @@ public class ExamService {
     }
 
     // ───── Auxiliares ─────
-
-    private PublicQuestionResponse toPublicQuestion(PublishedQuestion question, boolean shuffleOptions) {
-        List<PublicQuestionResponse.Option> options = new ArrayList<>(IntStream
-                .range(0, question.getOptions().size())
-                .mapToObj(i -> new PublicQuestionResponse.Option(i, question.getOptions().get(i)))
-                .toList());
-        if (shuffleOptions) {
-            Collections.shuffle(options);
-        }
-        return new PublicQuestionResponse(question.getQuestionId(), question.getText(), options,
-                question.getCorrectAnswers().size() > 1);
-    }
 
     private ExamConfig toConfig(ExamDraftRequest r) {
         return new ExamConfig(r.numberOfQuestions(), r.timeLimitMinutes(), r.showScore(),

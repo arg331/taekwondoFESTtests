@@ -23,6 +23,8 @@ const ATTEMPT: ExamAttemptResponse = {
   attemptToken: 'intento-123',
   attemptNumber: 1,
   maxAttempts: 1,
+  answers: {},
+  secondsLeft: null,
   questions: [
     { id: 20, text: 'Segunda', options: [{ index: 2, text: 'C' }, { index: 0, text: 'A' }, { index: 1, text: 'B' }], multipleCorrect: false },
     { id: 10, text: 'Primera', options: [{ index: 1, text: 'Sí' }, { index: 0, text: 'No' }], multipleCorrect: false },
@@ -83,10 +85,17 @@ describe('ExamTakeComponent', () => {
     await stable();
   }
 
-  async function choose(optionText: string): Promise<void> {
+  async function clickOption(optionText: string): Promise<void> {
     const option = Array.from(el.querySelectorAll('.option-item'))
       .find(o => o.querySelector('span')?.textContent?.trim() === optionText) as HTMLElement;
     option.click();
+    await stable();
+  }
+
+  /** Contesta: cada respuesta se guarda al momento en el servidor (RF-24), que la acepta. */
+  async function choose(optionText: string): Promise<void> {
+    await clickOption(optionText);
+    http.match(`${API}/exams/by-code/EXM-ABC/attempts/answers`).forEach(req => req.flush(null));
     await stable();
   }
 
@@ -217,6 +226,98 @@ describe('ExamTakeComponent', () => {
     });
   });
 
+  describe('no perder el examen (RF-24)', () => {
+    const KEY = 'fest_attempt_EXM-ABC';
+    const SAVES = `${API}/exams/by-code/EXM-ABC/attempts/answers`;
+    const RESUME = `${API}/exams/by-code/EXM-ABC/attempts/resume`;
+    const ANA = { studentName: 'Ana', studentClub: null, studentEmail: null };
+
+    it('cada respuesta se guarda en el servidor al contestarla', async () => {
+      await render(exam());
+      await startAs('Ana');
+      await clickOption('A');
+
+      const req = http.expectOne(SAVES);
+      expect(req.request.method).toBe('PUT');
+      expect(req.request.body).toEqual({ attemptToken: 'intento-123', questionId: 20, chosenOptions: [0] });
+      req.flush(null);
+    });
+
+    it('se guardan de una en una y en orden: la última respuesta es la que queda', async () => {
+      await render(exam());
+      await startAs('Ana');
+      await clickOption('A');
+      await clickOption('B');
+
+      const first = http.expectOne(SAVES);
+      expect(first.request.body.chosenOptions).toEqual([0]);
+      first.flush(null);
+      await stable();
+      const second = http.expectOne(SAVES);
+      expect(second.request.body.chosenOptions).toEqual([1]);
+      second.flush(null);
+    });
+
+    it('si no se puede guardar, avisa sin cortar el examen; al guardar la siguiente, el aviso se va', async () => {
+      await render(exam());
+      await startAs('Ana');
+      await clickOption('A');
+      http.expectOne(SAVES).error(new ProgressEvent('error'));
+      await stable();
+
+      expect(el.querySelector('.save-warning')?.textContent).toContain('No se ha podido guardar');
+      await choose('B');
+      expect(el.querySelector('.save-warning')).toBeNull();
+    });
+
+    it('al recargar recupera el intento: mismas preguntas, sus respuestas y el reloj donde iba', async () => {
+      localStorage.setItem(KEY, JSON.stringify({ attemptToken: 'intento-123', student: ANA }));
+      await render(exam({ config: { ...exam().config, timeLimitMinutes: 10 } }));
+
+      const req = http.expectOne(RESUME);
+      expect(req.request.body).toEqual({ attemptToken: 'intento-123' });
+      req.flush({ ...ATTEMPT, answers: { 20: [2], 10: [], 30: [] }, secondsLeft: 125 });
+      await stable();
+
+      expect(el.querySelector('.question-text')?.textContent).toContain('Segunda');
+      expect(el.querySelector('.option-item.option-selected')?.textContent).toContain('C');
+      expect(el.querySelector('.timer')?.textContent).toContain('02:05');
+      expect(el.querySelector('.exam-header')?.textContent).toContain('1/3');
+    });
+
+    it('si el intento ya no vale (entregado o caducado), lo olvida y muestra la portada', async () => {
+      localStorage.setItem(KEY, JSON.stringify({ attemptToken: 'intento-123', student: ANA }));
+      await render(exam());
+
+      http.expectOne(RESUME).flush({ message: 'Este intento ya se ha entregado' }, { status: 409, statusText: 'Conflict' });
+      await stable();
+      http.match(`${API}/clubs`).forEach(req => req.flush([]));
+      await stable();
+
+      expect(el.querySelector('app-exam-access-card')).not.toBeNull();
+      expect(localStorage.getItem(KEY)).toBeNull();
+    });
+
+    it('recuerda el intento en curso y lo olvida al entregarlo', async () => {
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      await render(exam());
+      await startAs('Ana');
+
+      expect(JSON.parse(localStorage.getItem(KEY)!)).toEqual({ attemptToken: 'intento-123', student: ANA });
+      await goToQuestion(3);
+      button('Enviar examen').click();
+      await stable();
+      http.expectOne(`${API}/results`).flush({
+        id: 5, examId: 1, examTitle: 'Examen de árbitros', studentName: 'Ana', studentClub: null, studentEmail: null,
+        registered: false, studentKey: 'n:ana', scoreVisible: false, answers: null, correctAnswers: null, totalQuestions: 3,
+        score: null, passed: null, timeSpentSeconds: 40, completedAt: '2026-10-08T10:10:00', autoSubmitted: false
+      } satisfies ResultResponse);
+      await stable();
+
+      expect(localStorage.getItem(KEY)).toBeNull();
+    });
+  });
+
   describe('intentos (RF-52)', () => {
     /** Contesta, entrega y recibe una nota: queda en la pantalla del resultado. */
     async function finish(): Promise<void> {
@@ -227,7 +328,7 @@ describe('ExamTakeComponent', () => {
       http.expectOne(`${API}/results`).flush({
         id: 5, examId: 1, examTitle: 'Examen de árbitros', studentName: 'Ana', studentClub: null, studentEmail: null,
         registered: false, studentKey: 'n:ana', scoreVisible: true, answers: [], correctAnswers: 0, totalQuestions: 3, score: 0, passed: false,
-        timeSpentSeconds: 40, completedAt: '2026-10-08T10:10:00'
+        timeSpentSeconds: 40, completedAt: '2026-10-08T10:10:00', autoSubmitted: false
       } satisfies ResultResponse);
       await stable();
     }
@@ -325,7 +426,7 @@ describe('ExamTakeComponent', () => {
     const result: ResultResponse = {
       id: 5, examId: 1, examTitle: 'Examen de árbitros', studentName: 'Ana', studentClub: null, studentEmail: null,
       registered: false, studentKey: 'n:ana', scoreVisible: true, correctAnswers: 1, totalQuestions: 3, score: 33, passed: false, timeSpentSeconds: 40,
-      completedAt: '2026-10-08T10:10:00',
+      completedAt: '2026-10-08T10:10:00', autoSubmitted: false,
       answers: [
         { questionId: 10, studentAnswers: [1], correctAnswers: null, correct: true },
         { questionId: 20, studentAnswers: [], correctAnswers: null, correct: false },
@@ -359,7 +460,7 @@ describe('ExamTakeComponent', () => {
     http.expectOne(`${API}/results`).flush({
       id: 5, examId: 1, examTitle: 'X', studentName: 'Ana', studentClub: null, studentEmail: null,
       registered: false, studentKey: 'n:ana', scoreVisible: true, answers: null, correctAnswers: 2, totalQuestions: 3, score: 67, passed: false,
-      timeSpentSeconds: 40, completedAt: '2026-10-08T10:10:00'
+      timeSpentSeconds: 40, completedAt: '2026-10-08T10:10:00', autoSubmitted: false
     } satisfies ResultResponse);
     await stable();
 
@@ -378,7 +479,7 @@ describe('ExamTakeComponent', () => {
     http.expectOne(`${API}/results`).flush({
       id: 5, examId: 1, examTitle: 'X', studentName: 'Ana', studentClub: null, studentEmail: null,
       registered: false, studentKey: 'n:ana', scoreVisible: false, answers: null, correctAnswers: null, totalQuestions: 3, score: null, passed: null,
-      timeSpentSeconds: 40, completedAt: '2026-10-08T10:10:00'
+      timeSpentSeconds: 40, completedAt: '2026-10-08T10:10:00', autoSubmitted: false
     } satisfies ResultResponse);
     await stable();
 
@@ -390,7 +491,7 @@ describe('ExamTakeComponent', () => {
     vi.useFakeTimers({ shouldAdvanceTime: false });
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
     await render(exam({ config: { ...exam().config, timeLimitMinutes: 1 } }));
-    await startAs('Ana');
+    await startAs('Ana', { ...ATTEMPT, secondsLeft: 60 });
 
     expect(el.querySelector('.timer')?.textContent).toContain('01:00');
     vi.advanceTimersByTime(30_000);

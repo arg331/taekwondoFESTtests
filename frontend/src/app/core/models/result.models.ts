@@ -37,6 +37,8 @@ export interface ResultResponse {
   passed: boolean | null;
   timeSpentSeconds: number;
   completedAt: string;
+  /** Se corrigió sola al acabarse el plazo, sin que el alumno la entregara (RF-24). */
+  autoSubmitted: boolean;
 }
 
 export interface ExamStatisticsResponse {

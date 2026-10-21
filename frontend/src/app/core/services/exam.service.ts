@@ -14,7 +14,8 @@ import {
   ExamAttemptResponse,
   ChangeAttemptsRequest,
   PublishedQuestionResponse,
-  StartAttemptRequest
+  StartAttemptRequest,
+  SaveAnswerRequest
 } from '../models/exam.models';
 
 @Injectable({ providedIn: 'root' })
@@ -113,9 +114,19 @@ export class ExamService {
     return this.http.get<ExamResponse>(`${this.api}/by-code/${encodeURIComponent(code)}`);
   }
 
-  /** Empieza un intento: preguntas sin solución + token con la hora de inicio. */
-  /** Empieza un intento a nombre del alumno (DE-04). */
+  /** Empieza un intento a nombre del alumno (DE-04); si ya tiene uno abierto, lo recupera (RF-24). */
   startAttempt(code: string, identity: StartAttemptRequest): Observable<ExamAttemptResponse> {
     return this.http.post<ExamAttemptResponse>(`${this.api}/by-code/${encodeURIComponent(code)}/attempts`, identity);
+  }
+
+  /** El intento tal como se dejó, tras recargar o perder la conexión (RF-24). */
+  resumeAttempt(code: string, attemptToken: string): Observable<ExamAttemptResponse> {
+    return this.http.post<ExamAttemptResponse>(`${this.api}/by-code/${encodeURIComponent(code)}/attempts/resume`,
+      { attemptToken });
+  }
+
+  /** Guarda lo marcado en una pregunta en cuanto se contesta (RF-24). */
+  saveAnswer(code: string, request: SaveAnswerRequest): Observable<void> {
+    return this.http.put<void>(`${this.api}/by-code/${encodeURIComponent(code)}/attempts/answers`, request);
   }
 }

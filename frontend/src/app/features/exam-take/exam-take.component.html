@@ -46,6 +46,13 @@
           <div class="progress-bar-fill" [style.width.%]="progress()"></div>
         </div>
 
+        @if (saveFailed()) {
+          <p class="save-warning" role="status">
+            <mat-icon>cloud_off</mat-icon>
+            No se ha podido guardar tu última respuesta. Comprueba la conexión; se enviará igualmente al entregar.
+          </p>
+        }
+
         <div class="exam-body">
           <div class="question-nav">
             @for (q of questions(); track q.id; let i = $index) {

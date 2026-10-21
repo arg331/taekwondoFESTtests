@@ -74,6 +74,13 @@
   &.registered { background: #fdecea; color: #c62828; }
 }
 
+// Se corrigió sola al acabarse el plazo (RF-24)
+.auto-tag {
+  display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 10px;
+  font-size: 0.7rem; font-weight: 600; white-space: nowrap;
+  background: #eeeeee; color: #616161;
+}
+
 .participants-header {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   .section-title { margin: 0; }

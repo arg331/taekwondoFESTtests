@@ -20,7 +20,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AttemptsCharacterizationTest extends ApiCharacterizationTest {
 
     private static final String ALL_USED = "Ya has hecho todos los intentos de este examen";
-    private static final String ALREADY_OPEN = "Ya tienes un intento empezado en este examen";
     private static final String BOTH_LIMITS = "Indica un número de intentos o «sin límite», no las dos cosas";
 
     // ───── Identificarse al empezar (DE-04) ─────
@@ -57,7 +56,8 @@ class AttemptsCharacterizationTest extends ApiCharacterizationTest {
 
         HttpResult attempt = start(exam.code(), null, obj("studentName", unique("Ana"))).expectStatus(200);
 
-        assertThat(attempt.asMap()).containsOnlyKeys("attemptToken", "questions", "attemptNumber", "maxAttempts");
+        assertThat(attempt.asMap()).containsOnlyKeys("attemptToken", "questions", "attemptNumber", "maxAttempts", "answers",
+                "secondsLeft");
         assertThat((Integer) attempt.read("$.attemptNumber")).isEqualTo(1);
         assertThat((Integer) attempt.read("$.maxAttempts")).isEqualTo(1);
     }
@@ -175,22 +175,8 @@ class AttemptsCharacterizationTest extends ApiCharacterizationTest {
                 .expectStatus(409).message()).isEqualTo(BOTH_LIMITS);
     }
 
-    // ───── Un intento abierto cada vez ─────
-
-    @Test
-    @DisplayName("Con un intento sin entregar no se puede empezar otro, ni el registrado ni el mismo nombre anónimo")
-    void oneOpenAttemptAtATime() {
-        PublishedExam exam = publishedExam(adminToken(), 5, 10, true, 3);
-        Session student = newStudent();
-        String name = unique("Luis");
-        startAttempt(exam.code(), student.token(), "Yo");
-        startAttempt(exam.code(), null, name);
-
-        assertThat(start(exam.code(), student.token(), obj("studentName", "Yo")).expectStatus(409).message())
-                .isEqualTo(ALREADY_OPEN);
-        assertThat(start(exam.code(), null, obj("studentName", name)).expectStatus(409).message())
-                .isEqualTo(ALREADY_OPEN);
-    }
+    // ───── Intentos abandonados ─────
+    // Volver a empezar con un intento abierto lo recupera: AttemptRecoveryCharacterizationTest (RF-24)
 
     @Test
     @DisplayName("Un intento abandonado cuenta cuando se le acaba el tiempo; entonces se puede empezar el siguiente")

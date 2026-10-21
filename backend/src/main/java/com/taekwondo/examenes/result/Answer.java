@@ -1,5 +1,6 @@
 package com.taekwondo.examenes.result;
 
+import com.taekwondo.examenes.common.OptionListConverter;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Embeddable;

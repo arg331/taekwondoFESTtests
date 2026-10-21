@@ -41,7 +41,8 @@ import static com.taekwondo.examenes.characterization.support.Json.write;
  * PostgreSQL (Testcontainers). Por eso cada test crea sus propios datos con
  * nombres únicos y no depende de lo que hagan los demás.
  */
-@SpringBootTest
+// La entrega automática se prueba llamándola: la tarea periódica movería datos a mitad de un test
+@SpringBootTest(properties = "app.attempts.auto-submit.enabled=false")
 @AutoConfigureMockMvc
 @Import({TestcontainersConfiguration.class, ApiCharacterizationTest.ClockConfig.class})
 abstract class ApiCharacterizationTest {

@@ -29,7 +29,9 @@ public record ResultResponse(
         Integer score,
         Boolean passed,
         int timeSpentSeconds,
-        LocalDateTime completedAt
+        LocalDateTime completedAt,
+        /** Se corrigió sola al acabarse el plazo (RF-24). */
+        boolean autoSubmitted
 ) {
     /**
      * Opciones que marcó el alumno (vacío = en blanco) y las correctas (RF-09). correctAnswers es null en la
@@ -53,7 +55,7 @@ public record ResultResponse(
                 StudentIdentity.key(r.getStudentUserId(), r.getStudentName()), true,
                 r.getAnswers().stream().map(AnswerResponse::from).toList(),
                 r.getCorrectAnswers(), r.getTotalQuestions(), r.getScore(), r.isPassed(),
-                r.getTimeSpentSeconds(), r.getCompletedAt());
+                r.getTimeSpentSeconds(), r.getCompletedAt(), r.isAutoSubmitted());
     }
 
     /**
@@ -69,7 +71,7 @@ public record ResultResponse(
                 r.getStudentEmail(), r.getStudentUserId() != null,
                 StudentIdentity.key(r.getStudentUserId(), r.getStudentName()), true, answers,
                 r.getCorrectAnswers(), r.getTotalQuestions(), r.getScore(), r.isPassed(),
-                r.getTimeSpentSeconds(), r.getCompletedAt());
+                r.getTimeSpentSeconds(), r.getCompletedAt(), r.isAutoSubmitted());
     }
 
     /** Vista del alumno sin nota ni respuestas. */
@@ -77,6 +79,6 @@ public record ResultResponse(
         return new ResultResponse(r.getId(), r.getExamId(), examTitle, r.getStudentName(), r.getStudentClub(),
                 r.getStudentEmail(), r.getStudentUserId() != null,
                 StudentIdentity.key(r.getStudentUserId(), r.getStudentName()), false, null, null, r.getTotalQuestions(), null, null,
-                r.getTimeSpentSeconds(), r.getCompletedAt());
+                r.getTimeSpentSeconds(), r.getCompletedAt(), r.isAutoSubmitted());
     }
 }

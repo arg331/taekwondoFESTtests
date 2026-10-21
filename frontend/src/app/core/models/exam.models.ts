@@ -166,4 +166,15 @@ export interface ExamAttemptResponse {
   attemptNumber: number;
   /** null = sin límite. */
   maxAttempts: number | null;
+  /** Lo ya marcado en cada pregunta (vacío = sin responder): al recuperar el intento vuelve (RF-24). */
+  answers: Record<number, number[]>;
+  /** Segundos que le quedan; null sin tiempo límite. */
+  secondsLeft: number | null;
+}
+
+/** Lo marcado en una pregunta, guardado al contestarla (RF-24). */
+export interface SaveAnswerRequest {
+  attemptToken: string;
+  questionId: number;
+  chosenOptions: number[];
 }

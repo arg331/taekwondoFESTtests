@@ -18,7 +18,7 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
 
     private static final List<String> RESULT_FIELDS = List.of("id", "examId", "examTitle", "studentName",
             "studentClub", "studentEmail", "registered", "studentKey", "scoreVisible", "answers", "correctAnswers", "totalQuestions", "score",
-            "passed", "timeSpentSeconds", "completedAt");
+            "passed", "timeSpentSeconds", "completedAt", "autoSubmitted");
     private static final List<String> ANSWER_FIELDS = List.of("questionId", "studentAnswers", "correctAnswers", "correct");
 
     // ───── Portada e intento ─────
@@ -60,7 +60,8 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
 
         HttpResult result = start(exam.code(), null, obj("studentName", unique("A"))).expectStatus(200);
 
-        assertThat(result.asMap()).containsOnlyKeys("attemptToken", "questions", "attemptNumber", "maxAttempts");
+        assertThat(result.asMap()).containsOnlyKeys("attemptToken", "questions", "attemptNumber", "maxAttempts", "answers",
+                "secondsLeft");
         List<Map<String, Object>> questions = result.read("$.questions");
         assertThat(questions).extracting(q -> ((Number) q.get("id")).longValue())
                 .containsExactlyElementsOf(exam.questionIds());

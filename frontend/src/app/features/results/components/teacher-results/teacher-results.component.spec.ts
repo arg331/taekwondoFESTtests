@@ -19,12 +19,15 @@ function result(id: number, studentName: string, registered: boolean, score = 10
     id, examId: 7, examTitle: EXAM.title, studentName, studentClub: 'Club Badajoz', studentEmail: null, registered,
     studentKey: registered ? `u:${studentName}` : `n:${studentName.toLowerCase()}`,
     scoreVisible: true, answers: [], correctAnswers: score / 20, totalQuestions: 5, score, passed: score >= 70,
-    timeSpentSeconds: 125, completedAt: `2026-10-12T11:0${id}:00`
+    timeSpentSeconds: 125, completedAt: `2026-10-12T11:0${id}:00`, autoSubmitted: false
   };
 }
 
-/** Como llegan del servidor: la entrega más reciente primero. Ana (anónima) lo hizo dos veces. */
-const RESULTS = [result(5, 'ANA', false, 40), result(4, 'Carla', false), result(3, 'Zoe', true), result(2, 'Ana', false),
+/**
+ * Como llegan del servidor: la entrega más reciente primero. Ana (anónima) lo hizo dos veces. El último
+ * intento de Ana y el de Carla se corrigieron solos al caducar (RF-24).
+ */
+const RESULTS = [{ ...result(5, 'ANA', false, 40), autoSubmitted: true }, { ...result(4, 'Carla', false), autoSubmitted: true }, result(3, 'Zoe', true), result(2, 'Ana', false),
   result(1, 'Bruno', true)];
 
 /** Resultados del profesor: participantes, exportar a Excel (RF-27) e ir al examen. */
@@ -100,6 +103,19 @@ describe('TeacherResultsComponent', () => {
       const attempts = Array.from(el.querySelectorAll('.attempt-row'));
       expect(attempts.length).toBe(2);
       expect(attempts.map(a => a.querySelector('.score-badge')?.textContent?.trim())).toEqual(['40', '100']);
+    });
+
+    it('las entregas automáticas llevan su etiqueta, en la fila del alumno y en sus intentos (RF-24)', async () => {
+      expect(row('Carla').querySelector('.auto-tag')?.textContent?.trim()).toBe('Entrega automática');
+      // La mejor nota de Ana la entregó ella
+      expect(row('Ana').querySelector('.auto-tag')).toBeNull();
+
+      (row('Ana').querySelector('.attempts-toggle') as HTMLButtonElement).click();
+      await stable();
+
+      const tags = Array.from(el.querySelectorAll('.attempt-row'))
+        .map(a => a.querySelector('.auto-tag')?.textContent?.trim() ?? null);
+      expect(tags).toEqual(['Entrega automática', null]);
     });
   });
 

@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, signal, computed, OnInit, OnDestroy, input, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Subject, catchError, concatMap, map, of } from 'rxjs';
 import { RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -8,7 +9,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ExamService } from '../../core/services/exam.service';
 import { ResultService } from '../../core/services/result.service';
 import { AuthService } from '../../core/services/auth.service';
-import { ExamResponse, PublicQuestionResponse } from '../../core/models/exam.models';
+import { ExamAttemptResponse, ExamResponse, PublicQuestionResponse, SaveAnswerRequest } from '../../core/models/exam.models';
 import { ResultResponse } from '../../core/models/result.models';
 import { ExamAccessCardComponent, StudentInfo } from './components/exam-access-card/exam-access-card.component';
 import { ExamResultCardComponent } from './components/exam-result-card/exam-result-card.component';
@@ -17,9 +18,18 @@ type Phase = 'loading' | 'error' | 'access' | 'exam' | 'result';
 
 const OPTION_LETTERS = ['A', 'B', 'C', 'D'];
 
+/** El intento en curso, guardado en el navegador para recuperarlo si se recarga la página (RF-24). */
+interface StoredAttempt {
+  attemptToken: string;
+  student: StudentInfo;
+}
+
+const STORED_ATTEMPT_PREFIX = 'fest_attempt_';
+
 /**
  * Flujo del alumno desde el QR: portada → preguntas → resultado.
- * El servidor baraja preguntas/opciones y controla el tiempo con el token del intento.
+ * El servidor baraja preguntas/opciones y controla el tiempo con el token del intento. Cada respuesta
+ * se guarda al contestarla y el navegador recuerda el intento: recargar no pierde el examen (RF-24).
  */
 @Component({
   selector: 'app-exam-take',
@@ -56,6 +66,11 @@ export class ExamTakeComponent implements OnInit, OnDestroy {
   starting    = signal(false);
   submitting  = signal(false);
   submitError = signal<string | null>(null);
+  /** La última respuesta no se pudo guardar: se avisa, y se enviará igualmente al entregar. */
+  saveFailed  = signal(false);
+
+  /** Respuestas por guardar, de una en una y en orden: lo último guardado es lo último que marcó. */
+  private readonly saves = new Subject<SaveAnswerRequest>();
 
   private student: StudentInfo | null = null;
   private attemptToken = '';
@@ -96,11 +111,28 @@ export class ExamTakeComponent implements OnInit, OnDestroy {
   });
   timerWarning    = computed(() => this.timeLeft() > 0 && this.timeLeft() <= 60);
 
+  constructor() {
+    this.saves.pipe(
+      concatMap(request => this.examSvc.saveAnswer(this.code(), request).pipe(
+        map(() => true),
+        catchError(() => of(false))
+      )),
+      takeUntilDestroyed()
+    ).subscribe(saved => {
+      if (this.phase() === 'exam') this.saveFailed.set(!saved);
+    });
+  }
+
   ngOnInit(): void {
     this.examSvc.getByCode(this.code()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: exam => {
         this.exam.set(exam);
-        this.phase.set('access');
+        const stored = this.storedAttempt();
+        if (stored) {
+          this.resume(stored);
+        } else {
+          this.phase.set('access');
+        }
       },
       error: err => this.fail(err?.error?.message ?? 'Examen no encontrado o no disponible.')
     });
@@ -116,20 +148,40 @@ export class ExamTakeComponent implements OnInit, OnDestroy {
     this.starting.set(true);
     this.examSvc.startAttempt(this.code(), student).subscribe({
       next: attempt => {
-        this.attemptToken = attempt.attemptToken;
-        this.attempt.set({ number: attempt.attemptNumber, max: attempt.maxAttempts });
-        this.questions.set(attempt.questions);
-        this.answers.set({});
-        this.currentIndex.set(0);
         this.starting.set(false);
-        this.startTimer();
-        this.phase.set('exam');
+        this.enterExam(attempt);
       },
       error: err => {
         this.starting.set(false);
         this.fail(err?.error?.message ?? 'Error al cargar las preguntas.');
       }
     });
+  }
+
+  /** Tras recargar: sigue el intento donde lo dejó. Si ya no vale (entregado o caducado), vuelve a la portada. */
+  private resume(stored: StoredAttempt): void {
+    this.student = stored.student;
+    this.examSvc.resumeAttempt(this.code(), stored.attemptToken).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: attempt => this.enterExam(attempt),
+      error: () => {
+        this.forgetAttempt();
+        this.phase.set('access');
+      }
+    });
+  }
+
+  /** Muestra el intento, nuevo o recuperado, con lo ya contestado y el tiempo que le queda. */
+  private enterExam(attempt: ExamAttemptResponse): void {
+    this.attemptToken = attempt.attemptToken;
+    this.rememberAttempt();
+    this.attempt.set({ number: attempt.attemptNumber, max: attempt.maxAttempts });
+    this.questions.set(attempt.questions);
+    this.answers.set(attempt.answers ?? {});
+    this.currentIndex.set(0);
+    this.saveFailed.set(false);
+    this.clearTimer();
+    this.startTimer(attempt.secondsLeft);
+    this.phase.set('exam');
   }
 
   /** «Repetir examen»: otro intento con los mismos datos, sin volver a la portada. */
@@ -143,13 +195,12 @@ export class ExamTakeComponent implements OnInit, OnDestroy {
    * a la anterior.
    */
   selectAnswer(question: PublicQuestionResponse, optionIndex: number): void {
-    this.answers.update(a => {
-      const chosen = a[question.id] ?? [];
-      const next = !question.multipleCorrect ? [optionIndex]
-        : chosen.includes(optionIndex) ? chosen.filter(i => i !== optionIndex)
-        : [...chosen, optionIndex].sort((x, y) => x - y);
-      return { ...a, [question.id]: next };
-    });
+    const chosen = this.answers()[question.id] ?? [];
+    const next = !question.multipleCorrect ? [optionIndex]
+      : chosen.includes(optionIndex) ? chosen.filter(i => i !== optionIndex)
+      : [...chosen, optionIndex].sort((x, y) => x - y);
+    this.answers.update(a => ({ ...a, [question.id]: next }));
+    this.saves.next({ attemptToken: this.attemptToken, questionId: question.id, chosenOptions: next });
   }
 
   isChosen(questionId: number, optionIndex: number): boolean {
@@ -176,7 +227,7 @@ export class ExamTakeComponent implements OnInit, OnDestroy {
   }
 
   private submit(): void {
-    if (this.submitting() || !this.student) return;
+    if (this.submitting()) return;
     this.submitting.set(true);
     this.submitError.set(null);
 
@@ -190,6 +241,7 @@ export class ExamTakeComponent implements OnInit, OnDestroy {
     }).subscribe({
       next: result => {
         this.clearTimer();
+        this.forgetAttempt();
         this.result.set(result);
         this.submitting.set(false);
         this.phase.set('result');
@@ -202,11 +254,11 @@ export class ExamTakeComponent implements OnInit, OnDestroy {
   }
 
   // ── Temporizador ──────────────────────────────────
-  private startTimer(): void {
-    const limit = this.exam()!.config.timeLimitMinutes;
-    if (!limit) return;
+  /** El tiempo que queda lo dice el servidor: al recuperar el intento, el reloj sigue donde iba. */
+  private startTimer(secondsLeft: number | null): void {
+    if (secondsLeft === null) return;
     // Se calcula contra una hora fija para no acumular desfase si la pestaña se ralentiza
-    this.deadline = Date.now() + limit * 60_000;
+    this.deadline = Date.now() + secondsLeft * 1000;
     this.tick();
     this.timerInterval = setInterval(() => this.tick(), 1000);
   }
@@ -224,6 +276,38 @@ export class ExamTakeComponent implements OnInit, OnDestroy {
     if (this.timerInterval) {
       clearInterval(this.timerInterval);
       this.timerInterval = null;
+    }
+  }
+
+  // ── Intento guardado en el navegador (RF-24) ──────
+  private storageKey(): string {
+    return STORED_ATTEMPT_PREFIX + this.code();
+  }
+
+  private storedAttempt(): StoredAttempt | null {
+    try {
+      const stored = JSON.parse(localStorage.getItem(this.storageKey()) ?? 'null') as StoredAttempt | null;
+      return typeof stored?.attemptToken === 'string' && stored.student ? stored : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private rememberAttempt(): void {
+    if (!this.student) return;
+    try {
+      localStorage.setItem(this.storageKey(),
+        JSON.stringify({ attemptToken: this.attemptToken, student: this.student } satisfies StoredAttempt));
+    } catch {
+      // Sin almacenamiento solo se pierde poder recuperarlo: las respuestas siguen guardándose en el servidor
+    }
+  }
+
+  private forgetAttempt(): void {
+    try {
+      localStorage.removeItem(this.storageKey());
+    } catch {
+      // Nada que olvidar
     }
   }
 

@@ -14,7 +14,7 @@ const COMBATE = tag(1, 'Combate');
 const FORMAS = tag(2, 'Formas');
 const ITF = tag(3, 'ITF');
 
-function question(id: number, grade: Grade, tags: TagResponse[], text = `Pregunta ${id}`, type: QuestionType | null = null): QuestionResponse {
+function question(id: number, grade: Grade | null, tags: TagResponse[], text = `Pregunta ${id}`, type: QuestionType | null = null): QuestionResponse {
   return {
     id, text, options: ['Sí', 'No'], correctAnswer: 1, explanation: `Explicación ${id}`, grade, type, tags,
     createdAt: '2026-10-10T10:00:00', updatedAt: '2026-10-10T10:00:00'
@@ -36,13 +36,13 @@ describe('ExamQuestionPickerComponent', () => {
   let created: QuestionResponse[];
   let dialogOpen: ReturnType<typeof vi.fn>;
 
-  async function render(selected: number[] = [], targetCount = 3): Promise<void> {
+  async function render(selected: number[] = [], targetCount = 3, questions: QuestionResponse[] = QUESTIONS): Promise<void> {
     TestBed.configureTestingModule({
       imports: [ExamQuestionPickerComponent],
       providers: [{ provide: MatDialog, useValue: { open: dialogOpen } }]
     });
     fixture = TestBed.createComponent(ExamQuestionPickerComponent);
-    fixture.componentRef.setInput('questions', QUESTIONS);
+    fixture.componentRef.setInput('questions', questions);
     fixture.componentRef.setInput('tags', [COMBATE, FORMAS, ITF]);
     fixture.componentRef.setInput('targetCount', targetCount);
     fixture.componentRef.setInput('selectedIds', selected);
@@ -179,6 +179,17 @@ describe('ExamQuestionPickerComponent', () => {
   });
 
   describe('barra de grados (RF-43)', () => {
+    it('una pregunta sin grado se ve con la barra completa y se oculta al acotarla; su fila no lleva cinturón', async () => {
+      await render([], 3, [...QUESTIONS, question(6, null, [])]);
+      expect(visibleIds()).toContain(6);
+      expect(el.querySelector('.question-pick-row[data-id="6"] app-grade-badge .grade-badge')).toBeNull();
+
+      await (await (await loader.getHarness(MatSliderHarness)).getEndThumb()).setValue(8);
+      await stable();
+
+      expect(visibleIds()).not.toContain(6);
+    });
+
     it('al mover el inicio a «Verde» se ocultan las de cinturón blanco', async () => {
       await render();
       const slider = await loader.getHarness(MatSliderHarness);

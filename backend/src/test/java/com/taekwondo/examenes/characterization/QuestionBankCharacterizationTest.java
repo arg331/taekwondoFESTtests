@@ -156,11 +156,14 @@ class QuestionBankCharacterizationTest extends ApiCharacterizationTest {
     }
 
     @Test
-    @DisplayName("Preguntas: el grado es obligatorio y el tipo, opcional (RF-43, RF-44)")
-    void createQuestion_gradeRequiredTypeOptional() {
+    @DisplayName("Preguntas: el grado y el tipo son opcionales; uno que no existe da 400 (RF-43, RF-44)")
+    void createQuestion_gradeAndTypeOptional() {
         String token = adminToken();
 
-        HttpResult noGrade = post("/api/questions", token, obj("text", "x", "options", FOUR_OPTIONS, "correctAnswer", 0));
+        HttpResult noGrade = post("/api/questions", token, obj("text", "Sin grado", "options", FOUR_OPTIONS,
+                "correctAnswer", 0)).expectStatus(201);
+        HttpResult badGrade = post("/api/questions", token, obj("text", "x", "options", FOUR_OPTIONS,
+                "correctAnswer", 0, "grade", "PURPURA"));
         HttpResult noType = post("/api/questions", token, obj("text", "Sin tipo", "options", FOUR_OPTIONS,
                 "correctAnswer", 0, "grade", "BLANCO")).expectStatus(201);
         HttpResult typeD = post("/api/questions", token, obj("text", "Tipo D", "options", FOUR_OPTIONS,
@@ -168,7 +171,8 @@ class QuestionBankCharacterizationTest extends ApiCharacterizationTest {
         HttpResult badType = post("/api/questions", token, obj("text", "x", "options", FOUR_OPTIONS,
                 "correctAnswer", 0, "grade", "BLANCO", "type", "E"));
 
-        assertThat(noGrade.expectStatus(400).message()).startsWith("grade");
+        assertThat((Object) noGrade.read("$.grade")).isNull();
+        badGrade.expectStatus(400);
         assertThat((Object) noType.read("$.type")).isNull();
         assertThat((String) typeD.read("$.type")).isEqualTo("D");
         badType.expectStatus(400);

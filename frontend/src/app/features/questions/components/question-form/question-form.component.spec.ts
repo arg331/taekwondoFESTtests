@@ -120,6 +120,16 @@ describe('QuestionFormComponent', () => {
     });
   });
 
+  it('el grado mínimo es opcional: «Sin grado» por defecto y se puede elegir uno', async () => {
+    await render(null);
+    const select = await TestbedHarnessEnvironment.loader(fixture).getHarness(MatSelectHarness.with({ selector: '.grade-select' }));
+
+    expect(Array.from(el.querySelectorAll('mat-label')).map(l => l.textContent?.trim())).toContain('Grado mínimo (opcional)');
+    expect(await select.getValueText()).toBe('Sin grado');
+    await select.open();
+    expect(await (await select.getOptions())[0].getText()).toBe('Sin grado');
+  });
+
   it('el tipo es el de examen de arbitraje: Tipo C, Tipo D o «Sin tipo definido», marcado por defecto', async () => {
     await render(null);
 
@@ -166,7 +176,7 @@ describe('QuestionFormComponent', () => {
     const req = http.expectOne(`${API}/questions`);
     expect(req.request.body.explanation).toBe('');
     expect(req.request.body.type).toBeNull();
-    expect(req.request.body.grade).toBe('BLANCO');
+    expect(req.request.body.grade).toBeNull();
     req.flush(null);
   });
 

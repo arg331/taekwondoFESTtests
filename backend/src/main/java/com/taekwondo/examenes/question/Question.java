@@ -46,8 +46,9 @@ public class Question {
     @Column(length = 2000)
     private String explanation;
 
+    /** Cinturón mínimo (RF-43); opcional, null = sin grado. */
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(length = 20)
     private Grade grade;
 
     /** C, D o ninguno (null). */

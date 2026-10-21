@@ -26,6 +26,9 @@ import {
 import { TagResponse } from '../../../../core/models/tag.models';
 import { GradeBadgeComponent } from '../../../../shared/components/grade-badge/grade-badge.component';
 
+/** Valor de «Sin grado» en el desplegable: con null, el desplegable se mostraría vacío. */
+const NO_GRADE = '';
+
 /**
  * Crear (question = null) o editar una pregunta. Siempre hay una casilla de opción libre al
  * final: al escribir en ella aparece otra (RF-09). Las opciones vacías se descartan al guardar
@@ -61,6 +64,7 @@ export class QuestionFormComponent {
   cancelled = output<void>();
 
   readonly grades = GRADES;
+  readonly noGrade = NO_GRADE;
   readonly questionTypes = QUESTION_TYPES;
   readonly typeLabel = QUESTION_TYPE_LABEL;
   readonly minOptions = MIN_OPTIONS;
@@ -74,7 +78,8 @@ export class QuestionFormComponent {
     options:       this.fb.nonNullable.array(Array.from({ length: MIN_OPTIONS }, () => '')),
     correctAnswer: [0],
     explanation:   ['', [Validators.maxLength(2000)]],
-    grade:         ['BLANCO' as Grade],
+    // Opcional (RF-43): una pregunta nueva parte sin grado
+    grade:         [NO_GRADE as Grade | typeof NO_GRADE],
     /** '' = sin tipo. */
     type:          ['' as QuestionType | ''],
     tagIds:        [[] as number[]]
@@ -107,7 +112,7 @@ export class QuestionFormComponent {
         options: [...options, ''],
         correctAnswer: q?.correctAnswer ?? 0,
         explanation: q?.explanation ?? '',
-        grade: q?.grade ?? 'BLANCO',
+        grade: q?.grade ?? NO_GRADE,
         type: q?.type ?? '',
         tagIds: q?.tags.map(t => t.id) ?? []
       });
@@ -143,7 +148,7 @@ export class QuestionFormComponent {
       options: kept.map(o => o.text),
       correctAnswer: kept.findIndex(o => o.index === v.correctAnswer),
       explanation: v.explanation.trim(),
-      grade: v.grade,
+      grade: v.grade === NO_GRADE ? null : v.grade,
       type: v.type || null,
       tagIds: v.tagIds
     };

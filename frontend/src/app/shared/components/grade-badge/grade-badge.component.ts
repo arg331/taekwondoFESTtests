@@ -1,10 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { GRADE_LABEL, Grade, gradeBackground, gradeTextColor } from '../../../core/models/question.models';
 
-/** Distintivo con el cinturón de una pregunta (RF-43). */
+/** Distintivo con el cinturón de una pregunta (RF-43); sin grado no muestra nada. */
 @Component({
   selector: 'app-grade-badge',
-  template: `<span class="grade-badge" [style.background]="background()" [style.color]="textColor()">{{ label() }}</span>`,
+  template: `@if (grade(); as g) {<span class="grade-badge" [style.background]="background()" [style.color]="textColor()">{{ label() }}</span>}`,
   styles: [`
     .grade-badge {
       display: inline-block;
@@ -20,9 +20,9 @@ import { GRADE_LABEL, Grade, gradeBackground, gradeTextColor } from '../../../co
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class GradeBadgeComponent {
-  grade = input.required<Grade>();
+  grade = input.required<Grade | null>();
 
-  label = computed(() => GRADE_LABEL[this.grade()]);
-  background = computed(() => gradeBackground(this.grade()));
-  textColor = computed(() => gradeTextColor(this.grade()));
+  label = computed(() => this.grade() ? GRADE_LABEL[this.grade()!] : '');
+  background = computed(() => this.grade() ? gradeBackground(this.grade()!) : '');
+  textColor = computed(() => this.grade() ? gradeTextColor(this.grade()!) : '');
 }

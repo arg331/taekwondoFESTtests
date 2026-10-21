@@ -41,9 +41,12 @@
 
       <div class="row-2">
         <mat-form-field appearance="outline">
-          <mat-label>Grado mínimo</mat-label>
+          <mat-label>Grado mínimo (opcional)</mat-label>
           <mat-select class="grade-select" formControlName="grade">
-            <mat-select-trigger><app-grade-badge [grade]="form.controls.grade.value" /></mat-select-trigger>
+            <mat-select-trigger>
+              @if (form.controls.grade.value; as grade) { <app-grade-badge [grade]="grade" /> } @else { Sin grado }
+            </mat-select-trigger>
+            <mat-option [value]="noGrade">Sin grado</mat-option>
             @for (g of grades; track g) {
               <mat-option [value]="g"><app-grade-badge [grade]="g" /></mat-option>
             }

@@ -66,7 +66,8 @@ export interface QuestionResponse {
   options: string[];
   correctAnswer: number;
   explanation: string | null;
-  grade: Grade;
+  /** Cinturón mínimo; opcional (null = sin grado). */
+  grade: Grade | null;
   type: QuestionType | null;
   tags: TagResponse[];
   createdAt: string;
@@ -79,7 +80,8 @@ export interface QuestionRequest {
   options: string[];
   correctAnswer: number;
   explanation: string;
-  grade: Grade;
+  /** Cinturón mínimo; opcional (null = sin grado). */
+  grade: Grade | null;
   type: QuestionType | null;
   tagIds: number[];
 }

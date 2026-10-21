@@ -17,7 +17,8 @@ public record QuestionRequest(
         List<@NotBlank @Size(max = 500) String> options,
         @Min(0) int correctAnswer,
         @Size(max = 2000) String explanation,
-        @NotNull Grade grade,
+        /** Opcional (RF-43). */
+        Grade grade,
         QuestionType type,
         Set<Long> tagIds
 ) {

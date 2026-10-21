@@ -33,6 +33,8 @@ export function matchesTags(question: QuestionResponse, selectedTagIds: Readonly
 
 /** El grado de la pregunta está entre los dos extremos de la barra, ambos incluidos. */
 export function matchesGrade(question: QuestionResponse, [from, to]: GradeRange): boolean {
+  // Sin grado: solo con la barra completa; al acotarla, no se sabe si entra (RF-43)
+  if (question.grade === null) return from === FULL_GRADE_RANGE[0] && to === FULL_GRADE_RANGE[1];
   const index = GRADES.indexOf(question.grade);
   return index >= from && index <= to;
 }

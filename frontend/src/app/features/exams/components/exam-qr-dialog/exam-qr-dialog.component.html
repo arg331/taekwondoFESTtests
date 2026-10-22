@@ -1,0 +1,28 @@
+<div class="projection">
+  <h1 class="projection-title">{{ data.title }}</h1>
+
+  @if (qrImage.hasValue()) {
+    <img [src]="qrImage.value()" alt="QR del examen {{ data.code }}" class="projection-qr" />
+  } @else if (qrImage.error()) {
+    <p class="projection-error">No se pudo generar el QR. Usa el código o el enlace.</p>
+  } @else {
+    <div class="projection-qr projection-qr--loading" aria-hidden="true"></div>
+  }
+
+  <p class="projection-code">{{ data.code }}</p>
+  <p class="projection-url">{{ data.url }}</p>
+
+  <div class="projection-actions">
+    <button mat-stroked-button type="button" (click)="fullscreen()">
+      <mat-icon>fullscreen</mat-icon>Pantalla completa
+    </button>
+    @if (qrImage.hasValue()) {
+      <a mat-stroked-button [href]="qrImage.value()" [attr.download]="data.code + '.png'">
+        <mat-icon>download</mat-icon>Descargar PNG
+      </a>
+    }
+    <button mat-flat-button color="primary" type="button" (click)="close()">
+      <mat-icon>close</mat-icon>Cerrar
+    </button>
+  </div>
+</div>

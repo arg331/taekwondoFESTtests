@@ -156,13 +156,17 @@
 
     <div class="exams-section">
       <h2>Exámenes disponibles</h2>
+      <div class="code-entry">
+        <p>¿Tienes el código de un examen?</p>
+        <app-exam-code-entry />
+      </div>
       @if (loadingPublic()) {
         <div class="loading"><mat-spinner diameter="40" /></div>
       } @else if (publicExams().length === 0) {
         <div class="empty">
           <mat-icon>assignment_late</mat-icon>
           <p>No hay exámenes públicos disponibles ahora mismo.</p>
-          <p style="font-size:0.85rem;color:#aaa;">Escanea el QR que te facilite tu profesor para acceder a un examen privado.</p>
+          <p style="font-size:0.85rem;color:#aaa;">Para un examen privado, escanea el QR de tu profesor o escribe su código arriba.</p>
         </div>
       } @else {
         <div class="exams-grid">

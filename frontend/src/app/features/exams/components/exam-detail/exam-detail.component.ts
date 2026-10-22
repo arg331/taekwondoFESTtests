@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, linkedSignal, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, linkedSignal, output, resource, signal, untracked } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Observable, of, switchMap } from 'rxjs';
@@ -12,7 +12,10 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDividerModule } from '@angular/material/divider';
+import { MatDialog } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { ExamService } from '../../../../core/services/exam.service';
+import { QR_PANEL_SIZE_PX, QrCodeService } from '../../../../core/services/qr-code.service';
 import {
   EXAM_STATUS_COLOR,
   EXAM_STATUS_LABEL,
@@ -20,7 +23,12 @@ import {
   Visibility
 } from '../../../../core/models/exam.models';
 import { QuestionResponse } from '../../../../core/models/question.models';
+import { TagResponse } from '../../../../core/models/tag.models';
 import { ExamQuestionPickerComponent } from '../exam-question-picker/exam-question-picker.component';
+import { ExamQrDialogComponent, ExamQrDialogData } from '../exam-qr-dialog/exam-qr-dialog.component';
+
+/** Cuánto se ve un aviso breve (enlace copiado, etc.). */
+const NOTICE_DURATION_MS = 3000;
 
 /**
  * Panel de un examen: configuración, preguntas, publicación y ciclo de vida.
@@ -45,24 +53,38 @@ import { ExamQuestionPickerComponent } from '../exam-question-picker/exam-questi
     ExamQuestionPickerComponent
   ],
   templateUrl: './exam-detail.component.html',
-  styleUrl: './exam-detail.component.scss'
+  styleUrl: './exam-detail.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ExamDetailComponent {
   private fb = inject(FormBuilder);
   private examSvc = inject(ExamService);
+  private snackBar = inject(MatSnackBar);
+  private dialog = inject(MatDialog);
+  private qrCode = inject(QrCodeService);
 
   exam = input.required<ExamResponse>();
   questions = input<QuestionResponse[]>([]);
+  /** Tags del profesor, para filtrar y para crear preguntas desde el selector. */
+  tags = input<TagResponse[]>([]);
   changed = output<ExamResponse>();
   deleted = output<number>();
+  /** Pregunta creada desde el selector: el padre la añade al banco que muestra. */
+  questionCreated = output<QuestionResponse>();
 
   readonly statusLabel = EXAM_STATUS_LABEL;
   readonly statusColor = EXAM_STATUS_COLOR;
 
+  /**
+   * El panel se reutiliza al elegir otro examen de la lista: todo su estado se reinicia
+   * cuando cambia el examen (su id), no cuando llega el mismo examen actualizado.
+   */
+  private readonly examId = computed(() => this.exam().id);
+
   busy = signal(false);
-  error = signal<string | null>(null);
-  editingConfig = signal(false);
-  showQr = signal(false);
+  error = linkedSignal<number, string | null>({ source: this.examId, computation: () => null });
+  editingConfig = linkedSignal({ source: this.examId, computation: () => false });
+  showQr = linkedSignal({ source: this.examId, computation: () => false });
 
   /** Selección de preguntas en edición; se reinicia al cambiar de examen. */
   selectedIds = linkedSignal(() => [...this.exam().questionIds]);
@@ -85,8 +107,16 @@ export class ExamDetailComponent {
   });
 
   examUrl = computed(() => `${window.location.origin}/exam/${this.exam().code}`);
-  qrUrl = computed(() =>
-    `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(this.examUrl())}`);
+  /** Cerrado a mano o fuera de plazo: quien escanee el QR no podrá entregar. */
+  closedForSubmissions = computed(() => {
+    const { status, expiresAt } = this.exam();
+    return status === 'EXPIRED' || (status === 'PUBLISHED' && !!expiresAt && new Date(expiresAt) <= new Date());
+  });
+  /** QR del panel: se genera en el navegador y solo mientras se muestra. */
+  qrImage = resource({
+    params: () => (this.showQr() ? this.examUrl() : undefined),
+    loader: ({ params: url }) => this.qrCode.toDataUrl(url, QR_PANEL_SIZE_PX)
+  });
 
   configForm = this.fb.nonNullable.group({
     title:                  ['', [Validators.required, Validators.minLength(3), Validators.maxLength(200)]],
@@ -104,6 +134,17 @@ export class ExamDetailComponent {
   });
 
   expirationForm = this.fb.nonNullable.group({ expiresAt: [''] });
+
+  constructor() {
+    // Los formularios reactivos no son signals: se vacían al cambiar de examen
+    effect(() => {
+      this.examId();
+      untracked(() => {
+        this.publishForm.reset();
+        this.expirationForm.reset();
+      });
+    });
+  }
 
   // ── Configuración ─────────────────────────────────
   openEditConfig(): void {
@@ -190,8 +231,35 @@ export class ExamDetailComponent {
     });
   }
 
+  /** QR grande para proyectar en el aula. */
+  project(): void {
+    const { title, code } = this.exam();
+    this.dialog.open<ExamQrDialogComponent, ExamQrDialogData>(ExamQrDialogComponent, {
+      data: { title, code: code ?? '', url: this.examUrl() },
+      width: '100vw',
+      height: '100vh',
+      maxWidth: '100vw',
+      maxHeight: '100vh'
+    });
+  }
+
+  /** Copia el enlace. Si el navegador no lo permite (p. ej. http con una IP), lo muestra para copiarlo a mano. */
   copy(text: string): void {
-    navigator.clipboard.writeText(text);
+    const clipboard: Clipboard | undefined = navigator.clipboard;
+    if (!clipboard) {
+      this.copyFailed();
+      return;
+    }
+    clipboard.writeText(text).then(() => this.notify('Enlace copiado'), () => this.copyFailed());
+  }
+
+  private copyFailed(): void {
+    this.showQr.set(true);
+    this.notify('No se pudo copiar el enlace: cópialo a mano desde el panel');
+  }
+
+  private notify(message: string): void {
+    this.snackBar.open(message, undefined, { duration: NOTICE_DURATION_MS });
   }
 
   /** Ejecuta una acción que devuelve el examen actualizado y lo propaga al padre. */

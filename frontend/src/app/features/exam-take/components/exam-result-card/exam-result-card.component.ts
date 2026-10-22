@@ -1,4 +1,4 @@
-import { Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -22,7 +22,8 @@ interface AnswerRow {
   selector: 'app-exam-result-card',
   imports: [RouterLink, MatCardModule, MatButtonModule, MatIconModule, MatDividerModule],
   templateUrl: './exam-result-card.component.html',
-  styleUrl: './exam-result-card.component.scss'
+  styleUrl: './exam-result-card.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ExamResultCardComponent {
   result = input.required<ResultResponse>();

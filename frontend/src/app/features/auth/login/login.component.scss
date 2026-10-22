@@ -1,7 +1,9 @@
 .login-wrapper {
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
+  gap: 16px;
   min-height: 100vh;
   background: linear-gradient(135deg, #3a0000 0%, #6b0000 50%, #3a0000 100%);
   padding: 16px;
@@ -39,6 +41,10 @@ mat-card-subtitle {
 }
 
 .title-icon { font-size: 1.8rem; }
+
+.code-card { border-top-color: #555; }
+.code-title { font-weight: 600; margin: 0 0 4px; color: #1a1a1a; }
+.code-hint { font-size: 0.85rem; color: #666; margin: 0 0 12px; }
 
 .full-width {
   width: 100%;

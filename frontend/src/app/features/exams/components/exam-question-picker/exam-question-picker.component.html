@@ -1,31 +1,124 @@
-@if (questions().length === 0) {
-  <p class="hint">No tienes preguntas en tu banco todavía.</p>
-} @else {
-  <div class="picker-filters">
-    <mat-form-field appearance="outline" class="picker-search">
-      <mat-label>Buscar</mat-label>
-      <input matInput [value]="search()" (input)="search.set($any($event.target).value)" placeholder="Texto..." />
-      <mat-icon matPrefix>search</mat-icon>
-    </mat-form-field>
-    <mat-form-field appearance="outline" class="picker-diff">
-      <mat-label>Dificultad</mat-label>
-      <mat-select [value]="difficulty()" (selectionChange)="difficulty.set($event.value)">
-        <mat-option value="">Todas</mat-option>
-        @for (d of difficulties; track d) {
-          <mat-option [value]="d">{{ diffLabel[d] }}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
+<div class="picker-toolbar">
+  <mat-form-field appearance="outline" class="picker-search" subscriptSizing="dynamic">
+    <mat-label>Buscar</mat-label>
+    <input matInput [value]="search()" (input)="search.set($any($event.target).value)" placeholder="Texto de la pregunta" />
+    <mat-icon matPrefix>search</mat-icon>
+  </mat-form-field>
+  <button mat-stroked-button type="button" (click)="openNewQuestion()">
+    <mat-icon>add</mat-icon>Nueva pregunta
+  </button>
+</div>
+
+<div class="picker-filters">
+  <div class="filter-block">
+    <span class="filter-title">Dificultad</span>
+    <mat-slider class="difficulty-slider" min="0" [max]="difficulties.length - 1" step="1"
+                discrete showTickMarks [displayWith]="difficultyLabel">
+      <input matSliderStartThumb [value]="difficultyRange()[0]"
+             (change)="setDifficultyFrom(+$any($event.target).value)" aria-label="Dificultad desde" />
+      <input matSliderEndThumb [value]="difficultyRange()[1]"
+             (change)="setDifficultyTo(+$any($event.target).value)" aria-label="Dificultad hasta" />
+    </mat-slider>
+    <div class="difficulty-scale">
+      @for (d of difficulties; track d) {
+        <span>{{ diffLabel[d] }}</span>
+      }
+    </div>
   </div>
-  <p class="hint">{{ filtered().length }} de {{ questions().length }} preguntas</p>
-  <div class="questions-picker">
-    @for (q of filtered(); track q.id) {
-      <div class="question-pick-row" [class.picked]="isSelected(q.id)" (click)="toggle(q.id)">
-        <mat-icon>{{ isSelected(q.id) ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
-        <span class="question-pick-text">{{ q.text }}</span>
-      </div>
-    } @empty {
-      <p class="hint empty">Sin resultados.</p>
+
+  <div class="filter-block">
+    <span class="filter-title">Tags</span>
+    <div class="tag-filters">
+      @for (tag of tags(); track tag.id) {
+        <mat-checkbox [checked]="isTagVisible(tag.id)" (change)="setTagVisible(tag.id, $event.checked)">
+          <span class="tag-dot" [style.background]="tag.color"></span>{{ tag.name }} ({{ tagCounts().get(tag.id) ?? 0 }})
+        </mat-checkbox>
+      }
+      <mat-checkbox [checked]="showUntagged()" (change)="showUntagged.set($event.checked)">
+        Sin tag ({{ untaggedCount() }})
+      </mat-checkbox>
+    </div>
+  </div>
+</div>
+
+<div class="picker-layout">
+  <section class="picker-list">
+    <div class="list-header">
+      <span class="hint">{{ filtered().length }} de {{ questions().length }} preguntas</span>
+      <button mat-button color="primary" type="button" (click)="completeRandomly()"
+              [disabled]="missing() === 0 || candidates().length === 0">
+        <mat-icon>casino</mat-icon>Completar al azar
+        @if (missing() > 0) { (faltan {{ missing() }}) }
+      </button>
+    </div>
+    @if (randomNote()) {
+      <p class="random-note">{{ randomNote() }}</p>
     }
-  </div>
-}
+
+    <div class="questions-picker">
+      @for (q of filtered(); track q.id) {
+        <div class="question-pick-row" [attr.data-id]="q.id" [class.picked]="isSelected(q.id)" (click)="toggle(q.id)">
+          <mat-icon class="pick-icon">{{ isSelected(q.id) ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+          <div class="pick-body">
+            <span class="question-pick-text">{{ q.text }}</span>
+            <div class="chips">
+              <span class="chip chip-difficulty" [style.background]="diffColor[q.difficulty]">{{ diffLabel[q.difficulty] }}</span>
+              @for (tag of q.tags; track tag.id) {
+                <span class="chip chip-tag" [style.borderColor]="tag.color" [style.color]="tag.color">{{ tag.name }}</span>
+              }
+            </div>
+            @if (expandedId() === q.id) {
+              <div class="question-preview" (click)="$event.stopPropagation()">
+                <ol type="A">
+                  @for (option of q.options; track $index) {
+                    <li [class.correct]="$index === q.correctAnswer">
+                      {{ option }}
+                      @if ($index === q.correctAnswer) { <mat-icon class="inline-icon">check</mat-icon> }
+                    </li>
+                  }
+                </ol>
+                @if (q.explanation) {
+                  <p class="preview-explanation"><mat-icon class="inline-icon">lightbulb</mat-icon>{{ q.explanation }}</p>
+                }
+              </div>
+            }
+          </div>
+          <button mat-icon-button class="preview-toggle" type="button" (click)="togglePreview(q.id, $event)"
+                  [attr.aria-expanded]="expandedId() === q.id" aria-label="Ver la pregunta completa">
+            <mat-icon>{{ expandedId() === q.id ? 'expand_less' : 'expand_more' }}</mat-icon>
+          </button>
+        </div>
+      } @empty {
+        <p class="hint empty">
+          {{ questions().length === 0 ? 'No tienes preguntas en tu banco todavía. Crea la primera con «Nueva pregunta».' : 'Ninguna pregunta cumple los filtros.' }}
+        </p>
+      }
+    </div>
+  </section>
+
+  <section class="cart" aria-label="Preguntas seleccionadas">
+    <div class="cart-header">
+      <mat-icon>shopping_cart</mat-icon>
+      <span class="cart-title">Seleccionadas</span>
+      <span class="cart-count" [class.over]="overSelected()">{{ selectedIds().length }} / {{ requiredCount() }}</span>
+      <button mat-button type="button" class="cart-clear" (click)="clear()" [disabled]="selectedIds().length === 0">Vaciar</button>
+    </div>
+    @if (overSelected()) {
+      <p class="cart-warning">Sobran {{ selectedIds().length - requiredCount() }}: el examen pide {{ requiredCount() }}.</p>
+    }
+    <div class="cart-items">
+      @for (q of selectedQuestions(); track q.id; let i = $index) {
+        <div class="cart-item">
+          <span class="cart-position">{{ i + 1 }}</span>
+          <span class="cart-text">{{ q.text }}</span>
+          <span class="chip chip-difficulty" [style.background]="diffColor[q.difficulty]">{{ diffLabel[q.difficulty] }}</span>
+          <button mat-icon-button type="button" class="cart-remove" (click)="remove(q.id)" aria-label="Quitar del examen">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+      } @empty {
+        <p class="hint empty">Aún no has elegido preguntas.</p>
+      }
+    </div>
+  </section>
+</div>

@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -31,7 +31,8 @@ export type DraftMode = 'manual' | 'random';
     MatProgressSpinnerModule
   ],
   templateUrl: './exam-draft-form.component.html',
-  styleUrl: './exam-draft-form.component.scss'
+  styleUrl: './exam-draft-form.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ExamDraftFormComponent implements OnInit {
   private fb = inject(FormBuilder);

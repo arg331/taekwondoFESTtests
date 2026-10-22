@@ -1,4 +1,4 @@
-import { Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -9,7 +9,8 @@ import { DIFFICULTY_COLOR, DIFFICULTY_LABEL, QuestionResponse } from '../../../.
   selector: 'app-question-card',
   imports: [MatCardModule, MatButtonModule, MatIconModule, MatTooltipModule],
   templateUrl: './question-card.component.html',
-  styleUrl: './question-card.component.scss'
+  styleUrl: './question-card.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class QuestionCardComponent {
   question = input.required<QuestionResponse>();

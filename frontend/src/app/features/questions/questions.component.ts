@@ -1,4 +1,5 @@
-import { Component, inject, signal, computed, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal, computed, OnInit, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -35,11 +36,13 @@ import { TagManagerComponent } from './components/tag-manager/tag-manager.compon
     TagManagerComponent
   ],
   templateUrl: './questions.component.html',
-  styleUrl: './questions.component.scss'
+  styleUrl: './questions.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class QuestionsComponent implements OnInit {
   private questionSvc = inject(QuestionService);
   private tagSvc      = inject(TagService);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly difficulties = DIFFICULTIES;
   readonly diffLabel = DIFFICULTY_LABEL;
@@ -66,8 +69,8 @@ export class QuestionsComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    this.tagSvc.getAll().subscribe(tags => this.tags.set(tags));
-    this.questionSvc.getAll().subscribe({
+    this.tagSvc.getAll().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(tags => this.tags.set(tags));
+    this.questionSvc.getAll().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: q => { this.questions.set(q); this.loading.set(false); },
       error: () => this.loading.set(false)
     });

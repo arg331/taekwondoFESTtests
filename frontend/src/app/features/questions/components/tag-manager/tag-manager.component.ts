@@ -1,4 +1,4 @@
-import { Component, inject, model, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, model, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -26,7 +26,8 @@ import { TagResponse } from '../../../../core/models/tag.models';
     MatTooltipModule
   ],
   templateUrl: './tag-manager.component.html',
-  styleUrl: './tag-manager.component.scss'
+  styleUrl: './tag-manager.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TagManagerComponent {
   private fb = inject(FormBuilder);

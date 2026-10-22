@@ -39,7 +39,12 @@
         <p>Nadie ha realizado este examen todavía.</p>
       </div>
     } @else {
-      <p class="section-title">Participantes ({{ results().length }})</p>
+      <div class="participants-header">
+        <p class="section-title">Participantes ({{ results().length }})</p>
+        <button mat-stroked-button type="button" (click)="exportExcel()" [disabled]="exporting()">
+          <mat-icon>download</mat-icon>Exportar a Excel
+        </button>
+      </div>
       <div class="table-wrapper">
         <table mat-table [dataSource]="results()" class="results-table">
           <ng-container matColumnDef="studentName">

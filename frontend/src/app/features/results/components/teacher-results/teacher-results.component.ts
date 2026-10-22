@@ -6,11 +6,14 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatTableModule } from '@angular/material/table';
+import { MatButtonModule } from '@angular/material/button';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { ExamService } from '../../../../core/services/exam.service';
 import { ResultService } from '../../../../core/services/result.service';
 import { EXAM_STATUS_COLOR, EXAM_STATUS_LABEL, ExamResponse } from '../../../../core/models/exam.models';
 import { ExamStatisticsResponse, ResultResponse } from '../../../../core/models/result.models';
 import { formatDuration } from '../../../../shared/utils/format';
+import { fileSlug, saveBlob } from '../../../../shared/utils/download';
 import { ExamStatsComponent } from '../exam-stats/exam-stats.component';
 
 /**
@@ -25,6 +28,7 @@ import { ExamStatsComponent } from '../exam-stats/exam-stats.component';
     MatProgressSpinnerModule,
     MatDividerModule,
     MatTableModule,
+    MatButtonModule,
     ExamStatsComponent
   ],
   templateUrl: './teacher-results.component.html',
@@ -34,6 +38,7 @@ import { ExamStatsComponent } from '../exam-stats/exam-stats.component';
 export class TeacherResultsComponent implements OnInit {
   private examSvc = inject(ExamService);
   private resultSvc = inject(ResultService);
+  private snackBar = inject(MatSnackBar);
   private readonly destroyRef = inject(DestroyRef);
 
   readonly statusLabel = EXAM_STATUS_LABEL;
@@ -47,6 +52,7 @@ export class TeacherResultsComponent implements OnInit {
   loadingResults = signal(false);
   results = signal<ResultResponse[]>([]);
   stats = signal<ExamStatisticsResponse | null>(null);
+  exporting = signal(false);
 
   publishedExams = computed(() => this.exams().filter(e => e.status !== 'DRAFT'));
 
@@ -68,5 +74,22 @@ export class TeacherResultsComponent implements OnInit {
       error: () => this.loadingResults.set(false)
     });
     this.resultSvc.getStatistics(exam.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(s => this.stats.set(s));
+  }
+
+  /** Descarga el Excel de las entregas del examen elegido, ordenadas por club (RF-27). */
+  exportExcel(): void {
+    const exam = this.selectedExam();
+    if (!exam || this.exporting()) return;
+    this.exporting.set(true);
+    this.resultSvc.exportExcel(exam.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: blob => {
+        this.exporting.set(false);
+        saveBlob(blob, `resultados-${fileSlug(exam.title)}.xlsx`);
+      },
+      error: () => {
+        this.exporting.set(false);
+        this.snackBar.open('No se pudo exportar el Excel. Inténtalo de nuevo.', undefined, { duration: 4000 });
+      }
+    });
   }
 }

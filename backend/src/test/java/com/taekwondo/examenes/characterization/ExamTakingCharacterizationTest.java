@@ -302,7 +302,7 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
                 answers(exam.questionIds(), allCorrect(5))).expectStatus(201);
         long firstQuestion = exam.questionIds().get(0);
         put("/api/questions/" + firstQuestion, token, obj("text", "Editada", "options", FOUR_OPTIONS,
-                "correctAnswer", 3, "difficulty", "MEDIO")).expectStatus(200);
+                "correctAnswer", 3, "grade", "VERDE")).expectStatus(200);
 
         List<Map<String, Object>> results = get("/api/results/exam/" + exam.id(), token).expectStatus(200).asList();
 

@@ -12,3 +12,9 @@
 }
 .inline-icon { font-size: 18px; height: 18px; width: 18px; }
 .full-width { width: 100%; margin-bottom: 4px; }
+.exam-kind {
+  display: flex; align-items: center; gap: 6px;
+  margin: 0 16px 8px; padding: 6px 10px; border-radius: 6px;
+  font-size: 0.85rem; background: #e8f5e9; color: #1b5e20;
+  &.practice { background: #eeeeee; color: #424242; }
+}

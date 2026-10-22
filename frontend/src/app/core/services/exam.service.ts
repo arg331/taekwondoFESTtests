@@ -68,6 +68,11 @@ export class ExamService {
     return this.http.patch<ExamResponse>(`${this.api}/${id}/expiration`, request);
   }
 
+  /** Copia el examen como borrador nuevo para ampliarlo (RF-18). */
+  copy(id: number): Observable<ExamResponse> {
+    return this.http.post<ExamResponse>(`${this.api}/${id}/copy`, {});
+  }
+
   deleteDraft(id: number): Observable<void> {
     return this.http.delete<void>(`${this.api}/${id}`);
   }

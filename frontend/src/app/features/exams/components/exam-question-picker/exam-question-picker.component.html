@@ -11,30 +11,28 @@
 
 <div class="picker-filters">
   <div class="filter-block">
-    <span class="filter-title">Dificultad</span>
-    <mat-slider class="difficulty-slider" min="0" [max]="difficulties.length - 1" step="1"
-                discrete showTickMarks [displayWith]="difficultyLabel">
-      <input matSliderStartThumb [value]="difficultyRange()[0]"
-             (change)="setDifficultyFrom(+$any($event.target).value)" aria-label="Dificultad desde" />
-      <input matSliderEndThumb [value]="difficultyRange()[1]"
-             (change)="setDifficultyTo(+$any($event.target).value)" aria-label="Dificultad hasta" />
-    </mat-slider>
-    <div class="difficulty-scale">
-      @for (d of difficulties; track d) {
-        <span>{{ diffLabel[d] }}</span>
-      }
-    </div>
+    <span class="filter-title">Grado</span>
+    <app-grade-range [(range)]="gradeRange" />
+    <span class="filter-title">Tipo</span>
+    <mat-button-toggle-group class="type-filter" hideSingleSelectionIndicator aria-label="Filtrar por tipo"
+                             [value]="typeFilter()" (change)="typeFilter.set($event.value)">
+      <mat-button-toggle value="">Todos</mat-button-toggle>
+      <mat-button-toggle value="C">C</mat-button-toggle>
+      <mat-button-toggle value="D">D</mat-button-toggle>
+      <mat-button-toggle value="NONE">Sin tipo</mat-button-toggle>
+    </mat-button-toggle-group>
   </div>
 
   <div class="filter-block">
     <span class="filter-title">Tags</span>
     <div class="tag-filters">
       @for (tag of tags(); track tag.id) {
-        <mat-checkbox [checked]="isTagVisible(tag.id)" (change)="setTagVisible(tag.id, $event.checked)">
-          <span class="tag-dot" [style.background]="tag.color"></span>{{ tag.name }} ({{ tagCounts().get(tag.id) ?? 0 }})
+        <mat-checkbox class="tag-pill" [style.--tag-color]="tag.color"
+                      [checked]="isTagSelected(tag.id)" (change)="setTagSelected(tag.id, $event.checked)">
+          {{ tag.name }} ({{ tagCounts().get(tag.id) ?? 0 }})
         </mat-checkbox>
       }
-      <mat-checkbox [checked]="showUntagged()" (change)="showUntagged.set($event.checked)">
+      <mat-checkbox class="tag-pill untagged" [checked]="untaggedSelected()" (change)="untaggedSelected.set($event.checked)">
         Sin tag ({{ untaggedCount() }})
       </mat-checkbox>
     </div>
@@ -62,7 +60,8 @@
           <div class="pick-body">
             <span class="question-pick-text">{{ q.text }}</span>
             <div class="chips">
-              <span class="chip chip-difficulty" [style.background]="diffColor[q.difficulty]">{{ diffLabel[q.difficulty] }}</span>
+              <app-grade-badge [grade]="q.grade" />
+              @if (q.type) { <span class="chip chip-type">{{ typeLabel[q.type] }}</span> }
               @for (tag of q.tags; track tag.id) {
                 <span class="chip chip-tag" [style.borderColor]="tag.color" [style.color]="tag.color">{{ tag.name }}</span>
               }
@@ -100,18 +99,19 @@
     <div class="cart-header">
       <mat-icon>shopping_cart</mat-icon>
       <span class="cart-title">Seleccionadas</span>
-      <span class="cart-count" [class.over]="overSelected()">{{ selectedIds().length }} / {{ requiredCount() }}</span>
+      <span class="cart-count" [class.over]="overMax()">{{ selectedIds().length }}</span>
+      <span class="cart-target">objetivo {{ targetCount() }}</span>
       <button mat-button type="button" class="cart-clear" (click)="clear()" [disabled]="selectedIds().length === 0">Vaciar</button>
     </div>
-    @if (overSelected()) {
-      <p class="cart-warning">Sobran {{ selectedIds().length - requiredCount() }}: el examen pide {{ requiredCount() }}.</p>
+    @if (overMax()) {
+      <p class="cart-warning">Un examen admite como máximo {{ maxQuestions }} preguntas: quita {{ selectedIds().length - maxQuestions }}.</p>
     }
     <div class="cart-items">
       @for (q of selectedQuestions(); track q.id; let i = $index) {
         <div class="cart-item">
           <span class="cart-position">{{ i + 1 }}</span>
           <span class="cart-text">{{ q.text }}</span>
-          <span class="chip chip-difficulty" [style.background]="diffColor[q.difficulty]">{{ diffLabel[q.difficulty] }}</span>
+          <app-grade-badge [grade]="q.grade" />
           <button mat-icon-button type="button" class="cart-remove" (click)="remove(q.id)" aria-label="Quitar del examen">
             <mat-icon>close</mat-icon>
           </button>

@@ -17,15 +17,21 @@
       </mat-form-field>
 
       <p class="section-label">Opciones de respuesta</p>
-      <p class="hint">Entre {{ minOptions }} y 4 opciones. Marca la correcta.</p>
+      <p class="hint">Al menos {{ minOptions }}. Al escribir en la última aparece otra casilla. Marca la correcta.</p>
       <mat-radio-group formControlName="correctAnswer" class="options-grid" color="primary">
-        @for (ctrl of form.controls.options.controls; track $index) {
-          <div class="option-row">
-            <mat-radio-button [value]="$index" />
-            <mat-form-field appearance="outline" class="option-field">
-              <mat-label>Opción {{ $index + 1 }}</mat-label>
+        @for (ctrl of form.controls.options.controls; track ctrl) {
+          <div class="option-row" [class.trailing]="isTrailing($index)">
+            <mat-radio-button [value]="$index" [attr.aria-label]="'Opción ' + ($index + 1) + ' es la correcta'" />
+            <mat-form-field appearance="outline" class="option-field" subscriptSizing="dynamic">
+              <mat-label>{{ isTrailing($index) ? 'Añadir opción' : 'Opción ' + ($index + 1) }}</mat-label>
               <input matInput [formControl]="ctrl" />
             </mat-form-field>
+            @if (canRemoveOptions() && !isTrailing($index)) {
+              <button mat-icon-button type="button" class="remove-option" (click)="removeOption($index)"
+                      matTooltip="Quitar opción" [attr.aria-label]="'Quitar opción ' + ($index + 1)">
+                <mat-icon>close</mat-icon>
+              </button>
+            }
           </div>
         }
       </mat-radio-group>
@@ -35,10 +41,11 @@
 
       <div class="row-2">
         <mat-form-field appearance="outline">
-          <mat-label>Dificultad</mat-label>
-          <mat-select formControlName="difficulty">
-            @for (d of difficulties; track d) {
-              <mat-option [value]="d">{{ diffLabel[d] }}</mat-option>
+          <mat-label>Grado mínimo</mat-label>
+          <mat-select class="grade-select" formControlName="grade">
+            <mat-select-trigger><app-grade-badge [grade]="form.controls.grade.value" /></mat-select-trigger>
+            @for (g of grades; track g) {
+              <mat-option [value]="g"><app-grade-badge [grade]="g" /></mat-option>
             }
           </mat-select>
         </mat-form-field>
@@ -55,12 +62,19 @@
         </mat-form-field>
       </div>
 
+      <div class="type-row">
+        <span class="section-label">Tipo</span>
+        <mat-button-toggle-group class="type-toggle" formControlName="type" hideSingleSelectionIndicator aria-label="Tipo de pregunta">
+          <mat-button-toggle value="">Ninguno</mat-button-toggle>
+          @for (t of questionTypes; track t) {
+            <mat-button-toggle [value]="t">{{ typeLabel[t] }}</mat-button-toggle>
+          }
+        </mat-button-toggle-group>
+      </div>
+
       <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Explicación de la respuesta</mat-label>
+        <mat-label>Explicación de la respuesta (opcional)</mat-label>
         <textarea matInput formControlName="explanation" rows="2"></textarea>
-        @if (form.controls.explanation.hasError('required') && form.controls.explanation.touched) {
-          <mat-error>Campo obligatorio</mat-error>
-        }
       </mat-form-field>
 
       @if (error()) {

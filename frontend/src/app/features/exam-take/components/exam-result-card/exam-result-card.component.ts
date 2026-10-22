@@ -6,6 +6,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatDividerModule } from '@angular/material/divider';
 import { ResultResponse } from '../../../../core/models/result.models';
 import { PublicQuestionResponse } from '../../../../core/models/exam.models';
+import { APP_NAME } from '../../../../core/app-brand';
 
 interface AnswerRow {
   number: number;
@@ -26,6 +27,7 @@ interface AnswerRow {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ExamResultCardComponent {
+  readonly appName = APP_NAME;
   result = input.required<ResultResponse>();
   /** Preguntas en el orden en que las vio el alumno. */
   questions = input.required<PublicQuestionResponse[]>();

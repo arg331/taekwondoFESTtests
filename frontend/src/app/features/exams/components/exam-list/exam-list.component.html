@@ -11,9 +11,9 @@
           </p>
         </div>
         @if (exam.status !== 'DRAFT') {
-          <mat-icon class="visibility-icon" [class.public]="exam.visibility === 'PUBLIC'"
-                    [matTooltip]="exam.visibility === 'PUBLIC' ? 'Público' : 'Privado'">
-            {{ exam.visibility === 'PUBLIC' ? 'public' : 'lock' }}
+          <mat-icon class="visibility-icon" [style.color]="visibilityColor[exam.visibility]"
+                    [matTooltip]="visibilityLabel[exam.visibility]">
+            {{ visibilityIcon[exam.visibility] }}
           </mat-icon>
         }
       </div>

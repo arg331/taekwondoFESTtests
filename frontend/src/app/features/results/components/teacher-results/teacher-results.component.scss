@@ -44,3 +44,8 @@
 @media (max-width: 900px) {
   :host { grid-template-columns: 1fr; }
 }
+
+.participants-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  .section-title { margin: 0; }
+}

@@ -11,12 +11,28 @@
     </button>
   </div>
 
-  @if (editing() !== undefined) {
-    <app-question-form [question]="editing() ?? null" [tags]="tags()"
+  <!-- Pregunta nueva arriba; al editar, el formulario se abre debajo de la propia pregunta -->
+  @if (editing() === null) {
+    <app-question-form [question]="null" [tags]="tags()"
                        (saved)="onSaved($event)" (cancelled)="editing.set(undefined)" />
   }
 
-  <app-tag-manager [(tags)]="tags" />
+  <!-- El selector de vista va a la altura de «Gestión de tags» -->
+  <div class="tags-row">
+    <app-tag-manager class="tags-manager" [(tags)]="tags" />
+    <div class="view-switch" role="group" aria-label="Vista de las preguntas">
+      <button type="button" aria-label="Ver como tarjetas" [attr.aria-pressed]="view() === 'cards'"
+              (click)="setView('cards')">
+        <mat-icon>grid_view</mat-icon>
+        <span>Tarjetas</span>
+      </button>
+      <button type="button" aria-label="Ver como lista" [attr.aria-pressed]="view() === 'list'"
+              (click)="setView('list')">
+        <mat-icon>view_list</mat-icon>
+        <span>Lista</span>
+      </button>
+    </div>
+  </div>
 
   <mat-card class="filters-card">
     <mat-card-content>
@@ -27,24 +43,37 @@
                  placeholder="Texto de la pregunta..." />
           <mat-icon matPrefix>search</mat-icon>
         </mat-form-field>
-        <mat-form-field appearance="outline" class="filter-select">
-          <mat-label>Dificultad</mat-label>
-          <mat-select [value]="filterDiff()" (selectionChange)="filterDiff.set($event.value)">
-            <mat-option value="">Todas</mat-option>
-            @for (d of difficulties; track d) {
-              <mat-option [value]="d">{{ diffLabel[d] }}</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline" class="filter-select">
-          <mat-label>Tag</mat-label>
-          <mat-select [value]="filterTagId()" (selectionChange)="filterTagId.set($event.value)">
-            <mat-option value="">Todos</mat-option>
-            @for (tag of tags(); track tag.id) {
-              <mat-option [value]="tag.id">{{ tag.name }}</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
+        <button mat-stroked-button type="button" class="clear-filters" (click)="clearFilters()" [disabled]="!hasFilters()">
+          <mat-icon>filter_alt_off</mat-icon>Limpiar filtros
+        </button>
+      </div>
+      <div class="filters-secondary">
+        <div class="grade-filter">
+          <span class="filter-title">Grado</span>
+          <app-grade-range [(range)]="gradeRange" />
+        </div>
+        <div class="type-filter-block">
+          <span class="filter-title">Tipo</span>
+          <mat-button-toggle-group class="type-filter" hideSingleSelectionIndicator aria-label="Filtrar por tipo"
+                                   [value]="typeFilter()" (change)="typeFilter.set($event.value)">
+            <mat-button-toggle value="">Todos</mat-button-toggle>
+            <mat-button-toggle value="C">C</mat-button-toggle>
+            <mat-button-toggle value="D">D</mat-button-toggle>
+            <mat-button-toggle value="NONE">Sin tipo</mat-button-toggle>
+          </mat-button-toggle-group>
+        </div>
+      </div>
+      <div class="tag-filters" role="group" aria-label="Filtrar por tags">
+        <span class="filter-title">Tags</span>
+        @for (tag of tags(); track tag.id) {
+          <mat-checkbox class="tag-pill" [style.--tag-color]="tag.color"
+                        [checked]="isTagSelected(tag.id)" (change)="setTagSelected(tag.id, $event.checked)">
+            {{ tag.name }} ({{ tagCounts().get(tag.id) ?? 0 }})
+          </mat-checkbox>
+        }
+        <mat-checkbox class="tag-pill untagged" [checked]="untaggedSelected()" (change)="untaggedSelected.set($event.checked)">
+          Sin tag ({{ untaggedCount() }})
+        </mat-checkbox>
       </div>
     </mat-card-content>
   </mat-card>
@@ -56,9 +85,13 @@
   @if (loading()) {
     <div class="loading"><mat-spinner diameter="40" /></div>
   } @else {
-    <div class="questions-list">
+    <div class="questions-list" [class.view-cards]="view() === 'cards'" [class.view-list]="view() === 'list'">
       @for (q of filtered(); track q.id) {
-        <app-question-card [question]="q" (edit)="editing.set(q)" (remove)="delete(q)" />
+        <app-question-card [question]="q" [variant]="cardVariant()" (edit)="editing.set(q)" (remove)="delete(q)" />
+        @if (editing()?.id === q.id) {
+          <app-question-form class="inline-edit" [question]="q" [tags]="tags()"
+                             (saved)="onSaved($event)" (cancelled)="editing.set(undefined)" />
+        }
       } @empty {
         <div class="empty">
           <mat-icon>quiz</mat-icon>

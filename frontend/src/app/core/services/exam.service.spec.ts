@@ -62,6 +62,8 @@ describe('ExamService y ResultService (contrato HTTP)', () => {
     expectCall('PUT', `${API}/exams/7/questions`, { questionIds: [1, 2] });
     exams.deleteDraft(7).subscribe();
     expectCall('DELETE', `${API}/exams/7`);
+    exams.copy(7).subscribe();
+    expectCall('POST', `${API}/exams/7/copy`, {});
   });
 
   it('ciclo de vida y favoritos', () => {
@@ -101,5 +103,9 @@ describe('ExamService y ResultService (contrato HTTP)', () => {
     expectCall('GET', `${API}/results/exam/7/statistics`);
     results.getMyAttempts().subscribe();
     expectCall('GET', `${API}/results/me`);
+    results.exportExcel(7).subscribe();
+    const req = http.expectOne(`${API}/results/exam/7/export`);
+    expect(req.request.responseType).toBe('blob');
+    req.flush(new Blob());
   });
 });

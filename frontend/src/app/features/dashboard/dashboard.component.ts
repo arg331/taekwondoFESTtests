@@ -12,8 +12,9 @@ import { AuthService } from '../../core/services/auth.service';
 import { ExamCodeEntryComponent } from '../../shared/components/exam-code-entry/exam-code-entry.component';
 import { ExamService } from '../../core/services/exam.service';
 import { ScraperService } from '../../core/services/scraper.service';
-import { EXAM_STATUS_LABEL, ExamResponse, ExamStatus } from '../../core/models/exam.models';
+import { EXAM_STATUS_LABEL, ExamResponse, ExamStatus, VISIBILITY_COLOR, VISIBILITY_ICON, VISIBILITY_LABEL } from '../../core/models/exam.models';
 import { CursoArbitrajeResponse } from '../../core/models/scraper.models';
+import { APP_NAME } from '../../core/app-brand';
 
 @Component({
   selector: 'app-dashboard',
@@ -34,6 +35,10 @@ import { CursoArbitrajeResponse } from '../../core/models/scraper.models';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class DashboardComponent implements OnInit {
+  readonly appName = APP_NAME;
+  readonly visibilityLabel = VISIBILITY_LABEL;
+  readonly visibilityIcon = VISIBILITY_ICON;
+  readonly visibilityColor = VISIBILITY_COLOR;
   auth       = inject(AuthService);
   examSvc    = inject(ExamService);
   scraperSvc = inject(ScraperService);

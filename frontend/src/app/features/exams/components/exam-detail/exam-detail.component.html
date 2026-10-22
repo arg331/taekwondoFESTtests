@@ -7,8 +7,8 @@
           {{ statusLabel[exam().status] }}
         </span>
         @if (exam().status !== 'DRAFT') {
-          <span class="status-badge" [class.public]="exam().visibility === 'PUBLIC'">
-            {{ exam().visibility === 'PUBLIC' ? 'Público' : 'Privado' }}
+          <span class="status-badge" [style.background]="visibilityColor[exam().visibility]">
+            {{ visibilityLabel[exam().visibility] }}
           </span>
           @if (exam().accessMode === 'REGISTERED_ONLY') {
             <span class="status-badge">Solo registrados</span>
@@ -29,8 +29,9 @@
         </mat-form-field>
         <div class="row-2">
           <mat-form-field appearance="outline">
-            <mat-label>Nº preguntas</mat-label>
+            <mat-label>Objetivo de preguntas</mat-label>
             <input matInput type="number" formControlName="numberOfQuestions" />
+            <mat-hint>Para «Completar al azar»; se publican las que elijas</mat-hint>
           </mat-form-field>
           <mat-form-field appearance="outline">
             <mat-label>Tiempo límite (min)</mat-label>
@@ -52,7 +53,10 @@
       </form>
     } @else {
       <div class="config-summary">
-        <span class="config-item"><mat-icon>help_outline</mat-icon>{{ exam().config.numberOfQuestions }} preguntas</span>
+        <span class="config-item">
+          <mat-icon>help_outline</mat-icon>
+          @if (exam().status === 'DRAFT') { Objetivo: } {{ exam().config.numberOfQuestions }} preguntas
+        </span>
         @if (exam().config.timeLimitMinutes) {
           <span class="config-item"><mat-icon>timer</mat-icon>{{ exam().config.timeLimitMinutes }} min</span>
         }
@@ -62,6 +66,8 @@
         </span>
         @if (exam().expiresAt) {
           <span class="config-item"><mat-icon>event</mat-icon>Hasta {{ exam().expiresAt | date:'dd/MM/yyyy HH:mm' }}</span>
+        } @else if (exam().status !== 'DRAFT') {
+          <span class="config-item"><mat-icon>all_inclusive</mat-icon>Sin caducidad</span>
         }
         @if (exam().status === 'DRAFT') {
           <button mat-stroked-button class="edit-btn" (click)="openEditConfig()">
@@ -95,7 +101,7 @@
             <button mat-stroked-button (click)="copy(examUrl())">
               <mat-icon>link</mat-icon>Copiar enlace
             </button>
-            <button mat-flat-button color="primary" (click)="project()">
+            <button mat-flat-button color="primary" (click)="project()" [disabled]="closedForSubmissions()">
               <mat-icon>present_to_all</mat-icon>Proyectar
             </button>
           </div>
@@ -109,7 +115,7 @@
           <button mat-icon-button (click)="copy(examUrl())" matTooltip="Copiar enlace">
             <mat-icon>link</mat-icon>
           </button>
-          <button mat-stroked-button (click)="project()">
+          <button mat-stroked-button (click)="project()" [disabled]="closedForSubmissions()">
             <mat-icon>present_to_all</mat-icon>Proyectar
           </button>
         </div>
@@ -122,12 +128,12 @@
       <p class="section-title">
         Preguntas
         <span [class.count-ok]="!publishBlockReason()" [class.count-warn]="publishBlockReason()">
-          {{ selectedIds().length }} / {{ exam().config.numberOfQuestions }}
+          {{ selectedIds().length }} elegidas
         </span>
       </p>
       @if (exam().status === 'DRAFT') {
         <app-exam-question-picker [questions]="questions()" [tags]="tags()"
-                                  [requiredCount]="exam().config.numberOfQuestions"
+                                  [targetCount]="exam().config.numberOfQuestions"
                                   [(selectedIds)]="selectedIds" (questionCreated)="questionCreated.emit($event)" />
         @if (questionsDirty()) {
           <button mat-stroked-button color="primary" (click)="saveQuestions()" [disabled]="busy()">
@@ -150,10 +156,10 @@
         @case ('DRAFT') {
           <form [formGroup]="publishForm" class="publish-options">
             <mat-form-field appearance="outline">
-              <mat-label>Visibilidad</mat-label>
+              <mat-label>Tipo de examen</mat-label>
               <mat-select formControlName="visibility">
-                <mat-option value="PUBLIC">Público</mat-option>
-                <mat-option value="PRIVATE">Privado</mat-option>
+                <mat-option value="PUBLIC">De prueba (público): cualquiera lo ve para practicar</mat-option>
+                <mat-option value="PRIVATE">Oficial (privado): solo con el código o el QR</mat-option>
               </mat-select>
             </mat-form-field>
             <mat-form-field appearance="outline">
@@ -168,6 +174,9 @@
               <input matInput type="datetime-local" formControlName="expiresAt" />
               <mat-hint>Si lo dejas vacío, una hora desde ahora</mat-hint>
             </mat-form-field>
+            <mat-checkbox class="never-expires" formControlName="neverExpires" color="primary">
+              Sin caducidad: abierto hasta que lo cierres
+            </mat-checkbox>
           </form>
           @if (publishBlockReason()) {
             <p class="hint-warn"><mat-icon class="inline-icon">warning</mat-icon>{{ publishBlockReason() }}</p>
@@ -192,8 +201,8 @@
             </button>
           </form>
           <button mat-stroked-button (click)="toggleVisibility()" [disabled]="busy()">
-            <mat-icon>{{ exam().visibility === 'PUBLIC' ? 'lock' : 'public' }}</mat-icon>
-            Hacer {{ exam().visibility === 'PUBLIC' ? 'privado' : 'público' }}
+            <mat-icon>{{ visibilityIcon[exam().visibility === 'PUBLIC' ? 'PRIVATE' : 'PUBLIC'] }}</mat-icon>
+            {{ visibilityToggleLabel() }}
           </button>
           <button mat-stroked-button color="warn" (click)="close()" [disabled]="busy()">
             <mat-icon>stop_circle</mat-icon>Cerrar examen
@@ -212,11 +221,15 @@
             </button>
           </form>
           <button mat-stroked-button (click)="toggleVisibility()" [disabled]="busy()">
-            <mat-icon>{{ exam().visibility === 'PUBLIC' ? 'lock' : 'public' }}</mat-icon>
-            Hacer {{ exam().visibility === 'PUBLIC' ? 'privado' : 'público' }}
+            <mat-icon>{{ visibilityIcon[exam().visibility === 'PUBLIC' ? 'PRIVATE' : 'PUBLIC'] }}</mat-icon>
+            {{ visibilityToggleLabel() }}
           </button>
         }
       }
+
+      <button mat-stroked-button class="copy-btn" (click)="copyExam()" [disabled]="busy()">
+        <mat-icon>content_copy</mat-icon>Hacer una copia
+      </button>
 
       @if (error()) {
         <p class="hint-warn">{{ error() }}</p>

@@ -7,6 +7,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../../core/services/auth.service';
+import { APP_NAME } from '../../../core/app-brand';
 
 @Component({
   selector: 'app-navbar',
@@ -26,6 +27,7 @@ import { AuthService } from '../../../core/services/auth.service';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class NavbarComponent {
+  readonly appName = APP_NAME;
   auth   = inject(AuthService);
   router = inject(Router);
 

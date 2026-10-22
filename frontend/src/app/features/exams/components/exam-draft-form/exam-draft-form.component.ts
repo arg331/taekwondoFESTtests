@@ -9,7 +9,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ExamService } from '../../../../core/services/exam.service';
-import { ExamDraftRequest, ExamResponse } from '../../../../core/models/exam.models';
+import { EXAM_MAX_QUESTIONS, EXAM_MIN_QUESTIONS, ExamDraftRequest, ExamResponse } from '../../../../core/models/exam.models';
 import { TagResponse } from '../../../../core/models/tag.models';
 
 export type DraftMode = 'manual' | 'random';
@@ -49,7 +49,7 @@ export class ExamDraftFormComponent implements OnInit {
 
   form = this.fb.nonNullable.group({
     title:                  ['', [Validators.required, Validators.minLength(3), Validators.maxLength(200)]],
-    numberOfQuestions:      [10, [Validators.required, Validators.min(5), Validators.max(50)]],
+    numberOfQuestions:      [10, [Validators.required, Validators.min(EXAM_MIN_QUESTIONS), Validators.max(EXAM_MAX_QUESTIONS)]],
     timeLimitMinutes:       [60, [Validators.min(0), Validators.max(180)]],
     showScore:              [true],
     randomizeOptions:       [false],

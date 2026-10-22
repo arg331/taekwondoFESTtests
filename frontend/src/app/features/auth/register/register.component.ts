@@ -10,6 +10,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { AuthService } from '../../../core/services/auth.service';
 import { RegisterRequest } from '../../../core/models/auth.models';
+import { APP_NAME } from '../../../core/app-brand';
 
 function passwordMatchValidator(control: AbstractControl): ValidationErrors | null {
   const password = control.get('plainPassword');
@@ -46,6 +47,7 @@ function passwordMatchValidator(control: AbstractControl): ValidationErrors | nu
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class RegisterComponent {
+  readonly appName = APP_NAME;
   private fb     = inject(FormBuilder);
   private auth   = inject(AuthService);
   private router = inject(Router);

@@ -5,14 +5,16 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatSliderModule } from '@angular/material/slider';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import {
-  DIFFICULTIES,
-  DIFFICULTY_COLOR,
-  DIFFICULTY_LABEL,
-  QuestionResponse
+  QUESTION_TYPE_LABEL,
+  QuestionResponse,
+  QuestionTypeFilter
 } from '../../../../core/models/question.models';
+import { GradeBadgeComponent } from '../../../../shared/components/grade-badge/grade-badge.component';
+import { GradeRange, GradeRangeComponent } from '../../../../shared/components/grade-range/grade-range.component';
 import { TagResponse } from '../../../../core/models/tag.models';
+import { EXAM_MAX_QUESTIONS } from '../../../../core/models/exam.models';
 import {
   QuestionFormDialogComponent,
   QuestionFormDialogData
@@ -27,7 +29,7 @@ import {
 } from './question-filters';
 
 /**
- * Selector de preguntas de un borrador: filtros por texto, tags y rango de dificultad,
+ * Selector de preguntas de un borrador: filtros por texto, tags, tipo y rango de grados,
  * vista previa, carrito con lo elegido, relleno al azar y alta de preguntas sin salir del examen.
  * selectedIds es bidireccional: [(selectedIds)].
  */
@@ -39,7 +41,9 @@ import {
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
-    MatSliderModule
+    MatButtonToggleModule,
+    GradeBadgeComponent,
+    GradeRangeComponent
   ],
   templateUrl: './exam-question-picker.component.html',
   styleUrl: './exam-question-picker.component.scss',
@@ -50,30 +54,30 @@ export class ExamQuestionPickerComponent {
 
   questions = input.required<QuestionResponse[]>();
   tags = input<TagResponse[]>([]);
-  /** Número de preguntas que pide el examen. */
-  requiredCount = input(0);
+  /** Objetivo de preguntas: hasta dónde rellena «Completar al azar». Se publican las elegidas (RF-46). */
+  targetCount = input(0);
   selectedIds = model.required<number[]>();
   /** Pregunta creada desde el selector: el padre la añade a su lista del banco. */
   questionCreated = output<QuestionResponse>();
 
-  readonly difficulties = DIFFICULTIES;
-  readonly diffLabel = DIFFICULTY_LABEL;
-  readonly diffColor = DIFFICULTY_COLOR;
+  readonly typeLabel = QUESTION_TYPE_LABEL;
 
   private readonly saved = loadSavedFilters();
   search = signal('');
-  hiddenTagIds = signal<number[]>(this.saved.hiddenTagIds);
-  showUntagged = signal(this.saved.showUntagged);
-  difficultyRange = signal<[number, number]>(this.saved.difficultyRange);
+  selectedTagIds = signal<number[]>(this.saved.selectedTagIds);
+  untaggedSelected = signal(this.saved.untaggedSelected);
+  gradeRange = signal<GradeRange>(this.saved.gradeRange);
+  typeFilter = signal<QuestionTypeFilter>(this.saved.typeFilter);
 
   expandedId = signal<number | null>(null);
   randomNote = signal<string | null>(null);
 
   private filters = computed<QuestionFilters>(() => ({
     search: this.search(),
-    hiddenTagIds: this.hiddenTagIds(),
-    showUntagged: this.showUntagged(),
-    difficultyRange: this.difficultyRange()
+    selectedTagIds: this.selectedTagIds(),
+    untaggedSelected: this.untaggedSelected(),
+    gradeRange: this.gradeRange(),
+    typeFilter: this.typeFilter()
   }));
 
   filtered = computed(() => this.questions().filter(q => matchesFilters(q, this.filters())));
@@ -86,19 +90,18 @@ export class ExamQuestionPickerComponent {
       .map(id => byId.get(id))
       .filter((q): q is QuestionResponse => q !== undefined);
   });
-  overSelected = computed(() => this.selectedIds().length > this.requiredCount());
-  missing = computed(() => Math.max(0, this.requiredCount() - this.selectedIds().length));
+  readonly maxQuestions = EXAM_MAX_QUESTIONS;
+  overMax = computed(() => this.selectedIds().length > EXAM_MAX_QUESTIONS);
+  missing = computed(() => Math.max(0, this.targetCount() - this.selectedIds().length));
   candidates = computed(() => this.filtered().filter(q => !this.selectedIds().includes(q.id)));
 
-  /** Etiqueta que muestra la barra de dificultad mientras se arrastra. */
-  readonly difficultyLabel = (level: number): string => DIFFICULTY_LABEL[DIFFICULTIES[level]];
-
   constructor() {
-    // Los filtros de tags y dificultad se recuerdan en este navegador
+    // Los filtros de tags, grado y tipo se recuerdan en este navegador
     effect(() => saveFilters({
-      hiddenTagIds: this.hiddenTagIds(),
-      showUntagged: this.showUntagged(),
-      difficultyRange: this.difficultyRange()
+      selectedTagIds: this.selectedTagIds(),
+      untaggedSelected: this.untaggedSelected(),
+      gradeRange: this.gradeRange(),
+      typeFilter: this.typeFilter()
     }));
   }
 
@@ -133,20 +136,12 @@ export class ExamQuestionPickerComponent {
   }
 
   // ── Filtros ───────────────────────────────────────
-  isTagVisible(tagId: number): boolean {
-    return !this.hiddenTagIds().includes(tagId);
+  isTagSelected(tagId: number): boolean {
+    return this.selectedTagIds().includes(tagId);
   }
 
-  setTagVisible(tagId: number, visible: boolean): void {
-    this.hiddenTagIds.update(ids => visible ? ids.filter(id => id !== tagId) : [...ids, tagId]);
-  }
-
-  setDifficultyFrom(level: number): void {
-    this.difficultyRange.update(([, to]) => [level, to]);
-  }
-
-  setDifficultyTo(level: number): void {
-    this.difficultyRange.update(([from]) => [from, level]);
+  setTagSelected(tagId: number, selected: boolean): void {
+    this.selectedTagIds.update(ids => selected ? [...ids, tagId] : ids.filter(id => id !== tagId));
   }
 
   // ── Vista previa y alta ───────────────────────────

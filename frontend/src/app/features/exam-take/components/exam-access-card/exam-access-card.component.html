@@ -1,7 +1,7 @@
 <mat-card class="access-card">
   <div class="brand-header">
     <span class="brand-icon">🥋</span>
-    <span class="brand-name">FEST Taekwondo</span>
+    <span class="brand-name">{{ appName }}</span>
   </div>
   <mat-card-header>
     <mat-card-title>{{ exam().title }}</mat-card-title>
@@ -12,6 +12,15 @@
       }
     </mat-card-subtitle>
   </mat-card-header>
+
+  <p class="exam-kind" [class.practice]="isPractice()">
+    <mat-icon class="inline-icon">{{ kindIcon() }}</mat-icon>
+    @if (isPractice()) {
+      <span><strong>Examen de prueba</strong>: sirve para practicar, no es un examen oficial.</span>
+    } @else {
+      <span><strong>Examen oficial</strong> de tu profesor.</span>
+    }
+  </p>
 
   @if (needsLogin()) {
     <mat-card-content>

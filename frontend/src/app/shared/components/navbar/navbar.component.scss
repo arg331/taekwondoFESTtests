@@ -3,6 +3,8 @@
   top: 0;
   z-index: 100;
   background: #1a1a1a !important;
+  // Barra oscura: Material pinta el texto de sus botones con este token (por defecto, oscuro)
+  --mat-toolbar-container-text-color: rgba(255,255,255,0.85);
   box-shadow: 0 2px 8px rgba(0,0,0,0.4);
   border-bottom: 3px solid #C62828;
 }
@@ -71,6 +73,7 @@
   gap: 4px;
 
   &:hover {
+    --mat-toolbar-container-text-color: #fff;
     color: white;
   }
 

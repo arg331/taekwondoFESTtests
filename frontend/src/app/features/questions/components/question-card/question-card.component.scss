@@ -1,30 +1,73 @@
+:host { display: block; }
+
+// ── Tarjeta cuadrada ──────────────────────────────
 .question-card {
-  transition: box-shadow 0.2s;
-  &:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+  aspect-ratio: 1;
+  border-radius: 16px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
+  transition: box-shadow 0.2s, transform 0.2s;
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.08);
+  }
+  mat-card-content {
+    height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+  }
 }
 .question-header {
-  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px;
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 8px;
   .question-text { margin: 0; font-size: 1rem; font-weight: 500; flex: 1; line-height: 1.4; }
-  .question-actions { display: flex; gap: 4px; flex-shrink: 0; }
 }
+// Lo que no cabe en el cuadrado se desplaza dentro de la tarjeta
+.card-body { flex: 1; min-height: 0; overflow-y: auto; }
+.question-actions { display: flex; gap: 0; flex-shrink: 0; }
+
 .options-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
 .option-item {
   display: flex; align-items: center; gap: 8px;
-  padding: 4px 8px; border-radius: 4px; font-size: 0.9rem; color: #555;
-  .option-icon { font-size: 18px; height: 18px; width: 18px; color: #999; }
+  padding: 4px 8px; border-radius: 6px; font-size: 0.9rem; color: #555;
+  .option-icon { font-size: 18px; height: 18px; width: 18px; color: #999; flex-shrink: 0; }
   &.correct {
     background: #e8f5e9; color: #2e7d32; font-weight: 500;
     .option-icon { color: #4caf50; }
   }
 }
 .explanation {
-  display: flex; align-items: flex-start; gap: 6px; margin: 8px 0; padding: 8px 12px;
-  background: #fff8e1; border-radius: 4px; font-size: 0.85rem; color: #666;
+  display: flex; align-items: flex-start; gap: 6px; margin: 8px 0 0; padding: 8px 12px;
+  background: #fff8e1; border-radius: 6px; font-size: 0.85rem; color: #666;
   mat-icon { font-size: 16px; height: 16px; width: 16px; color: #ff9800; flex-shrink: 0; margin-top: 2px; }
 }
-.question-footer { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
-.difficulty-badge {
-  color: white; padding: 2px 10px; border-radius: 12px;
-  font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+.question-footer {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding-top: 10px; margin-top: 8px; border-top: 1px solid #eee;
+}
+.type-chip {
+  background: #37474f; color: white; padding: 2px 10px; border-radius: 12px;
+  font-size: 0.75rem; font-weight: 600; letter-spacing: 0.03em;
 }
 .tag-chip-small { color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 500; }
+
+// ── Fila de la lista ──────────────────────────────
+.question-row {
+  border-bottom: 1px solid #eee;
+  &.expanded { background: #fafafa; }
+}
+.row-line { display: flex; align-items: center; gap: 12px; padding: 4px 8px 4px 0; }
+.row-main {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 0 10px 12px;
+  border: none; background: none; cursor: pointer; text-align: left;
+  font: inherit; color: #1a1a1a;
+  border-radius: 6px;
+  &:hover .row-text { color: #C62828; }
+  &:focus-visible { outline: 2px solid #C62828; outline-offset: -2px; }
+}
+.row-chevron { color: #999; flex-shrink: 0; }
+.row-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.95rem; transition: color 0.15s; }
+.question-row.expanded .row-text { white-space: normal; }
+.row-meta { display: flex; align-items: center; gap: 6px; flex-shrink: 0; max-width: 40%; overflow: hidden; }
+.row-details { padding: 0 16px 12px 44px; }

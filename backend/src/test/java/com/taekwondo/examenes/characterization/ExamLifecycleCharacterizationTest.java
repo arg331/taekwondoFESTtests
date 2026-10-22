@@ -205,8 +205,21 @@ class ExamLifecycleCharacterizationTest extends ApiCharacterizationTest {
     }
 
     @Test
-    @DisplayName("Publicar: con un número de preguntas distinto al configurado devuelve 409")
-    void publish_wrongQuestionCount_conflict() {
+    @DisplayName("Publicar: el número de preguntas es el de las elegidas, no el configurado (RF-46)")
+    void publish_questionCountFollowsSelection() {
+        Session teacher = newTeacher();
+        long examId = createDraft(teacher.token(), 5, null, true);
+        setQuestions(teacher.token(), examId, createQuestions(teacher.token(), 7));
+
+        HttpResult result = publish(teacher.token(), examId, "PUBLIC", null, null).expectStatus(200);
+
+        assertThat((Integer) result.read("$.config.numberOfQuestions")).isEqualTo(7);
+        assertThat((List<?>) result.read("$.questionIds")).hasSize(7);
+    }
+
+    @Test
+    @DisplayName("Publicar: con menos de 5 preguntas elegidas devuelve 409")
+    void publish_tooFewQuestions_conflict() {
         Session teacher = newTeacher();
         long examId = createDraft(teacher.token(), 5, null, true);
         setQuestions(teacher.token(), examId, createQuestions(teacher.token(), 4));
@@ -214,7 +227,36 @@ class ExamLifecycleCharacterizationTest extends ApiCharacterizationTest {
         HttpResult result = publish(teacher.token(), examId, "PUBLIC", null, null);
 
         assertThat(result.expectStatus(409).message())
-                .isEqualTo("El examen debe tener 5 preguntas para publicarse (tiene 4)");
+                .isEqualTo("El examen debe tener entre 5 y 50 preguntas para publicarse (tiene 4)");
+    }
+
+    @Test
+    @DisplayName("Publicar sin caducidad: no tiene fecha de expiración y sigue abierto días después (RF-48)")
+    void publish_neverExpires() {
+        Session teacher = newTeacher();
+        long examId = createDraft(teacher.token(), 5, null, true);
+        setQuestions(teacher.token(), examId, createQuestions(teacher.token(), 5));
+
+        HttpResult result = post("/api/exams/" + examId + "/publish", teacher.token(),
+                obj("visibility", "PRIVATE", "neverExpires", true)).expectStatus(200);
+        clock.advance(Duration.ofDays(30));
+
+        assertThat((Object) result.read("$.expiresAt")).isNull();
+        get("/api/exams/by-code/" + result.read("$.code"), null).expectStatus(200);
+    }
+
+    @Test
+    @DisplayName("Publicar: pedir a la vez fecha de caducidad y «sin caducidad» devuelve 409")
+    void publish_neverExpiresWithDate_conflict() {
+        Session teacher = newTeacher();
+        long examId = createDraft(teacher.token(), 5, null, true);
+        setQuestions(teacher.token(), examId, createQuestions(teacher.token(), 5));
+
+        HttpResult result = post("/api/exams/" + examId + "/publish", teacher.token(), obj(
+                "visibility", "PRIVATE", "neverExpires", true, "expiresAt", now().plusDays(1).toString()));
+
+        assertThat(result.expectStatus(409).message())
+                .isEqualTo("Indica una fecha de caducidad o «sin caducidad», no las dos");
     }
 
     @Test
@@ -319,6 +361,52 @@ class ExamLifecycleCharacterizationTest extends ApiCharacterizationTest {
         get("/api/exams/" + draftId, teacher.token()).expectStatus(404);
         assertThat(deletePublished.expectStatus(409).message())
                 .isEqualTo("Solo se pueden eliminar exámenes en borrador (estado actual: PUBLISHED)");
+    }
+
+    // ───── Copiar ─────
+
+    @Test
+    @DisplayName("Copiar: un examen publicado se copia como borrador nuevo con su configuración y sus preguntas (RF-18)")
+    void copy_publishedExam_newDraft() {
+        Session teacher = newTeacher();
+        PublishedExam original = publishedExam(teacher.token(), 5, 20, false);
+        String title = get("/api/exams/" + original.id(), teacher.token()).expectStatus(200).read("$.title");
+
+        HttpResult copy = post("/api/exams/" + original.id() + "/copy", teacher.token(), null).expectStatus(201);
+
+        assertThat(copy.id()).isNotEqualTo(original.id());
+        assertThat((String) copy.read("$.title")).isEqualTo("Copia de " + title);
+        assertThat((String) copy.read("$.status")).isEqualTo("DRAFT");
+        assertThat((Object) copy.read("$.code")).isNull();
+        assertThat((Object) copy.read("$.expiresAt")).isNull();
+        assertThat((List<Integer>) copy.read("$.questionIds"))
+                .containsExactlyElementsOf(original.questionIds().stream().map(Long::intValue).toList());
+        assertThat((Integer) copy.read("$.config.timeLimitMinutes")).isEqualTo(20);
+        assertThat((Boolean) copy.read("$.config.showScore")).isFalse();
+    }
+
+    @Test
+    @DisplayName("Copiar: la copia se puede ampliar sin tocar el original")
+    void copy_isIndependent() {
+        Session teacher = newTeacher();
+        PublishedExam original = publishedExam(teacher.token(), 5, null, true);
+        long copyId = post("/api/exams/" + original.id() + "/copy", teacher.token(), null).expectStatus(201).id();
+        List<Long> more = createQuestions(teacher.token(), 2);
+        List<Long> extended = new java.util.ArrayList<>(original.questionIds());
+        extended.addAll(more);
+
+        setQuestions(teacher.token(), copyId, extended);
+
+        assertThat((List<?>) get("/api/exams/" + copyId, teacher.token()).read("$.questionIds")).hasSize(7);
+        assertThat((List<?>) get("/api/exams/" + original.id(), teacher.token()).read("$.questionIds")).hasSize(5);
+    }
+
+    @Test
+    @DisplayName("Copiar: un examen ajeno no se puede copiar (404)")
+    void copy_foreignExam_notFound() {
+        PublishedExam foreign = publishedExam(newTeacher().token(), 5, null, true);
+
+        post("/api/exams/" + foreign.id() + "/copy", newTeacher().token(), null).expectStatus(404);
     }
 
     // ───── Listados ─────

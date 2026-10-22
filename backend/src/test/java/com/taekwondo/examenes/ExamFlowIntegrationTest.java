@@ -83,13 +83,13 @@ class ExamFlowIntegrationTest {
     @Test
     void invalidPayloadsAreRejectedWith400() throws Exception {
         post("/api/questions", adminToken, """
-                {"text":"¿?","options":["a"],"correctAnswer":0,"difficulty":"FACIL"}
+                {"text":"¿?","options":["a"],"correctAnswer":0,"grade":"BLANCO"}
                 """).andExpect(status().isBadRequest());
         post("/api/questions", adminToken, """
-                {"text":"¿?","options":["a","b","c"],"correctAnswer":3,"difficulty":"FACIL"}
+                {"text":"¿?","options":["a","b","c"],"correctAnswer":3,"grade":"BLANCO"}
                 """).andExpect(status().isBadRequest());
         post("/api/questions", adminToken, """
-                {"text":"¿Verdadero o falso?","options":["Verdadero","Falso"],"correctAnswer":1,"difficulty":"FACIL"}
+                {"text":"¿Verdadero o falso?","options":["Verdadero","Falso"],"correctAnswer":1,"grade":"BLANCO"}
                 """).andExpect(status().isCreated());
         post("/api/auth/register", null, """
                 {"username":"x","email":"no-es-email","plainPassword":"1","displayName":""}
@@ -229,7 +229,7 @@ class ExamFlowIntegrationTest {
                     "text", "Pregunta " + i,
                     "options", List.of("A", "B", "C", "D"),
                     "correctAnswer", i % 4,
-                    "difficulty", "MEDIO")))
+                    "grade", "VERDE")))
                     .andExpect(status().isCreated())
                     .andReturn().getResponse().getContentAsString();
             ids.add(((Number) JsonPath.read(body, "$.id")).longValue());

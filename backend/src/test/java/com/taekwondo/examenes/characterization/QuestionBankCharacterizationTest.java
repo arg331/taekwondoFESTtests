@@ -15,7 +15,7 @@ class QuestionBankCharacterizationTest extends ApiCharacterizationTest {
 
     private static final List<String> TAG_FIELDS = List.of("id", "name", "color", "createdAt");
     private static final List<String> QUESTION_FIELDS = List.of("id", "text", "options", "correctAnswer",
-            "explanation", "difficulty", "tags", "createdAt", "updatedAt");
+            "explanation", "grade", "type", "tags", "createdAt", "updatedAt");
 
     // ───── Tags ─────
 
@@ -111,36 +111,67 @@ class QuestionBankCharacterizationTest extends ApiCharacterizationTest {
                 "options", List.of(" Amonestación ", "Punto", "Descalificación"),
                 "correctAnswer", 0,
                 "explanation", "Media penalización",
-                "difficulty", "FACIL",
+                "grade", "AMARILLO_VERDE",
+                "type", "C",
                 "tagIds", List.of(tagId))).expectStatus(201);
 
         assertThat(result.asMap()).containsOnlyKeys(QUESTION_FIELDS);
         assertThat((String) result.read("$.text")).isEqualTo("¿Qué es un kyong-go?");
         assertThat((List<String>) result.read("$.options")).containsExactly("Amonestación", "Punto", "Descalificación");
         assertThat((Integer) result.read("$.correctAnswer")).isZero();
-        assertThat((String) result.read("$.difficulty")).isEqualTo("FACIL");
+        assertThat((String) result.read("$.grade")).isEqualTo("AMARILLO_VERDE");
+        assertThat((String) result.read("$.type")).isEqualTo("C");
         assertThat((List<Integer>) result.read("$.tags[*].id")).containsExactly((int) tagId);
         assertThat((String) result.read("$.createdAt")).isEqualTo(result.read("$.updatedAt"));
     }
 
     @Test
-    @DisplayName("Preguntas: menos de 2 o más de 4 opciones, o correcta fuera de rango, devuelven 400")
+    @DisplayName("Preguntas: menos de 2 o más de 20 opciones, o correcta fuera de rango, devuelven 400")
     void createQuestion_invalidOptions_badRequest() {
         String token = adminToken();
 
         HttpResult oneOption = post("/api/questions", token, obj("text", "x", "options", List.of("A"),
-                "correctAnswer", 0, "difficulty", "FACIL"));
-        HttpResult fiveOptions = post("/api/questions", token, obj("text", "x",
-                "options", List.of("A", "B", "C", "D", "E"), "correctAnswer", 0, "difficulty", "FACIL"));
+                "correctAnswer", 0, "grade", "BLANCO"));
+        HttpResult tooMany = post("/api/questions", token, obj("text", "x",
+                "options", options(21), "correctAnswer", 0, "grade", "BLANCO"));
         HttpResult outOfRange = post("/api/questions", token, obj("text", "x", "options", List.of("A", "B", "C"),
-                "correctAnswer", 3, "difficulty", "FACIL"));
+                "correctAnswer", 3, "grade", "BLANCO"));
         HttpResult blankOption = post("/api/questions", token, obj("text", "x", "options", List.of("A", " "),
-                "correctAnswer", 0, "difficulty", "FACIL"));
+                "correctAnswer", 0, "grade", "BLANCO"));
 
-        assertThat(oneOption.expectStatus(400).message()).isEqualTo("options: debe tener entre 2 y 4 opciones");
-        assertThat(fiveOptions.expectStatus(400).message()).isEqualTo("options: debe tener entre 2 y 4 opciones");
+        assertThat(oneOption.expectStatus(400).message()).isEqualTo("options: debe tener entre 2 y 20 opciones");
+        assertThat(tooMany.expectStatus(400).message()).isEqualTo("options: debe tener entre 2 y 20 opciones");
         assertThat(outOfRange.expectStatus(400).message()).isEqualTo("correctAnswerInRange: debe señalar una de las opciones");
         assertThat(blankOption.expectStatus(400).message()).startsWith("options[1]");
+    }
+
+    @Test
+    @DisplayName("Preguntas: sin máximo práctico de opciones (RF-09): 7 opciones valen")
+    void createQuestion_manyOptions_created() {
+        HttpResult result = post("/api/questions", adminToken(), obj("text", "¿Cuál es el séptimo?",
+                "options", options(7), "correctAnswer", 6, "grade", "AZUL")).expectStatus(201);
+
+        assertThat((List<String>) result.read("$.options")).hasSize(7);
+        assertThat((Integer) result.read("$.correctAnswer")).isEqualTo(6);
+    }
+
+    @Test
+    @DisplayName("Preguntas: el grado es obligatorio y el tipo, opcional (RF-43, RF-44)")
+    void createQuestion_gradeRequiredTypeOptional() {
+        String token = adminToken();
+
+        HttpResult noGrade = post("/api/questions", token, obj("text", "x", "options", FOUR_OPTIONS, "correctAnswer", 0));
+        HttpResult noType = post("/api/questions", token, obj("text", "Sin tipo", "options", FOUR_OPTIONS,
+                "correctAnswer", 0, "grade", "BLANCO")).expectStatus(201);
+        HttpResult typeD = post("/api/questions", token, obj("text", "Tipo D", "options", FOUR_OPTIONS,
+                "correctAnswer", 0, "grade", "BLANCO", "type", "D")).expectStatus(201);
+        HttpResult badType = post("/api/questions", token, obj("text", "x", "options", FOUR_OPTIONS,
+                "correctAnswer", 0, "grade", "BLANCO", "type", "E"));
+
+        assertThat(noGrade.expectStatus(400).message()).startsWith("grade");
+        assertThat((Object) noType.read("$.type")).isNull();
+        assertThat((String) typeD.read("$.type")).isEqualTo("D");
+        badType.expectStatus(400);
     }
 
     @Test
@@ -151,7 +182,7 @@ class QuestionBankCharacterizationTest extends ApiCharacterizationTest {
         long foreignTag = createTag(owner.token(), unique("t"), "#000000");
 
         HttpResult result = post("/api/questions", other.token(), obj("text", "x", "options", FOUR_OPTIONS,
-                "correctAnswer", 0, "difficulty", "FACIL", "tagIds", List.of(foreignTag)));
+                "correctAnswer", 0, "grade", "BLANCO", "tagIds", List.of(foreignTag)));
 
         assertThat(result.expectStatus(409).message()).isEqualTo("Alguno de los tags indicados no existe");
     }
@@ -166,12 +197,13 @@ class QuestionBankCharacterizationTest extends ApiCharacterizationTest {
 
         HttpResult result = put("/api/questions/" + questionId, teacher.token(), obj(
                 "text", "Editada", "options", List.of("Sí", "No"), "correctAnswer", 1,
-                "explanation", null, "difficulty", "DIFICIL", "tagIds", List.of(tagB))).expectStatus(200);
+                "explanation", null, "grade", "NEGRO", "tagIds", List.of(tagB))).expectStatus(200);
 
         assertThat((String) result.read("$.text")).isEqualTo("Editada");
         assertThat((List<String>) result.read("$.options")).containsExactly("Sí", "No");
         assertThat((Object) result.read("$.explanation")).isNull();
-        assertThat((String) result.read("$.difficulty")).isEqualTo("DIFICIL");
+        assertThat((String) result.read("$.grade")).isEqualTo("NEGRO");
+        assertThat((Object) result.read("$.type")).isNull();
         assertThat((List<Integer>) result.read("$.tags[*].id")).containsExactly((int) tagB);
     }
 
@@ -185,7 +217,7 @@ class QuestionBankCharacterizationTest extends ApiCharacterizationTest {
         assertThat(get("/api/questions/" + questionId, other.token()).expectStatus(404).message())
                 .isEqualTo("No existe una pregunta con id " + questionId);
         put("/api/questions/" + questionId, other.token(), obj("text", "x", "options", FOUR_OPTIONS,
-                "correctAnswer", 0, "difficulty", "FACIL")).expectStatus(404);
+                "correctAnswer", 0, "grade", "BLANCO")).expectStatus(404);
         delete("/api/questions/" + questionId, other.token()).expectStatus(404);
     }
 
@@ -256,5 +288,9 @@ class QuestionBankCharacterizationTest extends ApiCharacterizationTest {
 
     private static List<Long> ids(List<Map<String, Object>> items) {
         return items.stream().map(i -> ((Number) i.get("id")).longValue()).toList();
+    }
+
+    private static List<String> options(int n) {
+        return java.util.stream.IntStream.rangeClosed(1, n).mapToObj(i -> "Opción " + i).toList();
     }
 }

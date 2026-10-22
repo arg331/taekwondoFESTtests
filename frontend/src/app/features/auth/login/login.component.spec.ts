@@ -58,6 +58,13 @@ describe('LoginComponent', () => {
     vi.restoreAllMocks();
   });
 
+  it('muestra el nombre de la aplicación (RF-56)', async () => {
+    await render(null);
+
+    expect(el.textContent).toContain('Taekwondo ITF España');
+    expect(el.textContent).not.toContain('FEST');
+  });
+
   it('sin returnUrl va al dashboard', async () => {
     await render(null);
     await submit('u', 'secreto1');

@@ -12,9 +12,80 @@
   .filter-text { flex: 1; min-width: 200px; }
   .filter-select { width: 160px; }
   mat-form-field { margin: 0; }
+  .clear-filters { height: 56px; }
+}
+.filters-secondary {
+  display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px 40px; margin-bottom: 8px;
+  .grade-filter { flex: 0 1 380px; min-width: 260px; display: flex; flex-direction: column; gap: 2px; }
+  .type-filter-block { display: flex; flex-direction: column; gap: 6px; }
+}
+.type-filter { --mat-standard-button-toggle-height: 32px; font-size: 0.8rem; }
+.tag-filters {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  margin-top: 4px; padding-top: 8px; border-top: 1px solid #eee;
+}
+.filter-title {
+  margin-right: 8px;
+  font-size: 0.75rem; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.04em;
 }
 
-.questions-list { display: flex; flex-direction: column; gap: 12px; }
+// «Gestión de tags» y, a su derecha, el selector de vista
+.tags-row {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+  // En pantallas estrechas el selector baja debajo de «Gestión de tags»
+  .tags-manager { flex: 1 1 280px; min-width: 0; }
+}
+
+.view-switch {
+  display: flex;
+  flex-shrink: 0;
+  gap: 4px;
+  padding: 4px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+
+  button {
+    display: flex; align-items: center; gap: 6px;
+    height: 40px; padding: 0 16px;
+    border: none; border-radius: 8px; background: none; cursor: pointer;
+    font: inherit; font-size: 0.8rem; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase;
+    color: #666;
+    transition: background 0.15s, color 0.15s;
+    mat-icon { font-size: 20px; height: 20px; width: 20px; }
+    &:hover { background: #fbe9e7; color: #C62828; }
+    &:focus-visible { outline: 2px solid #C62828; outline-offset: 2px; }
+    &[aria-pressed='true'] { background: #C62828; color: #fff; }
+  }
+}
+// Con margen de sobra a la izquierda del contenido (1200px de ancho máximo),
+// el selector sale de la fila y se centra en ese margen, a la misma altura
+@media (min-width: 1740px) {
+  .view-switch {
+    position: absolute;
+    top: 0;
+    left: calc((1200px - 100vw) / 4);
+    transform: translateX(-50%);
+  }
+}
+
+.questions-list.view-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+.questions-list.view-list {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
 
 .loading, .empty {
   display: flex; flex-direction: column; align-items: center; gap: 16px;
@@ -23,3 +94,12 @@
   p { margin: 0; }
 }
 .hint-warn { font-size: 0.9rem; color: #f44336; margin: 0; }
+
+// Formulario de edición abierto debajo de su pregunta
+.inline-edit {
+  display: block;
+  grid-column: 1 / -1;
+  margin: 0 0 8px 16px;
+  padding-left: 12px;
+  border-left: 3px solid #C62828;
+}

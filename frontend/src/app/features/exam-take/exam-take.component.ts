@@ -16,7 +16,6 @@ import { ExamResultCardComponent } from './components/exam-result-card/exam-resu
 
 type Phase = 'loading' | 'error' | 'access' | 'exam' | 'result';
 
-const OPTION_LETTERS = ['A', 'B', 'C', 'D'];
 
 /** El intento en curso, guardado en el navegador para recuperarlo si se recarga la página (RF-24). */
 interface StoredAttempt {
@@ -55,7 +54,6 @@ export class ExamTakeComponent implements OnInit, OnDestroy {
   /** Parámetro de ruta :code, en mayúsculas: los códigos se guardan así y alguien puede teclearlo en minúsculas. */
   code = input.required<string, string>({ transform: (value: string) => value.trim().toUpperCase() });
 
-  readonly letters = OPTION_LETTERS;
   user = this.auth.currentUser;
 
   phase       = signal<Phase>('loading');
@@ -201,6 +199,11 @@ export class ExamTakeComponent implements OnInit, OnDestroy {
       : [...chosen, optionIndex].sort((x, y) => x - y);
     this.answers.update(a => ({ ...a, [question.id]: next }));
     this.saves.next({ attemptToken: this.attemptToken, questionId: question.id, chosenOptions: next });
+  }
+
+  /** «A», «B»…: una pregunta puede tener hasta 20 opciones (RF-09). */
+  letter(position: number): string {
+    return String.fromCharCode('A'.charCodeAt(0) + position);
   }
 
   isChosen(questionId: number, optionIndex: number): boolean {

@@ -87,7 +87,7 @@ describe('ExamTakeComponent', () => {
 
   async function clickOption(optionText: string): Promise<void> {
     const option = Array.from(el.querySelectorAll('.option-item'))
-      .find(o => o.querySelector('span')?.textContent?.trim() === optionText) as HTMLElement;
+      .find(o => o.querySelector('.option-text')?.textContent?.trim() === optionText) as HTMLElement;
     option.click();
     await stable();
   }
@@ -223,6 +223,68 @@ describe('ExamTakeComponent', () => {
       const req = http.expectOne(`${API}/results`);
       expect(req.request.body.answers[1]).toEqual({ questionId: 10, chosenOptions: [1] });
       req.flush(null);
+    });
+  });
+
+  describe('con teclado y lector de pantalla (RNF-12)', () => {
+    function inputs(): HTMLInputElement[] {
+      return Array.from(el.querySelectorAll('.options-list input'));
+    }
+
+    it('una sola correcta: un grupo de radios que se llama como el enunciado', async () => {
+      await render(exam());
+      await startAs('Ana');
+
+      const group = el.querySelector('.options-list') as HTMLElement;
+      expect(group.getAttribute('role')).toBe('radiogroup');
+      expect(el.querySelector('#' + group.getAttribute('aria-labelledby'))?.textContent).toContain('Segunda');
+      expect(inputs().map(i => i.type)).toEqual(['radio', 'radio', 'radio']);
+      expect(new Set(inputs().map(i => i.name)).size).toBe(1);
+      // Cada control está dentro de su etiqueta: el lector lee el texto de la opción
+      expect(inputs()[0].closest('label')?.querySelector('.option-text')?.textContent?.trim()).toBe('C');
+    });
+
+    it('varias correctas: casillas, con el aviso «Marca todas las correctas» como descripción', async () => {
+      await render(exam());
+      await startAs('Ana', { ...ATTEMPT, questions: [{ ...ATTEMPT.questions[0], multipleCorrect: true }, ...ATTEMPT.questions.slice(1)] });
+
+      const group = el.querySelector('.options-list') as HTMLElement;
+      expect(group.getAttribute('role')).toBe('group');
+      expect(el.querySelector('#' + group.getAttribute('aria-describedby'))?.textContent).toContain('Marca todas las correctas');
+      expect(inputs().every(i => i.type === 'checkbox')).toBe(true);
+    });
+
+    it('se contesta con el teclado: marcar el control (la barra espaciadora hace clic) guarda la respuesta', async () => {
+      await render(exam());
+      await startAs('Ana');
+
+      const a = inputs()[1];
+      a.focus();
+      a.click();
+      await stable();
+
+      expect(http.expectOne(`${API}/exams/by-code/EXM-ABC/attempts/answers`).request.body.chosenOptions).toEqual([0]);
+      expect(inputs()[1].checked).toBe(true);
+      expect(inputs()[1].closest('label')?.classList.contains('option-selected')).toBe(true);
+    });
+
+    it('los botones de las preguntas dicen cuál es, si está respondida y cuál se está viendo', async () => {
+      await render(exam());
+      await startAs('Ana');
+      await choose('A');
+
+      const nav = Array.from(el.querySelectorAll('.nav-btn'));
+      expect(nav.map(b => b.getAttribute('aria-label')))
+        .toEqual(['Pregunta 1, respondida', 'Pregunta 2, sin responder', 'Pregunta 3, sin responder']);
+      expect(nav.map(b => b.getAttribute('aria-current'))).toEqual(['step', null, null]);
+    });
+
+    it('con más de cuatro opciones, las letras siguen: E, F…', async () => {
+      await render(exam());
+      const six = ['uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis'].map((text, index) => ({ index, text }));
+      await startAs('Ana', { ...ATTEMPT, questions: [{ id: 20, text: 'Seis', options: six, multipleCorrect: false }, ...ATTEMPT.questions.slice(1)] });
+
+      expect(Array.from(el.querySelectorAll('.option-letter')).map(l => l.textContent?.trim())).toEqual(['A', 'B', 'C', 'D', 'E', 'F']);
     });
   });
 

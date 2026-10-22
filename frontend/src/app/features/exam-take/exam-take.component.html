@@ -35,10 +35,14 @@
             </span>
           </div>
           @if (exam()!.config.timeLimitMinutes) {
-            <div class="timer" [class.timer-warn]="timerWarning()">
-              <mat-icon>timer</mat-icon>
+            <div class="timer" role="timer" aria-label="Tiempo restante" [class.timer-warn]="timerWarning()">
+              <mat-icon aria-hidden="true">timer</mat-icon>
               {{ timerDisplay() }}
             </div>
+            <!-- El lector de pantalla avisa una vez cuando queda poco -->
+            <span class="visually-hidden" aria-live="assertive">
+              @if (timerWarning()) { Queda menos de un minuto: al acabarse, el examen se envía solo. }
+            </span>
           }
         </div>
 
@@ -54,32 +58,43 @@
         }
 
         <div class="exam-body">
-          <div class="question-nav">
+          <nav class="question-nav" aria-label="Preguntas del examen">
             @for (q of questions(); track q.id; let i = $index) {
-              <button class="nav-btn"
+              <button type="button" class="nav-btn"
                       [class.nav-current]="i === currentIndex()"
                       [class.nav-answered]="isAnswered(q.id)"
+                      [attr.aria-label]="'Pregunta ' + (i + 1) + (isAnswered(q.id) ? ', respondida' : ', sin responder')"
+                      [attr.aria-current]="i === currentIndex() ? 'step' : null"
                       (click)="goTo(i)">
                 {{ i + 1 }}
               </button>
             }
-          </div>
+          </nav>
 
           <mat-card class="question-card">
             <mat-card-content>
               <p class="question-num">Pregunta {{ currentIndex() + 1 }} de {{ questions().length }}</p>
-              <p class="question-text">{{ currentQuestion().text }}</p>
-              @if (currentQuestion().multipleCorrect) {
-                <p class="multiple-hint"><mat-icon>checklist</mat-icon>Marca todas las correctas</p>
+              @let q = currentQuestion();
+              <p class="question-text" [id]="'question-text-' + q.id">{{ q.text }}</p>
+              @if (q.multipleCorrect) {
+                <p class="multiple-hint" [id]="'question-hint-' + q.id">
+                  <mat-icon aria-hidden="true">checklist</mat-icon>Marca todas las correctas
+                </p>
               }
-              <div class="options-list" [class.multiple]="currentQuestion().multipleCorrect">
-                @for (opt of currentQuestion().options; track opt.index; let i = $index) {
-                  <div class="option-item"
-                       [class.option-selected]="isChosen(currentQuestion().id, opt.index)"
-                       (click)="selectAnswer(currentQuestion(), opt.index)">
-                    <div class="option-letter">{{ letters[i] }}</div>
-                    <span>{{ opt.text }}</span>
-                  </div>
+              <!-- Controles nativos (RNF-12): radio con una sola correcta, casilla con varias.
+                   Se eligen con el teclado y el lector de pantalla los anuncia con su opción. -->
+              <div class="options-list" [class.multiple]="q.multipleCorrect"
+                   [attr.role]="q.multipleCorrect ? 'group' : 'radiogroup'"
+                   [attr.aria-labelledby]="'question-text-' + q.id"
+                   [attr.aria-describedby]="q.multipleCorrect ? 'question-hint-' + q.id : null">
+                @for (opt of q.options; track currentQuestion().id + '-' + opt.index; let i = $index) {
+                  <label class="option-item" [class.option-selected]="isChosen(q.id, opt.index)">
+                    <input class="option-input" [type]="q.multipleCorrect ? 'checkbox' : 'radio'"
+                           [name]="'question-' + q.id" [value]="opt.index" [checked]="isChosen(q.id, opt.index)"
+                           (change)="selectAnswer(q, opt.index)" />
+                    <span class="option-letter" aria-hidden="true">{{ letter(i) }}</span>
+                    <span class="option-text">{{ opt.text }}</span>
+                  </label>
                 }
               </div>
             </mat-card-content>

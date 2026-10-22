@@ -21,8 +21,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Límite de intentos por dirección (RNF-07) en el inicio de sesión, el registro y la entrega de
- * exámenes. Cada dirección tiene un cupo por minuto; pasado, responde 429 con el formato de error
+ * Límite de intentos por dirección (RNF-07) en el inicio de sesión, el registro, la recuperación de la
+ * cuenta y la entrega de exámenes. Cada dirección tiene un cupo por minuto; pasado, responde 429 con el formato de error
  * habitual y Retry-After hasta que empiece el minuto siguiente. La entrega tiene un cupo alto: un aula
  * entera llega por la misma dirección de su router.
  * Se apaga con app.rate-limit.enabled=false (los tests que no lo prueban).
@@ -44,11 +44,15 @@ public class RateLimitFilter extends OncePerRequestFilter {
     public RateLimitFilter(@Value("${app.rate-limit.login-per-minute:10}") int loginPerMinute,
                            @Value("${app.rate-limit.register-per-minute:5}") int registerPerMinute,
                            @Value("${app.rate-limit.submit-per-minute:300}") int submitPerMinute,
+                           @Value("${app.rate-limit.recovery-per-minute:5}") int recoveryPerMinute,
                            Clock clock) {
         this.limits = Map.of(
                 "/api/auth/login", loginPerMinute,
                 "/api/auth/register", registerPerMinute,
-                "/api/results", submitPerMinute);
+                "/api/results", submitPerMinute,
+                // Recuperar la cuenta envía correos: sin límite, cualquiera llenaría el buzón de otro (RF-34)
+                "/api/auth/recovery", recoveryPerMinute,
+                "/api/auth/recovery/reset", recoveryPerMinute);
         this.clock = clock;
     }
 

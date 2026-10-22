@@ -72,6 +72,16 @@ export class AuthService {
     );
   }
 
+  /** RF-34, sin sesión: envía el usuario y un enlace a quien tenga ese email. Responde igual exista o no. */
+  requestRecovery(email: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.apiUrl}/recovery`, { email });
+  }
+
+  /** RF-34, sin sesión: la contraseña nueva con el código del enlace. Cierra las sesiones abiertas. */
+  resetPassword(token: string, newPassword: string): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/recovery/reset`, { token, newPassword });
+  }
+
   // ──────────────────────────────────────────────────
   // Gestión de sesión local
   // ──────────────────────────────────────────────────

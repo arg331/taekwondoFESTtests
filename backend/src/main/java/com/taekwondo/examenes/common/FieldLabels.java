@@ -18,6 +18,7 @@ public final class FieldLabels {
             Map.entry("currentPassword", "Contraseña actual"),
             Map.entry("newPassword", "Contraseña nueva"),
             Map.entry("temporaryPassword", "Contraseña temporal"),
+            Map.entry("token", "Enlace"),
             Map.entry("role", "Rol"),
             Map.entry("active", "Activa"),
             Map.entry("userId", "Usuario"),

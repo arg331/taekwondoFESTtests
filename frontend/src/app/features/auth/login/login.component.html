@@ -44,6 +44,9 @@
           <p class="error-msg">{{ error() }}</p>
         }
 
+        <!-- Sin sesión: el usuario y una contraseña nueva por email (RF-34) -->
+        <a class="forgot-link" routerLink="/auth/recover">¿Has olvidado tu usuario o contraseña?</a>
+
         <button mat-flat-button color="primary"
                 type="submit"
                 class="full-width submit-btn"

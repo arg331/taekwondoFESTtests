@@ -1,0 +1,70 @@
+<div class="clubs-page">
+  <div class="page-header">
+    <h1>Clubes</h1>
+    <p class="subtitle">
+      @if (isAdmin()) {
+        Crea, renombra y borra clubes, y cambia de club a cualquier usuario.
+      } @else {
+        Gestiona tu club: sus profesores y alumnos.
+      }
+    </p>
+  </div>
+
+  @if (loading()) {
+    <div class="loading"><mat-spinner diameter="40" /></div>
+  } @else {
+    <div class="clubs-layout">
+      <aside class="clubs-list">
+        @if (canCreate()) {
+          <mat-card class="create-club">
+            <mat-card-content>
+              <form (submit)="$event.preventDefault(); create()">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-label>Nuevo club</mat-label>
+                  <input matInput [value]="newName()" (input)="newName.set($any($event.target).value)"
+                         maxlength="100" placeholder="Nombre del club" />
+                </mat-form-field>
+                <button mat-flat-button color="primary" type="submit" [disabled]="creating() || !newName().trim()">
+                  <mat-icon>add</mat-icon>Crear club
+                </button>
+              </form>
+              @if (!isAdmin()) {
+                <p class="hint">Entrarás en él como profesor. Si tu club ya existe, pide a uno de sus profesores que te añada.</p>
+              }
+              @if (error()) {
+                <p class="error">{{ error() }}</p>
+              }
+            </mat-card-content>
+          </mat-card>
+        }
+
+        @for (club of clubs(); track club.id) {
+          <button type="button" class="club-item" [class.selected]="club.id === selectedId()"
+                  (click)="selectedId.set(club.id)">
+            <mat-icon>groups</mat-icon>
+            <span class="club-name">{{ club.name }}</span>
+            @if (club.id === myClubId()) {
+              <span class="mine">Tu club</span>
+            }
+          </button>
+        } @empty {
+          <p class="hint">Todavía no hay clubes.</p>
+        }
+      </aside>
+
+      <mat-card class="club-panel">
+        <mat-card-content>
+          @if (selected(); as club) {
+            <app-club-detail [club]="club" [canManage]="canManageSelected()" [isAdmin]="isAdmin()"
+                             (renamed)="onRenamed($event)" (deleted)="onDeleted($event)" />
+          } @else {
+            <div class="empty">
+              <mat-icon>groups</mat-icon>
+              <p>Elige un club de la lista.</p>
+            </div>
+          }
+        </mat-card-content>
+      </mat-card>
+    </div>
+  }
+</div>

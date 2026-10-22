@@ -29,10 +29,20 @@
   <mat-menu #userMenu="matMenu">
     <div class="user-info-menu">
       <p class="user-name">{{ auth.currentUser()?.displayName }}</p>
-      <p class="user-email">{{ auth.currentUser()?.email }}</p>
-      <p class="user-role">{{ auth.currentUser()?.role }}</p>
+      @if (auth.currentUser()?.email; as email) {
+        <p class="user-email">{{ email }}</p>
+      }
+      <p class="user-role">{{ roleLabel() }}</p>
     </div>
     <mat-divider />
+    <button mat-menu-item (click)="openMyClub()">
+      <mat-icon>groups</mat-icon>
+      <span class="my-club">Mi club: <strong>{{ auth.currentUser()?.club?.name ?? 'ninguno' }}</strong></span>
+    </button>
+    <a mat-menu-item routerLink="/auth/change-password">
+      <mat-icon>key</mat-icon>
+      Cambiar contraseña
+    </a>
     <button mat-menu-item (click)="logout()">
       <mat-icon>logout</mat-icon>
       Cerrar sesión

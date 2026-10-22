@@ -114,7 +114,9 @@ class ExamFlowIntegrationTest {
 
         // El alumno anónimo ve el examen y empieza un intento sin ver las respuestas correctas
         mvc.perform(get("/api/exams/by-code/" + code)).andExpect(status().isOk());
-        String attempt = post("/api/exams/by-code/" + code + "/attempts", null, "")
+        // Se identifica al empezar (DE-04)
+        String attempt = post("/api/exams/by-code/" + code + "/attempts", null,
+                json(Map.of("studentName", "  Juan Pérez ")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.questions", hasSize(5)))
                 .andExpect(jsonPath("$.questions[0].correctAnswer").doesNotExist())
@@ -133,8 +135,7 @@ class ExamFlowIntegrationTest {
             a.put("chosenOption", chosen);
             answers.add(a);
         }
-        String submission = json(Map.of("examCode", code, "attemptToken", attemptToken,
-                "studentName", "  Juan Pérez ", "answers", answers));
+        String submission = json(Map.of("examCode", code, "attemptToken", attemptToken, "answers", answers));
 
         post("/api/results", null, submission)
                 .andExpect(status().isCreated())
@@ -143,8 +144,8 @@ class ExamFlowIntegrationTest {
                 .andExpect(jsonPath("$.answers").value(nullValue()))
                 .andExpect(jsonPath("$.timeSpentSeconds").value(240));
 
-        // Mismo nombre con otras mayúsculas: no puede repetir
-        post("/api/results", null, submission.replace("  Juan Pérez ", "JUAN PÉREZ"))
+        // Mismo nombre con otras mayúsculas: ya no le quedan intentos
+        post("/api/exams/by-code/" + code + "/attempts", null, json(Map.of("studentName", "JUAN PÉREZ")))
                 .andExpect(status().isConflict());
 
         // El profesor sí ve la nota completa
@@ -168,7 +169,7 @@ class ExamFlowIntegrationTest {
                 .andExpect(status().isOk());
         String code = publish(examId);
 
-        String attempt = post("/api/exams/by-code/" + code + "/attempts", null, "")
+        String attempt = post("/api/exams/by-code/" + code + "/attempts", null, json(Map.of("studentName", "Lenta")))
                 .andReturn().getResponse().getContentAsString();
         String attemptToken = JsonPath.read(attempt, "$.attemptToken");
 
@@ -177,8 +178,7 @@ class ExamFlowIntegrationTest {
         List<Map<String, Object>> answers = questionIds.stream()
                 .map(id -> Map.<String, Object>of("questionId", id, "chosenOption", 0))
                 .toList();
-        post("/api/results", null, json(Map.of("examCode", code, "attemptToken", attemptToken,
-                "studentName", "Lenta", "answers", answers)))
+        post("/api/results", null, json(Map.of("examCode", code, "attemptToken", attemptToken, "answers", answers)))
                 .andExpect(status().isConflict());
     }
 
@@ -190,21 +190,22 @@ class ExamFlowIntegrationTest {
                 .andExpect(status().isOk());
         String code = publish(examId);
 
-        String attempt = post("/api/exams/by-code/" + code + "/attempts", studentToken, "")
+        String attempt = post("/api/exams/by-code/" + code + "/attempts", studentToken,
+                json(Map.of("studentName", "Alumno Uno")))
                 .andReturn().getResponse().getContentAsString();
         List<Map<String, Object>> answers = new ArrayList<>();
         for (int i = 0; i < 5; i++) {
             answers.add(Map.of("questionId", questionIds.get(i), "chosenOption", i % 4));
         }
         post("/api/results", studentToken, json(Map.of("examCode", code,
-                "attemptToken", JsonPath.read(attempt, "$.attemptToken"),
-                "studentName", "Alumno Uno", "answers", answers)))
+                "attemptToken", JsonPath.read(attempt, "$.attemptToken"), "answers", answers)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.score").value(100))
                 .andExpect(jsonPath("$.passed").value(true));
 
         // Un registrado no puede volver a empezar el mismo examen
-        post("/api/exams/by-code/" + code + "/attempts", studentToken, "").andExpect(status().isConflict());
+        post("/api/exams/by-code/" + code + "/attempts", studentToken, json(Map.of("studentName", "Alumno Uno")))
+                .andExpect(status().isConflict());
 
         mvc.perform(get("/api/results/me").header("Authorization", "Bearer " + studentToken))
                 .andExpect(status().isOk())
@@ -213,11 +214,13 @@ class ExamFlowIntegrationTest {
     }
 
     @Test
-    void adminCannotDemoteThemselves() throws Exception {
+    void adminCannotChangeOwnRole() throws Exception {
         String me = mvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + adminToken))
                 .andReturn().getResponse().getContentAsString();
         Integer adminId = JsonPath.read(me, "$.id");
-        patch("/api/users/" + adminId + "/demote", adminToken, "").andExpect(status().isConflict());
+        patch("/api/users/" + adminId + "/role", adminToken, """
+                {"role": "STUDENT"}
+                """).andExpect(status().isConflict());
     }
 
     // ───── Auxiliares ─────

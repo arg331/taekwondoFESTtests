@@ -10,7 +10,4 @@ public interface ResultRepository extends JpaRepository<Result, Long> {
 
     List<Result> findAllByStudentUserIdOrderByCompletedAtDesc(Long studentUserId);
 
-    boolean existsByExamIdAndStudentUserId(Long examId, Long studentUserId);
-
-    boolean existsByExamIdAndStudentNameIgnoreCase(Long examId, String studentName);
 }

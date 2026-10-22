@@ -1,5 +1,6 @@
 package com.taekwondo.examenes.security;
 
+import com.taekwondo.examenes.user.UserRole;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -22,16 +23,18 @@ import java.util.List;
  * Seguridad stateless con JWT.
  *
  * <ul>
- *   <li>Público: registro, login, consultar un examen por código, empezarlo y entregarlo.</li>
- *   <li>Cualquier usuario con sesión: /api/auth/me, /api/results/me, /api/exams/public.</li>
- *   <li>Solo ADMIN (profesor): todo lo demás de preguntas, tags, exámenes, favoritos,
- *       resultados y usuarios.</li>
+ *   <li>Público: registro, login, lista de clubes, consultar un examen por código, empezarlo y entregarlo.</li>
+ *   <li>Cualquier usuario con sesión: /api/auth/me, /api/results/me, /api/exams/public y elegir su club.</li>
+ *   <li>Solo ADMIN: gestión de usuarios y roles.</li>
+ *   <li>TEACHER o ADMIN: todo lo demás de preguntas, tags, exámenes, favoritos, resultados y clubes
+ *       (quién gestiona cada club lo decide ClubService).</li>
  * </ul>
  */
 @Configuration
 public class SecurityConfig {
 
-    private static final String ADMIN = "ADMIN";
+    private static final String ADMIN = UserRole.ADMIN.name();
+    private static final String TEACHER = UserRole.TEACHER.name();
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
@@ -47,12 +50,15 @@ public class SecurityConfig {
                         .requestMatchers("/error").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/exams/by-code/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/clubs").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/exams/by-code/*/attempts").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/results").permitAll()
-                        .requestMatchers("/api/auth/me", "/api/results/me").authenticated()
+                        .requestMatchers("/api/auth/me", "/api/auth/me/password", "/api/results/me",
+                                "/api/users/me/club").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/exams/public").authenticated()
-                        .requestMatchers("/api/users/**", "/api/questions/**", "/api/tags/**",
-                                "/api/exams/**", "/api/favorites/**", "/api/results/**").hasAuthority(ADMIN)
+                        .requestMatchers("/api/users/**").hasAuthority(ADMIN)
+                        .requestMatchers("/api/questions/**", "/api/tags/**", "/api/exams/**",
+                                "/api/favorites/**", "/api/results/**", "/api/clubs/**").hasAnyAuthority(ADMIN, TEACHER)
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

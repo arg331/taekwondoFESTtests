@@ -47,7 +47,7 @@ describe('LoginComponent', () => {
 
   function loginOk(): void {
     http.expectOne(`${API}/auth/login`).flush({
-      token: 't', user: { id: 1, username: 'u', email: 'u@x.es', displayName: 'U', role: 'STUDENT', active: true,
+      token: 't', user: { id: 1, username: 'u', email: 'u@x.es', displayName: 'U', role: 'STUDENT', club: null, active: true, mustChangePassword: false,
         createdAt: '2026-10-08T10:00:00' }
     });
   }

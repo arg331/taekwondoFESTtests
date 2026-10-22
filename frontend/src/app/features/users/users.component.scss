@@ -72,10 +72,35 @@
   text-transform: uppercase;
 }
 
+.temp-badge {
+  background: #fff3e0;
+  color: #8a4b00;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 12px;
+  text-transform: uppercase;
+}
+
+.inactive-badge {
+  background: #eceff1;
+  color: #455a64;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 12px;
+  text-transform: uppercase;
+}
+
+.user-card.inactive .user-info {
+  opacity: 0.55;
+}
+
 .user-actions {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .role-badge {
@@ -83,14 +108,10 @@
   border-radius: 12px;
   font-size: 0.8rem;
   font-weight: 600;
-
-  &.admin {
-    background: #fff3e0;
-    color: #e65100;
-  }
-
-  &.student {
-    background: #f3f4f6;
-    color: #555;
-  }
+  background: #f3f4f6;
+  color: #555;
+  &[data-role="ADMIN"] { background: #fdecea; color: #c62828; }
+  &[data-role="TEACHER"] { background: #fff3e0; color: #e65100; }
 }
+
+.role-field { width: 180px; }

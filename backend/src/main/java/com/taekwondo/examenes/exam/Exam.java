@@ -1,6 +1,7 @@
 package com.taekwondo.examenes.exam;
 
 import com.taekwondo.examenes.common.BusinessRuleException;
+import com.taekwondo.examenes.question.Question;
 import com.taekwondo.examenes.tag.Tag;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -20,6 +21,7 @@ import java.util.Set;
  * Ciclo de vida: DRAFT → PUBLISHED ⇄ EXPIRED.
  * La configuración y las preguntas solo se pueden cambiar en DRAFT, para que
  * todos los alumnos de un examen publicado hagan exactamente el mismo examen.
+ * Al publicar se copian las preguntas (DE-03): editar el banco después no cambia el examen.
  * La caducidad por fecha (expiresAt) no cambia el estado: se evalúa al vuelo.
  */
 @Entity
@@ -30,6 +32,8 @@ import java.util.Set;
 public class Exam {
 
     public static final int MAX_TITLE_LENGTH = 200;
+    public static final int MIN_ATTEMPTS = 1;
+    public static final int MAX_ATTEMPTS = 20;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -56,12 +60,22 @@ public class Exam {
     @Embedded
     private ExamConfig config;
 
+    /** Intentos por alumno (RF-52); se fija al publicar. */
+    @Column(name = "max_attempts", nullable = false)
+    private int maxAttempts = MIN_ATTEMPTS;
+
     /** IDs de las preguntas, en orden. Sin FK: las preguntas viven en su propio agregado. */
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "exam_questions", joinColumns = @JoinColumn(name = "exam_id"))
     @OrderColumn(name = "position")
     @Column(name = "question_id", nullable = false)
     private List<Long> questionIds = new ArrayList<>();
+
+    /** Copia de las preguntas al publicar, en orden (DE-03). Vacía en borrador. */
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "exam_id", nullable = false, updatable = false)
+    @OrderBy("position")
+    private List<PublishedQuestion> publishedQuestions = new ArrayList<>();
 
     /** Tags usados al pre-generar el examen (solo informativo). */
     @ManyToMany(fetch = FetchType.EAGER)
@@ -128,9 +142,13 @@ public class Exam {
 
     // ───── Transiciones de estado ─────
 
-    public void publish(String code, Visibility visibility, ExamAccessMode accessMode,
-                        LocalDateTime expiresAt) {
+    /** Publica con las preguntas del banco en el orden del examen; se guarda una copia de cada una. */
+    public void publish(String code, Visibility visibility, ExamAccessMode accessMode, LocalDateTime expiresAt,
+                        int maxAttempts, List<Question> questionsInOrder) {
         requireDraft("publicar");
+        if (maxAttempts < MIN_ATTEMPTS || maxAttempts > MAX_ATTEMPTS) {
+            throw new IllegalArgumentException("Intentos fuera de rango: " + maxAttempts);
+        }
         int count = questionIds.size();
         if (count < ExamConfig.MIN_QUESTIONS || count > ExamConfig.MAX_QUESTIONS) {
             throw new BusinessRuleException("El examen debe tener entre " + ExamConfig.MIN_QUESTIONS + " y "
@@ -138,10 +156,17 @@ public class Exam {
         }
         // El número de preguntas es el de las elegidas (RF-46)
         config.matchQuestionCount(count);
+        if (!questionsInOrder.stream().map(Question::getId).toList().equals(questionIds)) {
+            throw new IllegalArgumentException("Las preguntas a copiar no son las del examen");
+        }
+        for (int i = 0; i < count; i++) {
+            publishedQuestions.add(PublishedQuestion.copyOf(i, questionsInOrder.get(i)));
+        }
         this.code = code;
         this.visibility = visibility;
         this.accessMode = accessMode;
         this.expiresAt = expiresAt;
+        this.maxAttempts = maxAttempts;
         this.status = ExamStatus.PUBLISHED;
     }
 
@@ -196,6 +221,10 @@ public class Exam {
 
     public List<Long> getQuestionIds() {
         return Collections.unmodifiableList(questionIds);
+    }
+
+    public List<PublishedQuestion> getPublishedQuestions() {
+        return Collections.unmodifiableList(publishedQuestions);
     }
 
     public Set<Tag> getGenerationTags() {

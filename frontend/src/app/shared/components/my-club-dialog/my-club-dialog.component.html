@@ -1,0 +1,22 @@
+<h2 mat-dialog-title>Mi club</h2>
+
+<mat-dialog-content>
+  <p class="intro">Elige tu club. Si el tuyo no está en la lista, déjalo en «Sin club» hasta que un profesor lo cree.</p>
+  <mat-form-field appearance="outline" class="club-field">
+    <mat-label>Club</mat-label>
+    <mat-select [value]="selected()" (selectionChange)="selected.set($event.value)">
+      <mat-option [value]="noClub">Sin club</mat-option>
+      @for (club of clubs(); track club.id) {
+        <mat-option [value]="club.id">{{ club.name }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  @if (error()) {
+    <p class="error">{{ error() }}</p>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close type="button">Cancelar</button>
+  <button mat-flat-button color="primary" type="button" (click)="save()" [disabled]="saving()">Guardar</button>
+</mat-dialog-actions>

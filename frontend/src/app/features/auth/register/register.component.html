@@ -42,13 +42,26 @@
             }
           </mat-form-field>
 
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Email</mat-label>
+          <mat-form-field appearance="outline" class="full-width with-hint" subscriptSizing="dynamic">
+            <mat-label>Email (opcional)</mat-label>
             <input matInput formControlName="email" type="email" autocomplete="email" />
             <mat-icon matPrefix>email</mat-icon>
+            <mat-hint>Sirve para recuperar la cuenta; sin él, la recupera el administrador</mat-hint>
             @if (form.get('email')?.hasError('email')) {
               <mat-error>Email inválido</mat-error>
             }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width with-hint" subscriptSizing="dynamic">
+            <mat-label>Club (opcional)</mat-label>
+            <mat-select formControlName="clubId">
+              <mat-option [value]="noClub">Sin club</mat-option>
+              @for (club of clubs(); track club.id) {
+                <mat-option [value]="club.id">{{ club.name }}</mat-option>
+              }
+            </mat-select>
+            <mat-icon matPrefix>groups</mat-icon>
+            <mat-hint>Si el tuyo no está, déjalo así: podrás elegirlo cuando un profesor lo cree</mat-hint>
           </mat-form-field>
 
           <mat-form-field appearance="outline" class="full-width">

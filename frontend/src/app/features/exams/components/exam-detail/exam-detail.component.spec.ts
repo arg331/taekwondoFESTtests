@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ExamDetailComponent } from './exam-detail.component';
-import { ExamResponse, ExamStatus } from '../../../../core/models/exam.models';
+import { ExamResponse, ExamStatus, PublishedQuestionResponse } from '../../../../core/models/exam.models';
 import { QuestionResponse } from '../../../../core/models/question.models';
 import { QrCodeService } from '../../../../core/services/qr-code.service';
 import { QrColorService } from '../../../../core/services/qr-color.service';
@@ -19,7 +19,7 @@ function exam(status: ExamStatus, questionIds: number[] = []): ExamResponse {
     config: { numberOfQuestions: 10, timeLimitMinutes: null, showScore: true, randomizeOptions: false,
       randomizeQuestionOrder: false },
     questionIds, generationTags: [], code: status === 'DRAFT' ? null : 'EXM-1234ABCD',
-    createdAt: '2026-10-08T10:00:00', expiresAt: null
+    createdAt: '2026-10-08T10:00:00', expiresAt: null, maxAttempts: 1
   };
 }
 
@@ -30,6 +30,11 @@ function question(id: number): QuestionResponse {
   };
 }
 
+/** La copia publicada de una pregunta (DE-03); por defecto, igual que la del banco. */
+function published(id: number, text = `Pregunta ${id}`, editedSincePublished = false): PublishedQuestionResponse {
+  return { questionId: id, text, options: ['A', 'B'], correctAnswer: 0, explanation: null, editedSincePublished };
+}
+
 /** Caracterización del panel de un examen: acciones disponibles por estado y llamadas al publicar. */
 describe('ExamDetailComponent', () => {
   let fixture: ComponentFixture<ExamDetailComponent>;
@@ -37,9 +42,14 @@ describe('ExamDetailComponent', () => {
   let el: HTMLElement;
   let changed: ExamResponse[];
   let qr: { toDataUrl: ReturnType<typeof vi.fn> };
+  /** Lo que devuelve el servidor como preguntas publicadas del examen que se muestra. */
+  let publishedFor: (exam: ExamResponse) => PublishedQuestionResponse[];
+  let publishedRequests: string[];
 
   async function render(examResponse: ExamResponse): Promise<void> {
     qr = { toDataUrl: vi.fn(fakeQr) };
+    publishedFor ??= e => e.questionIds.map(id => published(id));
+    publishedRequests = [];
     TestBed.configureTestingModule({
       imports: [ExamDetailComponent],
       providers: [provideHttpClient(), provideHttpClientTesting(), { provide: QrCodeService, useValue: qr }]
@@ -54,8 +64,14 @@ describe('ExamDetailComponent', () => {
     await stable();
   }
 
+  /** Responde a las peticiones de preguntas publicadas antes de esperar: si no, la app sigue ocupada. */
   async function stable(): Promise<void> {
     fixture.detectChanges();
+    http.match(r => r.url.endsWith('/published-questions'))
+      .forEach(req => {
+        publishedRequests.push(req.request.url);
+        req.flush(publishedFor(fixture.componentInstance.exam()));
+      });
     await fixture.whenStable();
     fixture.detectChanges();
   }
@@ -72,6 +88,7 @@ describe('ExamDetailComponent', () => {
   afterEach(() => {
     http.verify();
     localStorage.clear();
+    publishedFor = undefined!;
   });
 
   it('acciones según el estado del examen', async () => {
@@ -136,7 +153,7 @@ describe('ExamDetailComponent', () => {
     expect(save.request.body).toEqual({ questionIds: [1, 3, 4, 5, 6] });
     save.flush(exam('DRAFT', [1, 3, 4, 5, 6]));
     const publish = http.expectOne(`${API}/exams/7/publish`);
-    expect(publish.request.body).toEqual({ visibility: 'PUBLIC', accessMode: 'OPEN', expiresAt: null, neverExpires: false });
+    expect(publish.request.body).toEqual({ visibility: 'PUBLIC', accessMode: 'OPEN', expiresAt: null, neverExpires: false, maxAttempts: 1 });
     publish.flush(exam('PUBLISHED', [1, 3, 4, 5, 6]));
     await stable();
 
@@ -156,7 +173,7 @@ describe('ExamDetailComponent', () => {
 
       button('Publicar examen').click();
       const publish = http.expectOne(`${API}/exams/7/publish`);
-      expect(publish.request.body).toEqual({ visibility: 'PUBLIC', accessMode: 'OPEN', expiresAt: null, neverExpires: true });
+      expect(publish.request.body).toEqual({ visibility: 'PUBLIC', accessMode: 'OPEN', expiresAt: null, neverExpires: true, maxAttempts: 1 });
       publish.flush(exam('PUBLISHED', [1, 2, 3, 4, 5]));
     });
 
@@ -235,6 +252,77 @@ describe('ExamDetailComponent', () => {
 
       expect(createdQuestions.map(q => q.id)).toEqual([7]);
       expect(fixture.componentInstance.selectedIds()).toEqual([7]);
+    });
+  });
+
+  describe('intentos por alumno (RF-52)', () => {
+    it('al publicar se eligen; por defecto, 1', async () => {
+      await render(exam('DRAFT', [1, 2, 3, 4, 5]));
+      const attempts = el.querySelector('.publish-options input[type=number]') as HTMLInputElement;
+      expect(attempts.value).toBe('1');
+
+      attempts.value = '3';
+      attempts.dispatchEvent(new Event('input'));
+      await stable();
+      button('Publicar examen').click();
+
+      const publish = http.expectOne(`${API}/exams/7/publish`);
+      expect(publish.request.body.maxAttempts).toBe(3);
+      publish.flush({ ...exam('PUBLISHED', [1, 2, 3, 4, 5]), maxAttempts: 3 });
+      await stable();
+    });
+
+    it('fuera de 1 a 20 no se puede publicar', async () => {
+      await render(exam('DRAFT', [1, 2, 3, 4, 5]));
+      const attempts = el.querySelector('.publish-options input[type=number]') as HTMLInputElement;
+      attempts.value = '21';
+      attempts.dispatchEvent(new Event('input'));
+      await stable();
+
+      expect(button('Publicar examen').disabled).toBe(true);
+    });
+
+    it('un examen publicado dice cuántos intentos tiene cada alumno', async () => {
+      await render({ ...exam('PUBLISHED', [1, 2]), maxAttempts: 3 });
+      expect(el.querySelector('.config-summary')?.textContent).toContain('3 intentos');
+    });
+
+    it('con uno solo, lo dice en singular', async () => {
+      await render(exam('PUBLISHED', [1, 2]));
+      expect(el.querySelector('.config-summary')?.textContent).toContain('1 intento');
+      expect(el.querySelector('.config-summary')?.textContent).not.toContain('1 intentos');
+    });
+  });
+
+  describe('preguntas tal como se publicaron (DE-03)', () => {
+    it('publicado: lista la copia publicada, no el banco', async () => {
+      publishedFor = () => [published(2, 'Así se publicó la 2'), published(1, 'Así se publicó la 1')];
+      await render(exam('PUBLISHED', [2, 1]));
+
+      expect(Array.from(el.querySelectorAll('.assigned-list li')).map(li => li.textContent?.trim()))
+        .toEqual(['Así se publicó la 2', 'Así se publicó la 1']);
+      expect(el.textContent).toContain('Así las ven los alumnos');
+    });
+
+    it('avisa de las preguntas editadas en el banco después de publicar', async () => {
+      publishedFor = () => [published(2, 'Pregunta 2', true), published(1)];
+      await render(exam('EXPIRED', [2, 1]));
+
+      const items = Array.from(el.querySelectorAll('.assigned-list li'));
+      expect(items[0].textContent).toContain('editada en el banco después de publicar');
+      expect(items[1].textContent).not.toContain('editada');
+    });
+
+    it('un borrador no pide preguntas publicadas', async () => {
+      await render(exam('DRAFT', [1, 2]));
+
+      expect(publishedRequests).toEqual([]);
+    });
+
+    it('pide las del examen que se muestra', async () => {
+      await render(exam('PUBLISHED', [1]));
+
+      expect(publishedRequests).toEqual([`${API}/exams/7/published-questions`]);
     });
   });
 

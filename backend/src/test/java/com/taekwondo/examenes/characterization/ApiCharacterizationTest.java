@@ -148,10 +148,15 @@ abstract class ApiCharacterizationTest {
         return new Session(id, username, login(username, STUDENT_PASSWORD));
     }
 
-    /** Hoy un "profesor" es un usuario con rol ADMIN: se registra y el admin lo asciende. */
+    /** Profesor (rol TEACHER): se registra como alumno y el admin le cambia el rol. */
     Session newTeacher() {
+        return newUserWithRole("TEACHER");
+    }
+
+    /** Usuario con el rol indicado: se registra como alumno y el admin le cambia el rol. */
+    Session newUserWithRole(String role) {
         Session student = newStudent();
-        patch("/api/users/" + student.id() + "/promote", adminToken(), null).expectStatus(200);
+        patch("/api/users/" + student.id() + "/role", adminToken(), obj("role", role)).expectStatus(200);
         return new Session(student.id(), student.username(), login(student.username(), STUDENT_PASSWORD));
     }
 
@@ -214,12 +219,18 @@ abstract class ApiCharacterizationTest {
                 "expiresAt", expiresAt == null ? null : expiresAt.toString()));
     }
 
-    /** Examen publicado y abierto (OPEN, PUBLIC, expira en 1 h) con n preguntas nuevas. */
+    /** Examen publicado y abierto (OPEN, PUBLIC, expira en 1 h, 1 intento) con n preguntas nuevas. */
     PublishedExam publishedExam(String token, int n, Integer timeLimit, boolean showScore) {
+        return publishedExam(token, n, timeLimit, showScore, 1);
+    }
+
+    /** Igual, con el número de intentos por alumno indicado (RF-52). */
+    PublishedExam publishedExam(String token, int n, Integer timeLimit, boolean showScore, int maxAttempts) {
         List<Long> questionIds = createQuestions(token, n);
         long examId = createDraft(token, n, timeLimit, showScore);
         setQuestions(token, examId, questionIds);
-        String code = publish(token, examId, "PUBLIC", null, null).expectStatus(200).read("$.code");
+        String code = post("/api/exams/" + examId + "/publish", token,
+                obj("visibility", "PUBLIC", "maxAttempts", maxAttempts)).expectStatus(200).read("$.code");
         return new PublishedExam(examId, code, questionIds);
     }
 
@@ -227,8 +238,18 @@ abstract class ApiCharacterizationTest {
 
     // ───── Intentos y entregas ─────
 
+    /** Empieza un intento con un nombre nuevo cada vez: para las pruebas en las que el alumno da igual. */
     String startAttempt(String code, String token) {
-        return post("/api/exams/by-code/" + code + "/attempts", token, null).expectStatus(200).read("$.attemptToken");
+        return startAttempt(code, token, unique("Alumno"));
+    }
+
+    /** El alumno se identifica al empezar (DE-04): ese nombre es el que queda en la entrega. */
+    String startAttempt(String code, String token, String studentName) {
+        return start(code, token, obj("studentName", studentName)).expectStatus(200).read("$.attemptToken");
+    }
+
+    HttpResult start(String code, String token, Map<String, Object> identity) {
+        return post("/api/exams/by-code/" + code + "/attempts", token, identity);
     }
 
     /** Respuestas para todas las preguntas: chosen.get(i) es la opción elegida en la pregunta i (null = en blanco). */
@@ -249,14 +270,11 @@ abstract class ApiCharacterizationTest {
         return chosen;
     }
 
-    HttpResult submit(String code, String attemptToken, String studentName, String token,
-                      List<Map<String, Object>> answers) {
+    /** Entrega: quién la hace ya lo dice el intento. */
+    HttpResult submit(String code, String attemptToken, String token, List<Map<String, Object>> answers) {
         return post("/api/results", token, obj(
                 "examCode", code,
                 "attemptToken", attemptToken,
-                "studentName", studentName,
-                "studentClub", null,
-                "studentEmail", null,
                 "answers", answers));
     }
 

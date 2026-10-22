@@ -18,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ExamLifecycleCharacterizationTest extends ApiCharacterizationTest {
 
     private static final List<String> EXAM_FIELDS = List.of("id", "title", "ownerId", "status", "visibility",
-            "accessMode", "config", "questionIds", "generationTags", "code", "createdAt", "expiresAt");
+            "accessMode", "config", "questionIds", "generationTags", "code", "createdAt", "expiresAt", "maxAttempts");
     private static final List<String> CONFIG_FIELDS = List.of("numberOfQuestions", "timeLimitMinutes",
             "showScore", "randomizeOptions", "randomizeQuestionOrder");
 

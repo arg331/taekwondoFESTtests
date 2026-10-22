@@ -4,6 +4,7 @@ import { Observable, tap } from 'rxjs';
 import { Router } from '@angular/router';
 import { environment } from '../../../environments/environment';
 import {
+  ChangePasswordRequest,
   LoginRequest,
   LoginResponse,
   RegisterRequest,
@@ -34,6 +35,13 @@ export class AuthService {
   readonly currentUser = this._currentUser.asReadonly();
   readonly isAuthenticated = computed(() => this._currentUser() !== null);
   readonly isAdmin = computed(() => this._currentUser()?.role === 'ADMIN');
+  /** Prepara preguntas y exámenes y ve sus resultados: profesor o administrador. */
+  readonly canTeach = computed(() => {
+    const role = this._currentUser()?.role;
+    return role === 'TEACHER' || role === 'ADMIN';
+  });
+  /** Contraseña temporal del administrador: hay que cambiarla antes de usar la app (RF-33). */
+  readonly mustChangePassword = computed(() => this._currentUser()?.mustChangePassword === true);
 
   // ──────────────────────────────────────────────────
   // Endpoints públicos
@@ -57,6 +65,13 @@ export class AuthService {
     return this.http.get<UserResponse>(`${this.apiUrl}/me`);
   }
 
+  /** RF-06 y RF-33. El servidor cierra las demás sesiones y devuelve una nueva para esta. */
+  changePassword(request: ChangePasswordRequest): Observable<LoginResponse> {
+    return this.http.put<LoginResponse>(`${this.apiUrl}/me/password`, request).pipe(
+      tap(response => this.saveSession(response))
+    );
+  }
+
   // ──────────────────────────────────────────────────
   // Gestión de sesión local
   // ──────────────────────────────────────────────────
@@ -66,6 +81,12 @@ export class AuthService {
     localStorage.removeItem(USER_KEY);
     this._currentUser.set(null);
     this.router.navigate(['/auth/login']);
+  }
+
+  /** Tras cambiar algo del propio usuario (por ejemplo, su club), la sesión guarda la versión nueva. */
+  updateCurrentUser(user: UserResponse): void {
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+    this._currentUser.set(user);
   }
 
   getToken(): string | null {

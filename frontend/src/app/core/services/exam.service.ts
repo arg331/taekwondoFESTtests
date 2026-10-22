@@ -11,7 +11,9 @@ import {
   UpdateExamQuestionsRequest,
   ChangeExamVisibilityRequest,
   ExpirationRequest,
-  ExamAttemptResponse
+  ExamAttemptResponse,
+  PublishedQuestionResponse,
+  StartAttemptRequest
 } from '../models/exam.models';
 
 @Injectable({ providedIn: 'root' })
@@ -69,6 +71,11 @@ export class ExamService {
   }
 
   /** Copia el examen como borrador nuevo para ampliarlo (RF-18). */
+  /** Las preguntas de un examen publicado tal como las ven los alumnos (DE-03). */
+  publishedQuestions(id: number): Observable<PublishedQuestionResponse[]> {
+    return this.http.get<PublishedQuestionResponse[]>(`${this.api}/${id}/published-questions`);
+  }
+
   copy(id: number): Observable<ExamResponse> {
     return this.http.post<ExamResponse>(`${this.api}/${id}/copy`, {});
   }
@@ -101,7 +108,8 @@ export class ExamService {
   }
 
   /** Empieza un intento: preguntas sin solución + token con la hora de inicio. */
-  startAttempt(code: string): Observable<ExamAttemptResponse> {
-    return this.http.post<ExamAttemptResponse>(`${this.api}/by-code/${encodeURIComponent(code)}/attempts`, {});
+  /** Empieza un intento a nombre del alumno (DE-04). */
+  startAttempt(code: string, identity: StartAttemptRequest): Observable<ExamAttemptResponse> {
+    return this.http.post<ExamAttemptResponse>(`${this.api}/by-code/${encodeURIComponent(code)}/attempts`, identity);
   }
 }

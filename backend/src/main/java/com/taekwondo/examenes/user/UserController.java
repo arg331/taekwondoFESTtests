@@ -1,5 +1,6 @@
 package com.taekwondo.examenes.user;
 
+import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,13 +22,21 @@ public class UserController {
         return userService.findAll();
     }
 
-    @PatchMapping("/{id}/promote")
-    public UserResponse promote(@PathVariable Long id) {
-        return userService.promote(id);
+    @PatchMapping("/{id}/role")
+    public UserResponse changeRole(@PathVariable Long id, @Valid @RequestBody ChangeRoleRequest request,
+                                   @AuthenticationPrincipal Long userId) {
+        return userService.changeRole(id, request.role(), userId);
     }
 
-    @PatchMapping("/{id}/demote")
-    public UserResponse demote(@PathVariable Long id, @AuthenticationPrincipal Long userId) {
-        return userService.demote(id, userId);
+    @PatchMapping("/{id}/active")
+    public UserResponse setActive(@PathVariable Long id, @Valid @RequestBody SetActiveRequest request,
+                                  @AuthenticationPrincipal Long userId) {
+        return userService.setActive(id, request.active(), userId);
+    }
+
+    @PutMapping("/{id}/password")
+    public UserResponse resetPassword(@PathVariable Long id, @Valid @RequestBody ResetPasswordRequest request,
+                                      @AuthenticationPrincipal Long userId) {
+        return userService.resetPassword(id, request.temporaryPassword(), userId);
     }
 }

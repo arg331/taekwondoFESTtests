@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, linkedSignal, output, resource, signal, untracked } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Observable, of, switchMap } from 'rxjs';
 import { MatCardModule } from '@angular/material/card';
@@ -21,6 +21,8 @@ import { QR_PANEL_SIZE_PX, QrCodeService } from '../../../../core/services/qr-co
 import { QrColorService } from '../../../../core/services/qr-color.service';
 import {
   EXAM_MAX_QUESTIONS,
+  EXAM_MIN_ATTEMPTS,
+  EXAM_MAX_ATTEMPTS,
   EXAM_MIN_QUESTIONS,
   EXAM_STATUS_COLOR,
   EXAM_STATUS_LABEL,
@@ -73,6 +75,9 @@ export class ExamDetailComponent {
   private qrCode = inject(QrCodeService);
   private qrColor = inject(QrColorService);
 
+  readonly minAttempts = EXAM_MIN_ATTEMPTS;
+  readonly maxAttempts = EXAM_MAX_ATTEMPTS;
+
   exam = input.required<ExamResponse>();
   questions = input<QuestionResponse[]>([]);
   /** Tags del profesor, para filtrar y para crear preguntas desde el selector. */
@@ -110,11 +115,10 @@ export class ExamDetailComponent {
     const current = this.selectedIds();
     return saved.length !== current.length || saved.some((id, i) => id !== current[i]);
   });
-  assignedQuestions = computed(() => {
-    const byId = new Map(this.questions().map(q => [q.id, q]));
-    return this.exam().questionIds
-      .map(id => byId.get(id))
-      .filter((q): q is QuestionResponse => q !== undefined);
+  /** Ya publicado: sus preguntas tal como las ven los alumnos, no como estén hoy en el banco (DE-03). */
+  publishedQuestions = rxResource({
+    params: () => (this.exam().status === 'DRAFT' ? undefined : this.exam().id),
+    stream: ({ params: id }) => this.examSvc.publishedQuestions(id)
   });
 
   /** Se publican las preguntas elegidas, coincidan o no con el objetivo (RF-46). */
@@ -154,7 +158,8 @@ export class ExamDetailComponent {
     visibility: ['PUBLIC' as Visibility],
     accessMode: ['OPEN' as 'OPEN' | 'REGISTERED_ONLY'],
     expiresAt:  [''],
-    neverExpires: [false]
+    neverExpires: [false],
+    maxAttempts: [EXAM_MIN_ATTEMPTS, [Validators.required, Validators.min(EXAM_MIN_ATTEMPTS), Validators.max(EXAM_MAX_ATTEMPTS)]]
   });
 
   expirationForm = this.fb.nonNullable.group({ expiresAt: [''] });
@@ -220,7 +225,7 @@ export class ExamDetailComponent {
 
   // ── Ciclo de vida ─────────────────────────────────
   publish(): void {
-    if (this.publishBlockReason()) return;
+    if (this.publishBlockReason() || this.publishForm.invalid) return;
     const exam = this.exam();
     const v = this.publishForm.getRawValue();
     // Si hay cambios de preguntas sin guardar, se guardan antes de publicar
@@ -232,7 +237,8 @@ export class ExamDetailComponent {
       visibility: v.visibility,
       accessMode: v.accessMode,
       expiresAt: v.neverExpires ? null : v.expiresAt || null,
-      neverExpires: v.neverExpires
+      neverExpires: v.neverExpires,
+      maxAttempts: v.maxAttempts
     }))), published => {
       if (published.code) this.qrColor.assignDistinct(published.code, this.openExamCodes());
       this.showQr.set(true);

@@ -84,3 +84,6 @@ mat-card-title {
   h2 { margin: 0; }
   p  { margin: 0; color: #666; }
 }
+
+// Campos opcionales con una ayuda de dos líneas: espacio para que no se pegue al siguiente
+.with-hint { margin-bottom: 12px; }

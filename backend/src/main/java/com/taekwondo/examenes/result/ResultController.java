@@ -26,11 +26,11 @@ public class ResultController {
         this.resultService = resultService;
     }
 
-    /** userId es null si el alumno no ha iniciado sesión. */
+    /** Pública: el token del intento dice quién la hace. */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public ResultResponse submit(@Valid @RequestBody SubmitExamRequest request, @AuthenticationPrincipal Long userId) {
-        return resultService.submit(request, userId);
+    public ResultResponse submit(@Valid @RequestBody SubmitExamRequest request) {
+        return resultService.submit(request);
     }
 
     @GetMapping("/me")

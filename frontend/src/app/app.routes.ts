@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
-import { authGuard } from './core/guards/auth.guard';
-import { adminGuard } from './core/guards/role.guard';
+import { authGuard, passwordChangedGuard } from './core/guards/auth.guard';
+import { adminGuard, teacherGuard } from './core/guards/role.guard';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
@@ -13,6 +13,7 @@ export const routes: Routes = [
   },
   {
     path: 'exam/:code',
+    canMatch: [passwordChangedGuard],
     loadChildren: () =>
       import('./features/exam-take/exam-take.routes').then(m => m.EXAM_TAKE_ROUTES)
   },
@@ -20,7 +21,7 @@ export const routes: Routes = [
   // Privadas con layout
   {
     path: '',
-    canMatch: [authGuard],
+    canMatch: [authGuard, passwordChangedGuard],
     loadComponent: () =>
       import('./shared/components/private-layout/private-layout.component')
         .then(m => m.PrivateLayoutComponent),
@@ -32,13 +33,13 @@ export const routes: Routes = [
       },
       {
         path: 'questions',
-        canMatch: [adminGuard],
+        canMatch: [teacherGuard],
         loadChildren: () =>
           import('./features/questions/questions.routes').then(m => m.QUESTIONS_ROUTES)
       },
       {
         path: 'exams',
-        canMatch: [adminGuard],
+        canMatch: [teacherGuard],
         loadChildren: () =>
           import('./features/exams/exams.routes').then(m => m.EXAMS_ROUTES)
       },
@@ -46,6 +47,12 @@ export const routes: Routes = [
         path: 'results',
         loadChildren: () =>
           import('./features/results/results.routes').then(m => m.RESULTS_ROUTES)
+      },
+      {
+        path: 'clubs',
+        canMatch: [teacherGuard],
+        loadChildren: () =>
+          import('./features/clubs/clubs.routes').then(m => m.CLUBS_ROUTES)
       },
       {
         path: 'users',

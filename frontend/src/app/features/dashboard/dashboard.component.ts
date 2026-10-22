@@ -57,7 +57,7 @@ export class DashboardComponent implements OnInit {
   expired   = computed(() => this.exams().filter(e => e.status === 'EXPIRED'));
 
   ngOnInit(): void {
-    if (this.auth.isAdmin()) {
+    if (this.auth.canTeach()) {
       this.loading.set(true);
       this.examSvc.getMine().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: exams => { this.exams.set(exams); this.loading.set(false); },

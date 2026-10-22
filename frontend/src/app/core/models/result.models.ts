@@ -1,9 +1,6 @@
 export interface SubmitExamRequest {
   examCode: string;
   attemptToken: string;
-  studentName: string;
-  studentClub: string | null;
-  studentEmail: string | null;
   /** chosenOption null = sin responder. */
   answers: { questionId: number; chosenOption: number | null }[];
 }

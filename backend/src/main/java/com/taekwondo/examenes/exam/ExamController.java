@@ -107,6 +107,12 @@ public class ExamController {
         return examService.get(id, userId);
     }
 
+    /** Las preguntas tal como se publicaron, aunque se hayan editado después en el banco (DE-03). */
+    @GetMapping("/{id}/published-questions")
+    public List<PublishedQuestionResponse> publishedQuestions(@PathVariable Long id, @AuthenticationPrincipal Long userId) {
+        return examService.publishedQuestions(id, userId);
+    }
+
     @GetMapping("/mine")
     public List<ExamResponse> listMine(@AuthenticationPrincipal Long userId) {
         return examService.listMine(userId);
@@ -126,7 +132,8 @@ public class ExamController {
 
     /** userId es null si el alumno no ha iniciado sesión. */
     @PostMapping("/by-code/{code}/attempts")
-    public ExamAttemptResponse startAttempt(@PathVariable String code, @AuthenticationPrincipal Long userId) {
-        return examService.startAttempt(code, userId);
+    public ExamAttemptResponse startAttempt(@PathVariable String code, @Valid @RequestBody StartAttemptRequest request,
+                                            @AuthenticationPrincipal Long userId) {
+        return examService.startAttempt(code, request, userId);
     }
 }

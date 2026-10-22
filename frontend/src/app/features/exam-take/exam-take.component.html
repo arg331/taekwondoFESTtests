@@ -29,7 +29,10 @@
         <div class="exam-header">
           <div class="exam-header-left">
             <span class="exam-title">{{ exam()!.title }}</span>
-            <span class="exam-progress">{{ answeredCount() }}/{{ questions().length }} respondidas</span>
+            <span class="exam-progress">
+              @if (attemptLabel(); as label) { {{ label }} · }
+              {{ answeredCount() }}/{{ questions().length }} respondidas
+            </span>
           </div>
           @if (exam()!.config.timeLimitMinutes) {
             <div class="timer" [class.timer-warn]="timerWarning()">

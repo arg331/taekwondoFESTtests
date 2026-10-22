@@ -7,15 +7,12 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { ExamResponse, VISIBILITY_ICON } from '../../../../core/models/exam.models';
+import { ExamResponse, StartAttemptRequest, VISIBILITY_ICON } from '../../../../core/models/exam.models';
 import { UserResponse } from '../../../../core/models/auth.models';
 import { APP_NAME } from '../../../../core/app-brand';
 
-export interface StudentInfo {
-  studentName: string;
-  studentClub: string | null;
-  studentEmail: string | null;
-}
+/** Con lo que se identifica el alumno al empezar (DE-04). */
+export type StudentInfo = StartAttemptRequest;
 
 /**
  * Portada del examen: datos del alumno antes de empezar. Si el examen exige
@@ -59,11 +56,15 @@ export class ExamAccessCardComponent {
   });
 
   constructor() {
-    // Con sesión iniciada, rellena nombre y email con los de la cuenta
+    // Con sesión iniciada, rellena nombre, club y email con los de la cuenta (club y email pueden faltar)
     effect(() => {
       const user = this.user();
       if (user && !this.form.dirty) {
-        this.form.patchValue({ studentName: user.displayName, studentEmail: user.email });
+        this.form.patchValue({
+          studentName: user.displayName,
+          studentClub: user.club?.name ?? '',
+          studentEmail: user.email ?? ''
+        });
       }
     });
   }

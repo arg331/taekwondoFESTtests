@@ -39,8 +39,9 @@ class UserActivationCharacterizationTest extends ApiCharacterizationTest {
         setActive(student.id(), adminToken(), false).expectStatus(200);
         setActive(student.id(), adminToken(), false).expectStatus(200);
 
-        String path = "$[?(@.id == " + student.id() + ")].active";
-        assertThat(get("/api/users", adminToken()).expectStatus(200).<List<Boolean>>read(path)).containsExactly(false);
+        String path = "$.items[?(@.id == " + student.id() + ")].active";
+        assertThat(get("/api/users?q=" + student.username(), adminToken()).expectStatus(200).<List<Boolean>>read(path))
+                .containsExactly(false);
     }
 
     @Test

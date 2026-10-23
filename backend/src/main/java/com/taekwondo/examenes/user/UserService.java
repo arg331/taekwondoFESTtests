@@ -2,16 +2,23 @@ package com.taekwondo.examenes.user;
 
 import com.taekwondo.examenes.common.BusinessRuleException;
 import com.taekwondo.examenes.common.ResourceNotFoundException;
+import com.taekwondo.examenes.common.PageResponse;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import java.text.Normalizer;
+import java.util.Locale;
 
 @Service
 @Transactional
 public class UserService {
+
+    /** Más por página haría la lista tan pesada como sin paginar. */
+    static final int MAX_PAGE_SIZE = 100;
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -21,11 +28,20 @@ public class UserService {
         this.passwordEncoder = passwordEncoder;
     }
 
+    /** Una página de usuarios por fecha de alta, buscando por nombre, usuario o email (RF-37, RNF-09). */
     @Transactional(readOnly = true)
-    public List<UserResponse> findAll() {
-        return userRepository.findAll(Sort.by("createdAt")).stream()
-                .map(UserResponse::from)
-                .toList();
+    public PageResponse<UserResponse> search(String query, int page, int size) {
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE),
+                Sort.by("createdAt").and(Sort.by("id")));
+        return PageResponse.from(userRepository.search(searchText(query), pageable), UserResponse::from);
+    }
+
+    /** En minúsculas, sin tildes y con los comodines de LIKE escapados. */
+    private static String searchText(String query) {
+        String plain = Normalizer.normalize(query == null ? "" : query.trim(), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toLowerCase(Locale.ROOT);
+        return plain.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 
     /** Solo el administrador cambia roles (RF-36); ver SecurityConfig. */

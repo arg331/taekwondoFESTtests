@@ -119,3 +119,6 @@
 // Buscar por nombre, usuario o email (RF-37)
 .user-search { width: min(360px, 100%); }
 .no-match { color: #777; margin: 8px 0; }
+/* Mientras llega otra página, la actual sigue a la vista, atenuada */
+.users-list.reloading { opacity: 0.6; }
+mat-paginator { margin-top: 12px; background: transparent; }

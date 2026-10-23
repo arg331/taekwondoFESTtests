@@ -3,7 +3,15 @@
   <div class="page-header">
     <div>
       <h1>Gestión de usuarios</h1>
-      <p class="subtitle">{{ users().length }} usuarios registrados</p>
+      @if (users.value(); as result) {
+        <p class="subtitle">
+          @if (searchTerm()) {
+            {{ result.totalItems }} {{ result.totalItems === 1 ? 'coincide' : 'coinciden' }} con «{{ searchTerm() }}»
+          } @else {
+            {{ result.totalItems }} usuarios registrados
+          }
+        </p>
+      }
     </div>
     <mat-form-field appearance="outline" class="user-search" subscriptSizing="dynamic">
       <mat-label>Buscar por nombre, usuario o email</mat-label>
@@ -12,13 +20,16 @@
     </mat-form-field>
   </div>
 
-  @if (loading()) {
+  @if (users.error()) {
+    <p class="no-match">No se pudo cargar la lista de usuarios.</p>
+  } @else if (!users.hasValue()) {
     <div class="loading">
       <mat-spinner diameter="40" />
     </div>
   } @else {
-    <div class="users-list">
-      @for (user of visibleUsers(); track user.id) {
+    @let result = users.value();
+    <div class="users-list" [class.reloading]="users.isLoading()">
+      @for (user of result.items; track user.id) {
         <mat-card class="user-card" [class.inactive]="!user.active" [attr.data-id]="user.id">
           <mat-card-content>
             <div class="user-row">
@@ -82,9 +93,13 @@
           </mat-card-content>
         </mat-card>
       } @empty {
-        <p class="no-match">Ningún usuario coincide con «{{ query().trim() }}».</p>
+        <p class="no-match">Ningún usuario coincide con «{{ searchTerm() }}».</p>
       }
     </div>
+    @if (result.totalPages > 1) {
+      <mat-paginator [length]="result.totalItems" [pageSize]="pageSize" [pageIndex]="result.page" hidePageSize
+                     aria-label="Páginas de usuarios" (page)="page.set($event.pageIndex)" />
+    }
   }
 
 </div>

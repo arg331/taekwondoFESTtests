@@ -70,8 +70,8 @@ describe('QuestionService, TagService y UserService (contrato HTTP)', () => {
   it('usuarios', () => {
     const users = TestBed.inject(UserService);
 
-    users.getAll().subscribe();
-    expectCall('GET', `${API}/users`);
+    users.search('ana', 2, 20).subscribe();
+    expectCall('GET', `${API}/users?q=ana&page=2&size=20`);
     users.changeRole(9, 'TEACHER').subscribe();
     expectCall('PATCH', `${API}/users/9/role`, { role: 'TEACHER' });
   });

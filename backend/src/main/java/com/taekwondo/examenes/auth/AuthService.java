@@ -13,6 +13,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
+
 @Service
 @Transactional
 public class AuthService {
@@ -21,13 +23,15 @@ public class AuthService {
     private final ClubRepository clubRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final LoginThrottle loginThrottle;
 
     public AuthService(UserRepository userRepository, ClubRepository clubRepository,
-                       PasswordEncoder passwordEncoder, JwtService jwtService) {
+                       PasswordEncoder passwordEncoder, JwtService jwtService, LoginThrottle loginThrottle) {
         this.userRepository = userRepository;
         this.clubRepository = clubRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.loginThrottle = loginThrottle;
     }
 
     /** Registro público: siempre crea un STUDENT, con email y club opcionales (RF-01, RF-41). */
@@ -48,16 +52,25 @@ public class AuthService {
         return UserResponse.from(createUser(username, email, plainPassword, displayName, UserRole.ADMIN));
     }
 
+    /** Inicio de sesión con el límite de fallos por dirección y por cuenta (RNF-07). */
     @Transactional(readOnly = true)
-    public LoginResponse login(LoginRequest request) {
+    public LoginResponse login(LoginRequest request, String clientAddress) {
         String login = request.usernameOrEmail().trim();
-        User user = userRepository.findByUsername(login)
-                .or(() -> userRepository.findByEmail(login.toLowerCase()))
-                .filter(User::isActive)
-                .filter(u -> passwordEncoder.matches(request.plainPassword(), u.getPasswordHash()))
-                .orElseThrow(InvalidCredentialsException::new);
+        Optional<User> found = userRepository.findByUsername(login)
+                .or(() -> userRepository.findByEmail(login.toLowerCase()));
+        // Por usuario o por email, la misma cuenta; si no existe, lo que se escribió
+        String account = found.map(u -> "u:" + u.getId()).orElse("l:" + login.toLowerCase());
+        loginThrottle.checkAllowed(account, clientAddress);
 
-        return session(user);
+        Optional<User> user = found
+                .filter(User::isActive)
+                .filter(u -> passwordEncoder.matches(request.plainPassword(), u.getPasswordHash()));
+        if (user.isEmpty()) {
+            loginThrottle.recordFailure(account, clientAddress);
+            throw new InvalidCredentialsException();
+        }
+        loginThrottle.recordSuccess(account);
+        return session(user.get());
     }
 
     /**

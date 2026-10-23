@@ -21,8 +21,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Límite de intentos por dirección (RNF-07) en el inicio de sesión, el registro, la recuperación de la
- * cuenta y la entrega de exámenes. Cada dirección tiene un cupo por minuto; pasado, responde 429 con el formato de error
+ * Límite de intentos por dirección (RNF-07) en el registro, la recuperación de la cuenta y la entrega de
+ * exámenes; el inicio de sesión va aparte (LoginThrottle), porque allí solo cuentan los fallos. Cada dirección tiene un cupo por minuto; pasado, responde 429 con el formato de error
  * habitual y Retry-After hasta que empiece el minuto siguiente. La entrega tiene un cupo alto: un aula
  * entera llega por la misma dirección de su router.
  * Se apaga con app.rate-limit.enabled=false (los tests que no lo prueban).
@@ -31,7 +31,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @ConditionalOnProperty(name = "app.rate-limit.enabled", havingValue = "true", matchIfMissing = true)
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    static final String TOO_MANY = "Demasiados intentos. Espera un minuto y vuelve a intentarlo.";
+    public static final String TOO_MANY ="Demasiados intentos. Espera un minuto y vuelve a intentarlo.";
     private static final Duration WINDOW = Duration.ofMinutes(1);
     /** Por encima de tantas direcciones guardadas se olvidan las de minutos pasados. */
     private static final int CLEANUP_THRESHOLD = 10_000;
@@ -41,13 +41,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private final Map<String, Window> windows = new ConcurrentHashMap<>();
     private final Clock clock;
 
-    public RateLimitFilter(@Value("${app.rate-limit.login-per-minute:10}") int loginPerMinute,
-                           @Value("${app.rate-limit.register-per-minute:5}") int registerPerMinute,
+    public RateLimitFilter(@Value("${app.rate-limit.register-per-minute:30}") int registerPerMinute,
                            @Value("${app.rate-limit.submit-per-minute:300}") int submitPerMinute,
                            @Value("${app.rate-limit.recovery-per-minute:5}") int recoveryPerMinute,
                            Clock clock) {
         this.limits = Map.of(
-                "/api/auth/login", loginPerMinute,
                 "/api/auth/register", registerPerMinute,
                 "/api/results", submitPerMinute,
                 // Recuperar la cuenta envía correos: sin límite, cualquiera llenaría el buzón de otro (RF-34)

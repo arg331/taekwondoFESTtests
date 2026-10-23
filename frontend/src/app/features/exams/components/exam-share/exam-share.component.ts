@@ -7,6 +7,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ShareService } from '../../../../core/services/share.service';
+import { ConfirmService } from '../../../../core/services/confirm.service';
 import { ExamShareResponse, ShareCandidateResponse, ShareStatus } from '../../../../core/models/share.models';
 
 const STATUS_LABEL: Record<ShareStatus, string> = { ACCEPTED: 'Aceptada', PENDING: 'Pendiente' };
@@ -24,6 +25,7 @@ const STATUS_LABEL: Record<ShareStatus, string> = { ACCEPTED: 'Aceptada', PENDIN
 })
 export class ExamShareComponent {
   private shareSvc = inject(ShareService);
+  private confirmSvc = inject(ConfirmService);
 
   examId = input.required<number>();
 
@@ -56,11 +58,15 @@ export class ExamShareComponent {
 
   revoke(share: ExamShareResponse): void {
     const question = share.status === 'PENDING'
-      ? `¿Cancelar la invitación a ${share.displayName}?`
-      : `¿Quitar a ${share.displayName}? Dejará de ver este examen y sus resultados.`;
-    if (!confirm(question)) return;
-    this.run(this.shareSvc.revoke(this.examId(), share.teacherId),
-      () => this.shares.update(list => list?.filter(s => s.teacherId !== share.teacherId) ?? []));
+      ? { title: 'Cancelar invitación', message: `¿Cancelar la invitación a ${share.displayName}?`,
+          confirmLabel: 'Cancelar invitación', cancelLabel: 'Volver' }
+      : { title: 'Quitar acceso', message: `¿Quitar a ${share.displayName}? Dejará de ver este examen y sus resultados.`,
+          confirmLabel: 'Quitar' };
+    this.confirmSvc.ask(question).subscribe(ok => {
+      if (!ok) return;
+      this.run(this.shareSvc.revoke(this.examId(), share.teacherId),
+        () => this.shares.update(list => list?.filter(s => s.teacherId !== share.teacherId) ?? []));
+    });
   }
 
   private run<T>(action$: Observable<T>, onSuccess: (value: T) => void): void {

@@ -4,6 +4,8 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideRouter } from '@angular/router';
 import { ClubDetailComponent } from './club-detail.component';
 import { ClubMemberResponse, ClubResponse } from '../../../../core/models/club.models';
+import { ConfirmService } from '../../../../core/services/confirm.service';
+import { of } from 'rxjs';
 
 const API = 'http://localhost:8080/api';
 const CLUB: ClubResponse = { id: 2, name: 'Club Badajoz' };
@@ -112,7 +114,7 @@ describe('ClubDetailComponent', () => {
   });
 
   it('quita a un miembro tras confirmarlo', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    vi.spyOn(ConfirmService.prototype, 'ask').mockReturnValue(of(true));
     await render(true);
 
     const anaRow = Array.from(el.querySelectorAll('.member')).find(m => m.textContent?.includes('Ana')) as HTMLElement;
@@ -146,7 +148,7 @@ describe('ClubDetailComponent', () => {
   });
 
   it('el administrador borra el club tras confirmarlo', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    vi.spyOn(ConfirmService.prototype, 'ask').mockReturnValue(of(true));
     await render(true, true);
     const deleted: number[] = [];
     fixture.componentInstance.deleted.subscribe(id => deleted.push(id));

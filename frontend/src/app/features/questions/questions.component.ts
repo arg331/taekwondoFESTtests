@@ -10,6 +10,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { QuestionService } from '../../core/services/question.service';
 import { TagService } from '../../core/services/tag.service';
+import { ConfirmService } from '../../core/services/confirm.service';
 import { ShareService } from '../../core/services/share.service';
 import {
   QuestionTypeFilter,
@@ -58,6 +59,7 @@ const VIEW_STORAGE_KEY = 'questions-view';
 export class QuestionsComponent implements OnInit {
   private questionSvc = inject(QuestionService);
   private tagSvc      = inject(TagService);
+  private confirmSvc = inject(ConfirmService);
   private shareSvc    = inject(ShareService);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -175,15 +177,19 @@ export class QuestionsComponent implements OnInit {
 
   /** Sale del banco a «Preguntas eliminadas»; los exámenes publicados que la usan no cambian. */
   delete(question: QuestionResponse): void {
-    if (!confirm(`¿Eliminar la pregunta "${question.text.substring(0, 50)}..."? ` +
-                 'Podrás recuperarla en «Preguntas eliminadas».')) return;
-    this.error.set(null);
-    this.questionSvc.delete(question.id).subscribe({
-      next: () => {
-        this.questions.update(list => list.filter(q => q.id !== question.id));
-        this.deletedQuestions.update(list => [{ ...question, deletedAt: new Date().toISOString() }, ...list]);
-      },
-      error: err => this.error.set(err?.error?.message ?? 'No se pudo eliminar la pregunta')
+    this.confirmSvc.ask({
+      title: 'Eliminar pregunta', confirmLabel: 'Eliminar',
+      message: `¿Eliminar «${question.text.substring(0, 50)}…»? Podrás recuperarla en «Preguntas eliminadas».`
+    }).subscribe(ok => {
+      if (!ok) return;
+      this.error.set(null);
+      this.questionSvc.delete(question.id).subscribe({
+        next: () => {
+          this.questions.update(list => list.filter(q => q.id !== question.id));
+          this.deletedQuestions.update(list => [{ ...question, deletedAt: new Date().toISOString() }, ...list]);
+        },
+        error: err => this.error.set(err?.error?.message ?? 'No se pudo eliminar la pregunta')
+      });
     });
   }
 

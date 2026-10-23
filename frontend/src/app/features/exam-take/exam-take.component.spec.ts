@@ -5,6 +5,8 @@ import { provideRouter } from '@angular/router';
 import { ExamTakeComponent } from './exam-take.component';
 import { ExamAttemptResponse, ExamResponse } from '../../core/models/exam.models';
 import { ResultResponse } from '../../core/models/result.models';
+import { ConfirmService } from '../../core/services/confirm.service';
+import { of } from 'rxjs';
 
 const API = 'http://localhost:8080/api';
 
@@ -152,7 +154,7 @@ describe('ExamTakeComponent', () => {
   });
 
   it('muestra las preguntas en el orden del servidor y envía el índice ORIGINAL de cada opción', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const confirmSpy = vi.spyOn(ConfirmService.prototype, 'ask').mockReturnValue(of(true));
     await render(exam());
     await startAs('  Ana Pérez  ');
 
@@ -174,7 +176,7 @@ describe('ExamTakeComponent', () => {
         { questionId: 30, chosenOptions: [] }
       ]
     });
-    expect(window.confirm).toHaveBeenCalledWith('Tienes 1 pregunta(s) sin responder. ¿Enviar el examen igualmente?');
+    expect(confirmSpy.mock.calls[0][0].message).toBe('Tienes 1 pregunta(s) sin responder. ¿Enviar el examen igualmente?');
     req.flush(null);
   });
 
@@ -189,7 +191,7 @@ describe('ExamTakeComponent', () => {
     };
 
     it('la pregunta con varias correctas avisa y deja marcar varias; volver a pulsar desmarca', async () => {
-      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      vi.spyOn(ConfirmService.prototype, 'ask').mockReturnValue(of(true));
       await render(exam());
       await startAs('Ana', MULTIPLE);
 
@@ -208,7 +210,7 @@ describe('ExamTakeComponent', () => {
     });
 
     it('en una pregunta de una sola correcta, elegir otra opción sustituye a la anterior y no hay aviso', async () => {
-      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      vi.spyOn(ConfirmService.prototype, 'ask').mockReturnValue(of(true));
       await render(exam());
       await startAs('Ana', MULTIPLE);
       await goToQuestion(2);
@@ -361,7 +363,7 @@ describe('ExamTakeComponent', () => {
     });
 
     it('recuerda el intento en curso y lo olvida al entregarlo', async () => {
-      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      vi.spyOn(ConfirmService.prototype, 'ask').mockReturnValue(of(true));
       await render(exam());
       await startAs('Ana');
 
@@ -383,7 +385,7 @@ describe('ExamTakeComponent', () => {
   describe('intentos (RF-52)', () => {
     /** Contesta, entrega y recibe una nota: queda en la pantalla del resultado. */
     async function finish(): Promise<void> {
-      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      vi.spyOn(ConfirmService.prototype, 'ask').mockReturnValue(of(true));
       await goToQuestion(3);
       button('Enviar examen').click();
       await stable();
@@ -466,7 +468,7 @@ describe('ExamTakeComponent', () => {
   });
 
   it('si el alumno cancela la confirmación no se envía nada', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    vi.spyOn(ConfirmService.prototype, 'ask').mockReturnValue(of(false));
     await render(exam());
     await startAs('Ana');
     await goToQuestion(3);
@@ -478,7 +480,7 @@ describe('ExamTakeComponent', () => {
   });
 
   it('resultado con nota y respuestas: puntuación y sus respuestas bien o mal, sin decir la correcta (RF-53)', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    vi.spyOn(ConfirmService.prototype, 'ask').mockReturnValue(of(true));
     await render(exam());
     await startAs('Ana');
     await goToQuestion(3);
@@ -512,7 +514,7 @@ describe('ExamTakeComponent', () => {
   });
 
   it('resultado con solo la nota: la puntuación, sin el detalle de respuestas', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    vi.spyOn(ConfirmService.prototype, 'ask').mockReturnValue(of(true));
     await render(exam({ config: { ...exam().config, showAnswers: false } }));
     await startAs('Ana');
     await goToQuestion(3);
@@ -531,7 +533,7 @@ describe('ExamTakeComponent', () => {
   });
 
   it('resultado con nota oculta: solo confirma la entrega', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    vi.spyOn(ConfirmService.prototype, 'ask').mockReturnValue(of(true));
     await render(exam({ config: { ...exam().config, showScore: false } }));
     await startAs('Ana');
     await goToQuestion(3);
@@ -551,7 +553,7 @@ describe('ExamTakeComponent', () => {
 
   it('con tiempo límite: muestra el reloj y al llegar a cero envía sin pedir confirmación', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: false });
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const confirm = vi.spyOn(ConfirmService.prototype, 'ask').mockReturnValue(of(true));
     await render(exam({ config: { ...exam().config, timeLimitMinutes: 1 } }));
     await startAs('Ana', { ...ATTEMPT, secondsLeft: 60 });
 

@@ -9,6 +9,7 @@ import { MatExpansionModule } from '@angular/material/expansion';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TagService } from '../../../../core/services/tag.service';
+import { ConfirmService } from '../../../../core/services/confirm.service';
 import { TagResponse } from '../../../../core/models/tag.models';
 
 /**
@@ -34,6 +35,7 @@ import { TagResponse } from '../../../../core/models/tag.models';
 export class TagManagerComponent {
   private fb = inject(FormBuilder);
   private tagSvc = inject(TagService);
+  private confirmSvc = inject(ConfirmService);
 
   tags = model.required<TagResponse[]>();
   /** Tag renombrado o con otro color. */
@@ -99,10 +101,15 @@ export class TagManagerComponent {
   remove(): void {
     const tag = this.editing();
     if (!tag || this.saving()) return;
-    if (!confirm(`¿Borrar el tag «${tag.name}»? Se quitará de las preguntas que lo tienen; las preguntas no se borran.`)) return;
-    this.run(this.tagSvc.delete(tag.id), () => {
-      this.tags.update(list => list.filter(t => t.id !== tag.id));
-      this.removed.emit(tag.id);
+    this.confirmSvc.ask({
+      title: 'Borrar tag', confirmLabel: 'Borrar',
+      message: `¿Borrar el tag «${tag.name}»? Se quitará de las preguntas que lo tienen; las preguntas no se borran.`
+    }).subscribe(ok => {
+      if (!ok) return;
+      this.run(this.tagSvc.delete(tag.id), () => {
+        this.tags.update(list => list.filter(t => t.id !== tag.id));
+        this.removed.emit(tag.id);
+      });
     });
   }
 

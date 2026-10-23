@@ -9,6 +9,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ClubService } from '../../../../core/services/club.service';
 import { AuthService } from '../../../../core/services/auth.service';
+import { ConfirmService } from '../../../../core/services/confirm.service';
 import { ClubCandidateResponse, ClubMemberResponse, ClubResponse } from '../../../../core/models/club.models';
 import { ROLE_LABEL } from '../../../../core/models/auth.models';
 
@@ -26,6 +27,7 @@ import { ROLE_LABEL } from '../../../../core/models/auth.models';
 export class ClubDetailComponent {
   private clubSvc = inject(ClubService);
   private auth = inject(AuthService);
+  private confirmSvc = inject(ConfirmService);
 
   club = input.required<ClubResponse>();
   /** Administrador o profesor de este club. */
@@ -80,20 +82,29 @@ export class ClubDetailComponent {
   remove(member: ClubMemberResponse): void {
     const itsMe = member.id === this.auth.currentUser()?.id;
     const question = itsMe
-      ? `¿Salir de «${this.club().name}»? Dejarás de poder gestionarlo.`
-      : `¿Quitar a ${member.displayName} de «${this.club().name}»?`;
-    if (!confirm(question)) return;
-    this.run(this.clubSvc.removeMember(this.clubId(), member.id), () => {
-      this.members.update(list => list?.filter(m => m.id !== member.id) ?? []);
-      const user = this.auth.currentUser();
-      if (itsMe && user) this.auth.updateCurrentUser({ ...user, club: null });
+      ? { title: 'Salir del club', message: `¿Salir de «${this.club().name}»? Dejarás de poder gestionarlo.`,
+          confirmLabel: 'Salir' }
+      : { title: 'Quitar miembro', message: `¿Quitar a ${member.displayName} de «${this.club().name}»?`,
+          confirmLabel: 'Quitar' };
+    this.confirmSvc.ask(question).subscribe(ok => {
+      if (!ok) return;
+      this.run(this.clubSvc.removeMember(this.clubId(), member.id), () => {
+        this.members.update(list => list?.filter(m => m.id !== member.id) ?? []);
+        const user = this.auth.currentUser();
+        if (itsMe && user) this.auth.updateCurrentUser({ ...user, club: null });
+      });
     });
   }
 
   deleteClub(): void {
-    if (!confirm(`¿Borrar «${this.club().name}»? Sus miembros se quedarán sin club.`)) return;
-    const id = this.clubId();
-    this.run(this.clubSvc.delete(id), () => this.deleted.emit(id));
+    this.confirmSvc.ask({
+      title: 'Borrar club', message: `¿Borrar «${this.club().name}»? Sus miembros se quedarán sin club.`,
+      confirmLabel: 'Borrar'
+    }).subscribe(ok => {
+      if (!ok) return;
+      const id = this.clubId();
+      this.run(this.clubSvc.delete(id), () => this.deleted.emit(id));
+    });
   }
 
   private run<T>(action$: Observable<T>, onSuccess: (value: T) => void): void {

@@ -17,6 +17,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ExamService } from '../../../../core/services/exam.service';
 import { ShareService } from '../../../../core/services/share.service';
+import { ConfirmService } from '../../../../core/services/confirm.service';
 import { QR_PANEL_SIZE_PX, QrCodeService } from '../../../../core/services/qr-code.service';
 import { QrColorService } from '../../../../core/services/qr-color.service';
 import {
@@ -80,6 +81,7 @@ export class ExamDetailComponent {
   private fb = inject(FormBuilder);
   private examSvc = inject(ExamService);
   private shareSvc = inject(ShareService);
+  private confirmSvc = inject(ConfirmService);
   private snackBar = inject(MatSnackBar);
   private dialog = inject(MatDialog);
   private qrCode = inject(QrCodeService);
@@ -267,8 +269,9 @@ export class ExamDetailComponent {
   }
 
   close(): void {
-    if (!confirm('¿Cerrar este examen? Los estudiantes no podrán entregarlo.')) return;
-    this.run(this.examSvc.close(this.exam().id));
+    this.confirmSvc.ask({
+      title: 'Cerrar examen', message: '¿Cerrar este examen? Los estudiantes no podrán entregarlo.', confirmLabel: 'Cerrar'
+    }).subscribe(ok => { if (ok) this.run(this.examSvc.close(this.exam().id)); });
   }
 
   reopen(): void {
@@ -288,26 +291,26 @@ export class ExamDetailComponent {
 
   deleteDraft(): void {
     const exam = this.exam();
-    if (!confirm(`¿Eliminar el borrador "${exam.title}"?`)) return;
-    this.busy.set(true);
-    this.examSvc.deleteDraft(exam.id).subscribe({
-      next: () => {
-        this.busy.set(false);
-        this.deleted.emit(exam.id);
-      },
-      error: err => this.handleError(err)
-    });
+    this.confirmSvc.ask({ title: 'Eliminar borrador', message: `¿Eliminar el borrador «${exam.title}»?`, confirmLabel: 'Eliminar' })
+      .subscribe(ok => { if (ok) this.removeFromList(exam.id, this.examSvc.deleteDraft(exam.id)); });
   }
 
   /** «Dejar de ver» un examen que me compartieron (RF-51): sale de mi lista. */
   leave(): void {
     const exam = this.exam();
-    if (!confirm(`¿Dejar de ver «${exam.title}»? Ya no tendrás acceso a sus resultados.`)) return;
+    this.confirmSvc.ask({
+      title: 'Dejar de ver', message: `¿Dejar de ver «${exam.title}»? Ya no tendrás acceso a sus resultados.`,
+      confirmLabel: 'Dejar de ver'
+    }).subscribe(ok => { if (ok) this.removeFromList(exam.id, this.shareSvc.leave(exam.id)); });
+  }
+
+  /** Borrar el borrador o dejar de ver el examen: al terminar sale de la lista. */
+  private removeFromList(examId: number, action$: Observable<unknown>): void {
     this.busy.set(true);
-    this.shareSvc.leave(exam.id).subscribe({
+    action$.subscribe({
       next: () => {
         this.busy.set(false);
-        this.deleted.emit(exam.id);
+        this.deleted.emit(examId);
       },
       error: err => this.handleError(err)
     });

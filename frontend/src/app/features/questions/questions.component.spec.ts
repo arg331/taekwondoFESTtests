@@ -4,6 +4,8 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { QuestionsComponent } from './questions.component';
 import { QuestionResponse, QuestionType } from '../../core/models/question.models';
 import { TagResponse } from '../../core/models/tag.models';
+import { ConfirmService } from '../../core/services/confirm.service';
+import { of } from 'rxjs';
 
 const API = 'http://localhost:8080/api';
 const COMBATE: TagResponse = { id: 1, name: 'Combate', color: '#C62828', createdAt: '2026-10-12T10:00:00' };
@@ -100,13 +102,13 @@ describe('QuestionsComponent', () => {
     });
 
     it('eliminar la saca del banco y la pasa a «Preguntas eliminadas», avisando de que se puede recuperar', async () => {
-      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+      const confirmSpy = vi.spyOn(ConfirmService.prototype, 'ask').mockReturnValue(of(true));
 
       cardButton(cards()[0], 'delete').click();
       http.expectOne(r => r.method === 'DELETE' && r.url === `${API}/questions/1`).flush(null);
       await stable();
 
-      expect(confirmSpy.mock.calls[0][0]).toContain('Podrás recuperarla en «Preguntas eliminadas»');
+      expect(confirmSpy.mock.calls[0][0].message).toContain('Podrás recuperarla en «Preguntas eliminadas»');
       expect(visibleTexts()).toEqual(['Pregunta número 2', 'Pregunta número 3']);
       source('Preguntas eliminadas').click();
       await stable();

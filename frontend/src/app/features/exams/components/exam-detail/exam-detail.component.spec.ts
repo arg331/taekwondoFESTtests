@@ -11,6 +11,8 @@ import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { MatSelectHarness } from '@angular/material/select/testing';
 import { MatSliderHarness, MatSliderThumbHarness } from '@angular/material/slider/testing';
 import { ExamQuestionPickerComponent } from '../exam-question-picker/exam-question-picker.component';
+import { ConfirmService } from '../../../../core/services/confirm.service';
+import { of } from 'rxjs';
 
 const API = 'http://localhost:8080/api';
 /** QR falso: el data URL indica el tamaño pedido para poder comprobarlo. */
@@ -671,7 +673,7 @@ describe('ExamDetailComponent', () => {
     });
 
     it('«Dejar de ver» lo quita de su lista', async () => {
-      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      vi.spyOn(ConfirmService.prototype, 'ask').mockReturnValue(of(true));
       await render(SHARED('PUBLISHED'));
       const deleted: number[] = [];
       fixture.componentInstance.deleted.subscribe(id => deleted.push(id));
@@ -699,7 +701,7 @@ describe('ExamDetailComponent', () => {
   });
 
   it('un error del servidor se muestra en el panel', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    vi.spyOn(ConfirmService.prototype, 'ask').mockReturnValue(of(true));
     await render(exam('PUBLISHED', [1, 2]));
 
     button('Cerrar examen').click();

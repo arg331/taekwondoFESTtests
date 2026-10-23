@@ -15,6 +15,11 @@ public final class QuestionSpecifications {
         return (root, query, cb) -> cb.equal(root.get("ownerId"), ownerId);
     }
 
+    /** Las del banco, sin las eliminadas. */
+    public static Specification<Question> notDeleted() {
+        return (root, query, cb) -> cb.isNull(root.get("deletedAt"));
+    }
+
     /** Preguntas que tienen al menos uno de los tags indicados. */
     public static Specification<Question> hasAnyTag(Collection<Long> tagIds) {
         return (root, query, cb) -> {

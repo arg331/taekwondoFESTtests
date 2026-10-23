@@ -145,7 +145,8 @@ public class ExamShareService {
 
     /**
      * Preguntas de los exámenes que me han compartido y he aceptado (RF-57): las del banco del dueño, al
-     * día y una vez cada una, de la más reciente a la más antigua. Solo se consultan.
+     * día y una vez cada una, de la más reciente a la más antigua. Solo se consultan. Las que el dueño
+     * eliminó de su banco no salen, aunque sigan en su examen publicado.
      */
     @Transactional(readOnly = true)
     public List<QuestionResponse> sharedQuestions(Long teacherId) {
@@ -153,8 +154,9 @@ public class ExamShareService {
         Set<Long> questionIds = exams.stream().flatMap(e -> e.getQuestionIds().stream()).collect(Collectors.toSet());
         Map<Long, User> owners = usersById(exams.stream().map(Exam::getOwnerId).collect(Collectors.toSet()));
         return questionRepository.findAllById(questionIds).stream()
+                .filter(q -> !q.isDeleted())
                 .sorted(Comparator.comparing(Question::getCreatedAt).reversed())
-                .map(q -> QuestionResponse.from(q, owners.get(q.getOwnerId()).getDisplayName()))
+                .map(q -> QuestionResponse.shared(q, owners.get(q.getOwnerId()).getDisplayName()))
                 .toList();
     }
 

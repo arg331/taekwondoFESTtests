@@ -1,17 +1,20 @@
 package com.taekwondo.examenes.question;
 
-import com.taekwondo.examenes.common.BusinessRuleException;
 import com.taekwondo.examenes.common.ResourceNotFoundException;
-import com.taekwondo.examenes.exam.Exam;
 import com.taekwondo.examenes.exam.ExamRepository;
 import com.taekwondo.examenes.tag.TagService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static com.taekwondo.examenes.question.QuestionSpecifications.hasAnyTag;
+import static com.taekwondo.examenes.question.QuestionSpecifications.notDeleted;
 import static com.taekwondo.examenes.question.QuestionSpecifications.ownedBy;
 import static com.taekwondo.examenes.question.QuestionSpecifications.textContains;
 
@@ -22,63 +25,77 @@ public class QuestionService {
     private final QuestionRepository questionRepository;
     private final ExamRepository examRepository;
     private final TagService tagService;
+    private final Clock clock;
 
     public QuestionService(QuestionRepository questionRepository, ExamRepository examRepository,
-                           TagService tagService) {
+                           TagService tagService, Clock clock) {
         this.questionRepository = questionRepository;
         this.examRepository = examRepository;
         this.tagService = tagService;
+        this.clock = clock;
     }
 
     public QuestionResponse create(QuestionRequest request, Long ownerId) {
         Question question = new Question(ownerId);
         apply(question, request, ownerId);
-        return QuestionResponse.from(questionRepository.save(question));
+        return QuestionResponse.from(questionRepository.save(question), 0);
     }
 
     public QuestionResponse update(Long questionId, QuestionRequest request, Long ownerId) {
         Question question = getOwned(questionId, ownerId);
         apply(question, request, ownerId);
-        return QuestionResponse.from(questionRepository.saveAndFlush(question));
+        return withUsage(List.of(questionRepository.saveAndFlush(question))).get(0);
     }
 
     /**
-     * Borra la pregunta y la quita de los borradores que la usen. Si ya está en
-     * un examen publicado o cerrado no se puede borrar: ese examen dejaría de
-     * poder entregarse y sus resultados perderían la referencia.
+     * Saca la pregunta del banco y de los borradores que la usen, sin borrarla: los exámenes publicados
+     * guardaron su copia al publicarse y siguen igual. Se puede recuperar.
      */
     public void delete(Long questionId, Long ownerId) {
         Question question = getOwned(questionId, ownerId);
-        List<Exam> exams = examRepository.findAllContainingQuestion(questionId);
-        List<String> nonDraftTitles = exams.stream()
-                .filter(exam -> !exam.isDraft())
-                .map(Exam::getTitle)
-                .toList();
-        if (!nonDraftTitles.isEmpty()) {
-            throw new BusinessRuleException("La pregunta se usa en exámenes ya publicados: "
-                    + String.join(", ", nonDraftTitles));
-        }
-        exams.forEach(exam -> exam.removeQuestion(questionId));
-        questionRepository.delete(question);
+        examRepository.findAllContainingQuestion(questionId).stream()
+                .filter(exam -> exam.isDraft())
+                .forEach(exam -> exam.removeQuestion(questionId));
+        question.delete(LocalDateTime.now(clock));
+    }
+
+    /** Vuelve al banco una pregunta eliminada. */
+    public QuestionResponse restore(Long questionId, Long ownerId) {
+        Question question = questionRepository.findByIdAndOwnerId(questionId, ownerId)
+                .orElseThrow(() -> notFound(questionId));
+        question.restore();
+        return withUsage(List.of(question)).get(0);
     }
 
     @Transactional(readOnly = true)
     public QuestionResponse get(Long questionId, Long ownerId) {
-        return QuestionResponse.from(getOwned(questionId, ownerId));
+        return withUsage(List.of(getOwned(questionId, ownerId))).get(0);
     }
 
     @Transactional(readOnly = true)
     public List<QuestionResponse> list(Long ownerId) {
-        return questionRepository.findAllByOwnerId(ownerId).stream()
-                .map(QuestionResponse::from)
-                .toList();
+        return withUsage(questionRepository.findAllByOwnerIdAndDeletedAtIsNull(ownerId));
+    }
+
+    @Transactional(readOnly = true)
+    public List<QuestionResponse> listDeleted(Long ownerId) {
+        return withUsage(questionRepository.findAllByOwnerIdAndDeletedAtIsNotNullOrderByDeletedAtDesc(ownerId));
     }
 
     @Transactional(readOnly = true)
     public List<QuestionResponse> search(Set<Long> tagIds, String text, Long ownerId) {
-        return questionRepository.findAll(ownedBy(ownerId).and(hasAnyTag(tagIds)).and(textContains(text)))
-                .stream()
-                .map(QuestionResponse::from)
+        return withUsage(questionRepository.findAll(
+                ownedBy(ownerId).and(notDeleted()).and(hasAnyTag(tagIds)).and(textContains(text))));
+    }
+
+    /** Las preguntas con cuántos exámenes las usan, en una sola consulta. */
+    private List<QuestionResponse> withUsage(List<Question> questions) {
+        if (questions.isEmpty()) return List.of();
+        Map<Long, Long> usage = examRepository.countExamsByQuestion(
+                        questions.stream().map(Question::getId).toList()).stream()
+                .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+        return questions.stream()
+                .map(q -> QuestionResponse.from(q, usage.getOrDefault(q.getId(), 0L).intValue()))
                 .toList();
     }
 
@@ -93,8 +110,13 @@ public class QuestionService {
                 tagService.findOwnedTags(request.tagIds(), ownerId));
     }
 
+    /** Una pregunta del banco del profesor; las eliminadas no cuentan hasta recuperarlas. */
     private Question getOwned(Long questionId, Long ownerId) {
-        return questionRepository.findByIdAndOwnerId(questionId, ownerId)
-                .orElseThrow(() -> new ResourceNotFoundException("No existe una pregunta con id " + questionId));
+        return questionRepository.findByIdAndOwnerIdAndDeletedAtIsNull(questionId, ownerId)
+                .orElseThrow(() -> notFound(questionId));
+    }
+
+    private static ResourceNotFoundException notFound(Long questionId) {
+        return new ResourceNotFoundException("No existe una pregunta con id " + questionId);
     }
 }

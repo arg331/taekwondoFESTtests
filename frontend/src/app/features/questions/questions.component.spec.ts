@@ -12,8 +12,14 @@ const FORMAS: TagResponse = { id: 2, name: 'Formas', color: '#1565C0', createdAt
 function question(id: number, tags: TagResponse[] = [], type: QuestionType | null = null): QuestionResponse {
   return {
     id, text: `Pregunta número ${id}`, options: ['Sí', 'No'], correctAnswers: [0], explanation: '', grade: 'BLANCO', type,
-    tags, createdAt: '2026-10-12T10:00:00', updatedAt: '2026-10-12T10:00:00', sharedBy: null
+    tags, createdAt: '2026-10-12T10:00:00', updatedAt: '2026-10-12T10:00:00', sharedBy: null,
+    usedInExams: 0, deletedAt: null
   };
+}
+
+/** Una pregunta eliminada del banco, que sigue en un examen publicado. */
+function deleted(id: number): QuestionResponse {
+  return { ...question(id), text: `Eliminada ${id}`, usedInExams: 1, deletedAt: '2026-10-20T10:00:00' };
 }
 
 /** El tag «Combate» de la profesora que comparte: otro id, el mismo nombre. */
@@ -21,7 +27,7 @@ const COMBATE_ANA: TagResponse = { id: 90, name: 'Combate', color: '#000000', cr
 
 /** Preguntas de un examen que me ha compartido Ana (RF-57). */
 function shared(id: number, tags: TagResponse[] = []): QuestionResponse {
-  return { ...question(id, tags), text: `Compartida ${id}`, sharedBy: 'Ana Pérez' };
+  return { ...question(id, tags), text: `Compartida ${id}`, sharedBy: 'Ana Pérez', usedInExams: null };
 }
 
 describe('QuestionsComponent', () => {
@@ -41,8 +47,10 @@ describe('QuestionsComponent', () => {
     el = fixture.nativeElement;
     await stable();
     http.expectOne(`${API}/tags`).flush([COMBATE, FORMAS]);
-    http.expectOne(`${API}/questions`).flush([question(1, [COMBATE, FORMAS]), question(2, [FORMAS], 'C'), question(3)]);
+    http.expectOne(`${API}/questions`).flush([
+      { ...question(1, [COMBATE, FORMAS]), usedInExams: 2 }, { ...question(2, [FORMAS], 'C'), usedInExams: 1 }, question(3)]);
     http.expectOne(`${API}/shares/questions`).flush([shared(10, [COMBATE_ANA]), shared(11)]);
+    http.expectOne(`${API}/questions/deleted`).flush([deleted(5)]);
     await stable();
   });
 
@@ -73,11 +81,57 @@ describe('QuestionsComponent', () => {
     return Array.from(el.querySelectorAll('app-question-card'));
   }
 
-  describe('preguntas compartidas conmigo (RF-57)', () => {
-    function source(label: string): HTMLButtonElement {
-      return Array.from(el.querySelectorAll('.source-switch button')).find(b => b.textContent?.includes(label)) as HTMLButtonElement;
-    }
+  function source(label: string): HTMLButtonElement {
+    return Array.from(el.querySelectorAll('.source-switch button')).find(b => b.textContent?.includes(label)) as HTMLButtonElement;
+  }
 
+  function cardButton(card: HTMLElement, label: string): HTMLButtonElement {
+    return Array.from(card.querySelectorAll('button')).find(b => b.textContent?.includes(label)) as HTMLButtonElement;
+  }
+
+  describe('preguntas eliminadas', () => {
+    it('cada pregunta propia dice en gris en cuántos exámenes se usa; las compartidas no', async () => {
+      const usage = cards().map(c => c.querySelector('.usage')?.textContent?.trim());
+      expect(usage).toEqual(['Se usa en 2 exámenes', 'Se usa en 1 examen', 'No se usa en ningún examen']);
+
+      source('Preguntas compartidas conmigo').click();
+      await stable();
+      expect(el.querySelector('.usage')).toBeNull();
+    });
+
+    it('eliminar la saca del banco y la pasa a «Preguntas eliminadas», avisando de que se puede recuperar', async () => {
+      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+      cardButton(cards()[0], 'delete').click();
+      http.expectOne(r => r.method === 'DELETE' && r.url === `${API}/questions/1`).flush(null);
+      await stable();
+
+      expect(confirmSpy.mock.calls[0][0]).toContain('Podrás recuperarla en «Preguntas eliminadas»');
+      expect(visibleTexts()).toEqual(['Pregunta número 2', 'Pregunta número 3']);
+      source('Preguntas eliminadas').click();
+      await stable();
+      expect(visibleTexts()).toEqual(['Pregunta número 1', 'Eliminada 5']);
+      confirmSpy.mockRestore();
+    });
+
+    it('las eliminadas solo se pueden recuperar; al recuperarla vuelve al banco', async () => {
+      source('Preguntas eliminadas').click();
+      await stable();
+      expect(visibleTexts()).toEqual(['Eliminada 5']);
+      expect(cardButton(cards()[0], 'edit')).toBeUndefined();
+
+      cardButton(cards()[0], 'Recuperar').click();
+      http.expectOne(r => r.method === 'POST' && r.url === `${API}/questions/5/restore`).flush({ ...deleted(5), deletedAt: null });
+      await stable();
+
+      expect(visibleTexts()).toEqual([]);
+      source('Mi banco de preguntas').click();
+      await stable();
+      expect(visibleTexts()).toContain('Eliminada 5');
+    });
+  });
+
+  describe('preguntas compartidas conmigo (RF-57)', () => {
     it('tres vistas: mi banco por defecto, las compartidas conmigo y todas las disponibles', async () => {
       expect(visibleTexts()).toEqual(['Pregunta número 1', 'Pregunta número 2', 'Pregunta número 3']);
 

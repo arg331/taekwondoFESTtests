@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.taekwondo.examenes.question.QuestionSpecifications.hasAnyTag;
+import static com.taekwondo.examenes.question.QuestionSpecifications.notDeleted;
 import static com.taekwondo.examenes.question.QuestionSpecifications.ownedBy;
 
 @Service
@@ -69,7 +70,7 @@ public class ExamService {
         Set<Long> tagIds = tags.stream().map(Tag::getId).collect(Collectors.toSet());
 
         List<Question> candidates = new ArrayList<>(
-                questionRepository.findAll(ownedBy(ownerId).and(hasAnyTag(tagIds))));
+                questionRepository.findAll(ownedBy(ownerId).and(notDeleted()).and(hasAnyTag(tagIds))));
         if (candidates.size() < request.numberOfQuestions()) {
             throw new BusinessRuleException("No hay suficientes preguntas con los tags solicitados: se necesitan "
                     + request.numberOfQuestions() + " y solo hay " + candidates.size());
@@ -84,10 +85,16 @@ public class ExamService {
         return ExamResponse.from(examRepository.save(exam));
     }
 
-    /** Copia un examen propio, en cualquier estado, como borrador nuevo para ampliarlo. */
+    /** Copia un examen propio, en cualquier estado, como borrador nuevo para ampliarlo; sin las preguntas eliminadas. */
     public ExamResponse copy(Long examId, Long ownerId) {
         Exam original = getOwned(examId, ownerId);
-        return ExamResponse.from(examRepository.save(original.copyAs(copyTitle(original.getTitle()))));
+        Exam copy = original.copyAs(copyTitle(original.getTitle()));
+        Set<Long> deleted = questionRepository.findAllById(original.getQuestionIds()).stream()
+                .filter(Question::isDeleted)
+                .map(Question::getId)
+                .collect(Collectors.toSet());
+        copy.replaceQuestions(copy.getQuestionIds().stream().filter(id -> !deleted.contains(id)).toList());
+        return ExamResponse.from(examRepository.save(copy));
     }
 
     private static String copyTitle(String title) {
@@ -117,7 +124,8 @@ public class ExamService {
         if (uniqueIds.size() != questionIds.size()) {
             throw new BusinessRuleException("Hay preguntas duplicadas en la lista");
         }
-        if (questionRepository.findAllByIdInAndOwnerId(uniqueIds, ownerId).size() != uniqueIds.size()) {
+        // Las eliminadas del banco no se pueden usar hasta recuperarlas
+        if (questionRepository.findAllByIdInAndOwnerIdAndDeletedAtIsNull(uniqueIds, ownerId).size() != uniqueIds.size()) {
             throw new BusinessRuleException("Alguna de las preguntas indicadas no existe");
         }
         exam.replaceQuestions(questionIds);

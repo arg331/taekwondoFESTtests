@@ -11,7 +11,7 @@ const API = 'http://localhost:8080/api';
 function existing(overrides: Partial<QuestionResponse>): QuestionResponse {
   return {
     id: 42, text: 'Pregunta existente', options: ['Sí', 'No'], correctAnswers: [1], explanation: 'Porque sí',
-    grade: 'NEGRO', type: 'D', tags: [], createdAt: '2026-10-08T10:00:00', updatedAt: '2026-10-08T10:00:00', sharedBy: null,
+    grade: 'NEGRO', type: 'D', tags: [], createdAt: '2026-10-08T10:00:00', updatedAt: '2026-10-08T10:00:00', sharedBy: null, usedInExams: 0, deletedAt: null,
     ...overrides
   };
 }

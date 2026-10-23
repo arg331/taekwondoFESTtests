@@ -29,7 +29,8 @@ function exam(status: ExamStatus, questionIds: number[] = []): ExamResponse {
 function question(id: number): QuestionResponse {
   return {
     id, text: `Pregunta ${id}`, options: ['A', 'B'], correctAnswers: [0], explanation: '', grade: 'BLANCO', type: null,
-    tags: [], createdAt: '2026-10-08T10:00:00', updatedAt: '2026-10-08T10:00:00', sharedBy: null
+    tags: [], createdAt: '2026-10-08T10:00:00', updatedAt: '2026-10-08T10:00:00', sharedBy: null,
+    usedInExams: 0, deletedAt: null
   };
 }
 

@@ -9,9 +9,15 @@ import java.util.Optional;
 
 public interface QuestionRepository extends JpaRepository<Question, Long>, JpaSpecificationExecutor<Question> {
 
-    List<Question> findAllByOwnerId(Long ownerId);
+    /** El banco del profesor, sin las eliminadas. */
+    List<Question> findAllByOwnerIdAndDeletedAtIsNull(Long ownerId);
 
-    List<Question> findAllByIdInAndOwnerId(Collection<Long> ids, Long ownerId);
+    /** Las eliminadas, de la última a la primera. */
+    List<Question> findAllByOwnerIdAndDeletedAtIsNotNullOrderByDeletedAtDesc(Long ownerId);
+
+    List<Question> findAllByIdInAndOwnerIdAndDeletedAtIsNull(Collection<Long> ids, Long ownerId);
+
+    Optional<Question> findByIdAndOwnerIdAndDeletedAtIsNull(Long id, Long ownerId);
 
     Optional<Question> findByIdAndOwnerId(Long id, Long ownerId);
 }

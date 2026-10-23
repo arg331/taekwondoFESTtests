@@ -25,8 +25,8 @@ import { FULL_GRADE_RANGE, GradeRange, GradeRangeComponent } from '../../shared/
 import { TagFilterComponent } from '../../shared/components/tag-filter/tag-filter.component';
 
 type QuestionsView = 'cards' | 'list';
-/** Qué preguntas se ven (RF-57): las mías, las que me han compartido o todas. */
-type QuestionsSource = 'mine' | 'shared' | 'all';
+/** Qué preguntas se ven (RF-57): las mías, las que me han compartido, todas o las que eliminé. */
+type QuestionsSource = 'mine' | 'shared' | 'all' | 'deleted';
 const VIEW_STORAGE_KEY = 'questions-view';
 
 /**
@@ -66,6 +66,8 @@ export class QuestionsComponent implements OnInit {
   questions   = signal<QuestionResponse[]>([]);
   /** Las de los exámenes que me han compartido: solo se consultan. */
   sharedQuestions = signal<QuestionResponse[]>([]);
+  /** Fuera del banco: los exámenes publicados las siguen usando. Solo se recuperan. */
+  deletedQuestions = signal<QuestionResponse[]>([]);
   source      = signal<QuestionsSource>('mine');
   /** Las preguntas de la vista elegida, antes de filtrar. */
   pool        = computed(() => {
@@ -73,6 +75,7 @@ export class QuestionsComponent implements OnInit {
       case 'mine': return this.questions();
       case 'shared': return this.sharedQuestions();
       case 'all': return [...this.questions(), ...this.sharedQuestions()];
+      case 'deleted': return this.deletedQuestions();
     }
   });
   tags        = signal<TagResponse[]>([]);
@@ -129,6 +132,8 @@ export class QuestionsComponent implements OnInit {
     });
     this.shareSvc.questions().pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({ next: q => this.sharedQuestions.set(q), error: () => this.sharedQuestions.set([]) });
+    this.questionSvc.getDeleted().pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({ next: q => this.deletedQuestions.set(q), error: () => this.deletedQuestions.set([]) });
   }
 
   onSaved(saved: QuestionResponse): void {
@@ -168,13 +173,29 @@ export class QuestionsComponent implements OnInit {
     }
   }
 
+  /** Sale del banco a «Preguntas eliminadas»; los exámenes publicados que la usan no cambian. */
   delete(question: QuestionResponse): void {
-    if (!confirm(`¿Eliminar la pregunta "${question.text.substring(0, 50)}..."?`)) return;
+    if (!confirm(`¿Eliminar la pregunta "${question.text.substring(0, 50)}..."? ` +
+                 'Podrás recuperarla en «Preguntas eliminadas».')) return;
     this.error.set(null);
     this.questionSvc.delete(question.id).subscribe({
-      next: () => this.questions.update(list => list.filter(q => q.id !== question.id)),
-      // p. ej. la pregunta está en un examen ya publicado
+      next: () => {
+        this.questions.update(list => list.filter(q => q.id !== question.id));
+        this.deletedQuestions.update(list => [{ ...question, deletedAt: new Date().toISOString() }, ...list]);
+      },
       error: err => this.error.set(err?.error?.message ?? 'No se pudo eliminar la pregunta')
+    });
+  }
+
+  /** Vuelve al banco una pregunta eliminada. */
+  restore(question: QuestionResponse): void {
+    this.error.set(null);
+    this.questionSvc.restore(question.id).subscribe({
+      next: restored => {
+        this.deletedQuestions.update(list => list.filter(q => q.id !== question.id));
+        this.questions.update(list => [restored, ...list]);
+      },
+      error: err => this.error.set(err?.error?.message ?? 'No se pudo recuperar la pregunta')
     });
   }
 }

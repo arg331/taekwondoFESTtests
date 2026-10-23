@@ -82,6 +82,21 @@ class SharedQuestionsCharacterizationTest extends ApiCharacterizationTest {
         assertThat(shared(guest.token())).isEmpty();
     }
 
+    @Test
+    @DisplayName("Las que el dueño elimina dejan de salir, aunque sigan en su examen publicado")
+    void sharedQuestions_deletedByOwnerHidden() {
+        Session owner = newTeacher();
+        Session guest = newTeacher();
+        PublishedExam exam = publishedExam(owner.token(), 5, null, true);
+        invite(exam.id(), owner, guest);
+        accept(guest);
+
+        delete("/api/questions/" + exam.questionIds().get(0), owner.token()).expectStatus(204);
+
+        assertThat(shared(guest.token())).extracting(q -> ((Number) q.get("id")).longValue())
+                .hasSize(4).doesNotContain(exam.questionIds().get(0));
+    }
+
     // ───── Ayudas ─────
 
     private long draft(Session owner, List<Long> questionIds) {

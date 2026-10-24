@@ -91,6 +91,51 @@ describe('QuestionsComponent', () => {
     return Array.from(card.querySelectorAll('button')).find(b => b.textContent?.includes(label)) as HTMLButtonElement;
   }
 
+  describe('por páginas de 20 (RNF-09)', () => {
+    function next(): HTMLButtonElement {
+      return el.querySelector('.mat-mdc-paginator-navigation-next') as HTMLButtonElement;
+    }
+
+    async function manyQuestions(n: number): Promise<void> {
+      fixture.componentInstance.questions.set(Array.from({ length: n }, (_, i) => question(100 + i)));
+      await stable();
+    }
+
+    it('con pocas no hay paginador', () => {
+      expect(el.querySelector('mat-paginator')).toBeNull();
+    });
+
+    it('con más de 20, 20 por página sobre las filtradas; filtrar vuelve a la primera', async () => {
+      await manyQuestions(45);
+
+      expect(cards()).toHaveLength(20);
+      expect(el.querySelector('.subtitle')?.textContent).toContain('45 de 45 preguntas');
+      next().click();
+      await stable();
+      expect(visibleTexts()[0]).toBe('Pregunta número 120');
+
+      const search = el.querySelector('.filter-text input') as HTMLInputElement;
+      search.value = 'número 1';
+      search.dispatchEvent(new Event('input'));
+      await stable();
+      expect(el.querySelector('.mat-mdc-paginator-range-label')?.textContent?.trim()).toBe('1 – 20 de 45');
+      expect(visibleTexts()[0]).toBe('Pregunta número 100');
+    });
+
+    it('si se vacía la última página, enseña la anterior', async () => {
+      await manyQuestions(21);
+      next().click();
+      await stable();
+      expect(visibleTexts()).toEqual(['Pregunta número 120']);
+
+      fixture.componentInstance.questions.update(list => list.slice(0, 20));
+      await stable();
+
+      expect(cards()).toHaveLength(20);
+      expect(el.querySelector('mat-paginator')).toBeNull();
+    });
+  });
+
   describe('preguntas eliminadas', () => {
     it('cada pregunta propia dice en gris en cuántos exámenes se usa; las compartidas no', async () => {
       const usage = cards().map(c => c.querySelector('.usage')?.textContent?.trim());

@@ -90,7 +90,7 @@
     <div class="loading"><mat-spinner diameter="40" /></div>
   } @else {
     <div class="questions-list" [class.view-cards]="view() === 'cards'" [class.view-list]="view() === 'list'">
-      @for (q of filtered(); track q.id) {
+      @for (q of visible(); track q.id) {
         <app-question-card [question]="q" [variant]="cardVariant()" (edit)="editing.set(q)" (remove)="delete(q)" (restore)="restore(q)" />
         @if (editing()?.id === q.id) {
           <app-question-form class="inline-edit" [question]="q" [tags]="tags()"
@@ -110,5 +110,10 @@
         </div>
       }
     </div>
+    @if (filtered().length > pageSize) {
+      <mat-paginator class="questions-paginator" [length]="filtered().length" [pageSize]="pageSize"
+                     [pageIndex]="currentPage()" hidePageSize aria-label="Páginas de preguntas"
+                     (page)="page.set($event.pageIndex)" />
+    }
   }
 </div>

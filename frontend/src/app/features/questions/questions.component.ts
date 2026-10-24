@@ -1,4 +1,7 @@
-import { ChangeDetectionStrategy, Component, inject, signal, computed, OnInit, DestroyRef } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal, computed, linkedSignal, OnInit, DestroyRef } from '@angular/core';
+import { MatPaginatorIntl, MatPaginatorModule } from '@angular/material/paginator';
+import { PaginatorIntlEs } from '../../shared/paginator-intl-es';
+import { PAGE_SIZE, clampPage, pageItems } from '../../shared/utils/pagination';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -48,12 +51,14 @@ const VIEW_STORAGE_KEY = 'questions-view';
     GradeRangeComponent,
     TagFilterComponent,
     MatProgressSpinnerModule,
+    MatPaginatorModule,
     QuestionFormComponent,
     QuestionCardComponent,
     TagManagerComponent
   ],
   templateUrl: './questions.component.html',
   styleUrl: './questions.component.scss',
+  providers: [{ provide: MatPaginatorIntl, useClass: PaginatorIntlEs }],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class QuestionsComponent implements OnInit {
@@ -126,6 +131,20 @@ export class QuestionsComponent implements OnInit {
       (selected.size === 0 || q.tags.some(tag => selected.has(tagKey(tag.name)))));
   });
 
+  readonly pageSize = PAGE_SIZE;
+  /**
+   * Página que se ve, desde 0 (RNF-09): pintar cientos de tarjetas hacía pesada la pantalla. Se pagina aquí
+   * porque los filtros y el recuento por tag necesitan todas las preguntas. Cambiar de vista o de filtro
+   * vuelve a la primera.
+   */
+  page = linkedSignal({
+    source: () => [this.source(), this.filterText(), this.gradeRange(), this.typeFilter(), this.selectedTagIds()],
+    computation: () => 0
+  });
+  /** Si al borrar se vacía la última página, la anterior. */
+  currentPage = computed(() => clampPage(this.page(), this.filtered().length));
+  visible = computed(() => pageItems(this.filtered(), this.currentPage()));
+
   ngOnInit(): void {
     this.tagSvc.getAll().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(tags => this.tags.set(tags));
     this.questionSvc.getAll().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
@@ -141,6 +160,8 @@ export class QuestionsComponent implements OnInit {
   onSaved(saved: QuestionResponse): void {
     const exists = this.questions().some(q => q.id === saved.id);
     this.questions.update(list => exists ? list.map(q => q.id === saved.id ? saved : q) : [saved, ...list]);
+    // La nueva sale la primera: se vuelve a la primera página para verla
+    if (!exists) this.page.set(0);
     this.editing.set(undefined);
   }
 

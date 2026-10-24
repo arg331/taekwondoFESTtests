@@ -13,6 +13,7 @@ import { MatSliderHarness, MatSliderThumbHarness } from '@angular/material/slide
 import { ExamQuestionPickerComponent } from '../exam-question-picker/exam-question-picker.component';
 import { ConfirmService } from '../../../../core/services/confirm.service';
 import { of } from 'rxjs';
+import { environment } from '../../../../../environments/environment';
 
 const API = 'http://localhost:8080/api';
 /** QR falso: el data URL indica el tamaño pedido para poder comprobarlo. */
@@ -398,6 +399,19 @@ describe('ExamDetailComponent', () => {
       const src = (el.querySelector('.qr-image') as HTMLImageElement).src;
       expect(qr.toDataUrl).toHaveBeenCalledWith(`${window.location.origin}/exam/EXM-1234ABCD`, expect.any(Number), '#000000');
       expect(src).toMatch(/^data:image\/png;base64,/);
+    });
+
+    it('con una dirección pública configurada, el QR la usa en lugar de la del navegador (DE-16)', async () => {
+      environment.publicUrl = 'https://examenes.ejemplo.es';
+      try {
+        await render(exam('PUBLISHED', [1, 2]));
+        button('qr_code').click();
+        await stable();
+
+        expect(qr.toDataUrl).toHaveBeenCalledWith('https://examenes.ejemplo.es/exam/EXM-1234ABCD', expect.any(Number), '#000000');
+      } finally {
+        environment.publicUrl = '';
+      }
     });
 
     it('no genera el QR hasta que se muestra', async () => {

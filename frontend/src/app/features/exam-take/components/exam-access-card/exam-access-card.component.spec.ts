@@ -5,19 +5,16 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { MatSelectHarness } from '@angular/material/select/testing';
 import { ExamAccessCardComponent } from './exam-access-card.component';
-import { ExamResponse, Visibility } from '../../../../core/models/exam.models';
+import { PublicExamResponse, Visibility } from '../../../../core/models/exam.models';
 import { StudentInfo } from './exam-access-card.component';
 
 const API = 'http://localhost:8080/api';
 const CLUBS = [{ id: 1, name: 'Club Ávila' }, { id: 2, name: 'Club Badajoz' }];
 
-function exam(visibility: Visibility): ExamResponse {
+function exam(visibility: Visibility): PublicExamResponse {
   return {
-    id: 7, title: 'Examen de cinturón', ownerId: 1, status: 'PUBLISHED', visibility, accessMode: 'OPEN',
-    config: { numberOfQuestions: 10, timeLimitMinutes: null, showScore: true, showAnswers: true, randomizeOptions: false,
-      randomizeQuestionOrder: false },
-    questionIds: [], generationTags: [], code: 'EXM-1234ABCD', createdAt: '2026-10-12T10:00:00', expiresAt: null, maxAttempts: 1,
-    sharedBy: null
+    title: 'Examen de cinturón', code: 'EXM-1234ABCD', visibility, accessMode: 'OPEN',
+    config: { numberOfQuestions: 10, timeLimitMinutes: null }, maxAttempts: 1
   };
 }
 

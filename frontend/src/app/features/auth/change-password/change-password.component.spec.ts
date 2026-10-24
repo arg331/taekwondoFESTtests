@@ -20,8 +20,8 @@ describe('ChangePasswordComponent', () => {
   let el: HTMLElement;
 
   async function render(options: { temporary: boolean; returnUrl?: string }): Promise<void> {
-    localStorage.setItem('fest_token', 'viejo');
-    localStorage.setItem('fest_user', JSON.stringify({ ...ME, mustChangePassword: options.temporary }));
+    sessionStorage.setItem('fest_token', 'viejo');
+    sessionStorage.setItem('fest_user', JSON.stringify({ ...ME, mustChangePassword: options.temporary }));
     TestBed.configureTestingModule({
       imports: [ChangePasswordComponent],
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
@@ -62,7 +62,7 @@ describe('ChangePasswordComponent', () => {
 
   afterEach(() => {
     http.verify();
-    localStorage.clear();
+    (localStorage.clear(), sessionStorage.clear());
     vi.restoreAllMocks();
   });
 

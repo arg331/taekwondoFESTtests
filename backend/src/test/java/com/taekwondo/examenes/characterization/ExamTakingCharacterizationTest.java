@@ -24,15 +24,17 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
     // ───── Portada e intento ─────
 
     @Test
-    @DisplayName("Portada por código: pública, devuelve el examen completo")
-    void getByCode_accessible_returnsExam() {
+    @DisplayName("Portada por código: pública, solo lo que necesita la portada; nada interno (DE-19)")
+    void getByCode_accessible_returnsOnlyWhatThePageNeeds() {
         PublishedExam exam = publishedExam(adminToken(), 5, 10, true);
 
         HttpResult result = get("/api/exams/by-code/" + exam.code(), null).expectStatus(200);
 
-        assertThat((Integer) result.read("$.id")).isEqualTo((int) exam.id());
+        assertThat(result.asMap()).containsOnlyKeys("title", "code", "visibility", "accessMode", "config", "maxAttempts");
+        assertThat((Map<String, Object>) result.read("$.config")).containsOnlyKeys("numberOfQuestions", "timeLimitMinutes");
+        assertThat((String) result.read("$.code")).isEqualTo(exam.code());
         assertThat((Integer) result.read("$.config.timeLimitMinutes")).isEqualTo(10);
-        assertThat((List<?>) result.read("$.questionIds")).hasSize(5);
+        assertThat((Integer) result.read("$.config.numberOfQuestions")).isEqualTo(5);
     }
 
     @Test
@@ -108,6 +110,24 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
         assertThat(anonymous.expectStatus(409).message())
                 .isEqualTo("Este examen requiere estar registrado e iniciar sesión");
         registered.expectStatus(200);
+    }
+
+    @Test
+    @DisplayName("Oficial (privado): el profesor decide si hace falta cuenta (DE-06)")
+    void official_teacherChoosesWhetherAnAccountIsNeeded() {
+        String token = adminToken();
+        long withAccount = createDraft(token, 5, null, true);
+        setQuestions(token, withAccount, createQuestions(token, 5));
+        String withAccountCode = publish(token, withAccount, "PRIVATE", "REGISTERED_ONLY", null).expectStatus(200).read("$.code");
+        long open = createDraft(token, 5, null, true);
+        setQuestions(token, open, createQuestions(token, 5));
+        String openCode = publish(token, open, "PRIVATE", "OPEN", null).expectStatus(200).read("$.code");
+
+        assertThat((String) get("/api/exams/by-code/" + withAccountCode, null).expectStatus(200).read("$.accessMode"))
+                .isEqualTo("REGISTERED_ONLY");
+        start(withAccountCode, null, obj("studentName", unique("A"))).expectStatus(409);
+        start(withAccountCode, newStudent().token(), obj("studentName", "Yo")).expectStatus(200);
+        start(openCode, null, obj("studentName", unique("A"))).expectStatus(200);
     }
 
     // ───── Entrega ─────
@@ -211,23 +231,48 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
     }
 
     @Test
-    @DisplayName("Entrega: si el examen caduca por fecha durante el intento se acepta; si se cierra a mano, no")
-    void submit_examExpiresOrClosesDuringAttempt() {
+    @DisplayName("Cerrar a mano: quien ya había empezado sigue contestando y entrega; nadie empieza uno nuevo (DE-07)")
+    void close_attemptsInProgressCanFinish() {
+        String token = adminToken();
+        PublishedExam exam = publishedExam(token, 5, 30, true);
+        String attempt = startAttempt(exam.code(), null, unique("A"));
+
+        clock.advance(Duration.ofMinutes(5));
+        post("/api/exams/" + exam.id() + "/close", token, null).expectStatus(200);
+
+        put("/api/exams/by-code/" + exam.code() + "/attempts/answers", null, obj("attemptToken", attempt,
+                "questionId", exam.questionIds().get(0), "chosenOptions", List.of(0))).expectStatus(204);
+        assertThat(start(exam.code(), null, obj("studentName", unique("B"))).expectStatus(409).message())
+                .isEqualTo("Este examen no está disponible en este momento");
+        submit(exam.code(), attempt, null, answers(exam.questionIds(), allCorrect(5))).expectStatus(201);
+    }
+
+    @Test
+    @DisplayName("Cerrar a mano: el intento empezado antes vale hasta que se le acaba su tiempo, no más")
+    void close_attemptInProgressStillHasItsTimeLimit() {
+        String token = adminToken();
+        PublishedExam exam = publishedExam(token, 5, 30, true);
+        String attempt = startAttempt(exam.code(), null, unique("A"));
+        post("/api/exams/" + exam.id() + "/close", token, null).expectStatus(200);
+
+        clock.advance(Duration.ofMinutes(40));
+
+        assertThat(submit(exam.code(), attempt, null, answers(exam.questionIds(), allCorrect(5))).expectStatus(409).message())
+                .isEqualTo("El intento no es válido o ha superado el tiempo límite");
+    }
+
+    @Test
+    @DisplayName("Entrega: si el examen caduca por fecha durante el intento, se acepta")
+    void submit_examExpiresDuringAttempt() {
         String token = adminToken();
         PublishedExam expiring = publishedExam(token, 5, null, true);
-        PublishedExam closing = publishedExam(token, 5, null, true);
         String expiringAttempt = startAttempt(expiring.code(), null);
-        String closingAttempt = startAttempt(closing.code(), null);
+        patch("/api/exams/" + expiring.id() + "/expiration", token, obj("newExpiresAt", now().plusMinutes(10).toString()))
+                .expectStatus(200);
 
         clock.advance(Duration.ofMinutes(70));
-        post("/api/exams/" + closing.id() + "/close", token, null).expectStatus(200);
-        HttpResult afterExpiry = submit(expiring.code(), expiringAttempt, null,
-                answers(expiring.questionIds(), allCorrect(5)));
-        HttpResult afterClose = submit(closing.code(), closingAttempt, null,
-                answers(closing.questionIds(), allCorrect(5)));
 
-        afterExpiry.expectStatus(201);
-        assertThat(afterClose.expectStatus(409).message()).isEqualTo("Este examen no está disponible en este momento");
+        submit(expiring.code(), expiringAttempt, null, answers(expiring.questionIds(), allCorrect(5))).expectStatus(201);
     }
 
     @Test

@@ -3,20 +3,17 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { ExamTakeComponent } from './exam-take.component';
-import { ExamAttemptResponse, ExamResponse } from '../../core/models/exam.models';
+import { ExamAttemptResponse, PublicExamResponse } from '../../core/models/exam.models';
 import { ResultResponse } from '../../core/models/result.models';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { of } from 'rxjs';
 
 const API = 'http://localhost:8080/api';
 
-function exam(overrides: Partial<ExamResponse> = {}): ExamResponse {
+function exam(overrides: Partial<PublicExamResponse> = {}): PublicExamResponse {
   return {
-    id: 1, title: 'Examen de árbitros', ownerId: 1, status: 'PUBLISHED', visibility: 'PUBLIC', accessMode: 'OPEN',
-    config: { numberOfQuestions: 3, timeLimitMinutes: null, showScore: true, showAnswers: true, randomizeOptions: true,
-      randomizeQuestionOrder: true },
-    questionIds: [10, 20, 30], generationTags: [], code: 'EXM-ABC', createdAt: '2026-10-08T10:00:00',
-    expiresAt: null, maxAttempts: 1, sharedBy: null, ...overrides
+    title: 'Examen de árbitros', code: 'EXM-ABC', visibility: 'PUBLIC', accessMode: 'OPEN',
+    config: { numberOfQuestions: 3, timeLimitMinutes: null }, maxAttempts: 1, ...overrides
   };
 }
 
@@ -43,7 +40,7 @@ describe('ExamTakeComponent', () => {
   let http: HttpTestingController;
   let el: HTMLElement;
 
-  async function render(examResponse: ExamResponse): Promise<void> {
+  async function render(examResponse: PublicExamResponse): Promise<void> {
     TestBed.configureTestingModule({
       imports: [ExamTakeComponent],
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
@@ -106,7 +103,7 @@ describe('ExamTakeComponent', () => {
     await stable();
   }
 
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => (localStorage.clear(), sessionStorage.clear()));
   afterEach(() => {
     http.verify();
     vi.useRealTimers();
@@ -515,7 +512,7 @@ describe('ExamTakeComponent', () => {
 
   it('resultado con solo la nota: la puntuación, sin el detalle de respuestas', async () => {
     vi.spyOn(ConfirmService.prototype, 'ask').mockReturnValue(of(true));
-    await render(exam({ config: { ...exam().config, showAnswers: false } }));
+    await render(exam());
     await startAs('Ana');
     await goToQuestion(3);
     button('Enviar examen').click();
@@ -534,7 +531,7 @@ describe('ExamTakeComponent', () => {
 
   it('resultado con nota oculta: solo confirma la entrega', async () => {
     vi.spyOn(ConfirmService.prototype, 'ask').mockReturnValue(of(true));
-    await render(exam({ config: { ...exam().config, showScore: false } }));
+    await render(exam());
     await startAs('Ana');
     await goToQuestion(3);
     button('Enviar examen').click();
@@ -580,8 +577,8 @@ describe('ExamTakeComponent', () => {
   });
 
   it('con sesión iniciada: rellena nombre y email con los de la cuenta', async () => {
-    localStorage.setItem('fest_token', 't');
-    localStorage.setItem('fest_user', JSON.stringify({
+    sessionStorage.setItem('fest_token', 't');
+    sessionStorage.setItem('fest_user', JSON.stringify({
       id: 2, username: 'alu', email: 'alu@x.es', displayName: 'Alumna Registrada', role: 'STUDENT', club: null, active: true, mustChangePassword: false,
       createdAt: '2026-10-08T10:00:00'
     }));

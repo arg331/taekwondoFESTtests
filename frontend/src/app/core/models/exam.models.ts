@@ -46,6 +46,20 @@ export interface ExamConfig {
   randomizeQuestionOrder: boolean;
 }
 
+/**
+ * Portada pública de un examen, para quien tiene el código (DE-19): solo lo que se enseña antes de empezar.
+ */
+export interface PublicExamResponse {
+  title: string;
+  code: string;
+  visibility: Visibility;
+  /** Si hace falta cuenta para hacerlo (DE-06). */
+  accessMode: AccessMode;
+  config: { numberOfQuestions: number; timeLimitMinutes: number | null };
+  /** Intentos por alumno (RF-52); null = sin límite. */
+  maxAttempts: number | null;
+}
+
 export interface ExamResponse {
   id: number;
   title: string;

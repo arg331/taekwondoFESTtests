@@ -18,8 +18,8 @@ const USER_KEY  = 'fest_user';
  * Servicio de autenticación.
  *
  * Usa signals (Angular 17+) para el estado del usuario actual.
- * El token y el usuario se persisten en localStorage para
- * sobrevivir recargas de página.
+ * El token y el usuario se guardan en sessionStorage (DE-10): sobreviven a recargar la página, pero al
+ * cerrar el navegador o abrir otra pestaña hay que volver a iniciar sesión. Nada queda en localStorage.
  */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -30,6 +30,12 @@ export class AuthService {
 
   // Signal con el usuario actual (null si no autenticado)
   private readonly _currentUser = signal<UserResponse | null>(this.loadUserFromStorage());
+
+  constructor() {
+    // Las versiones anteriores guardaban la sesión una semana en localStorage: se borra al entrar
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+  }
 
   // Computed públicos para los componentes
   readonly currentUser = this._currentUser.asReadonly();
@@ -87,20 +93,20 @@ export class AuthService {
   // ──────────────────────────────────────────────────
 
   logout(): void {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(USER_KEY);
     this._currentUser.set(null);
     this.router.navigate(['/auth/login']);
   }
 
   /** Tras cambiar algo del propio usuario (por ejemplo, su club), la sesión guarda la versión nueva. */
   updateCurrentUser(user: UserResponse): void {
-    localStorage.setItem(USER_KEY, JSON.stringify(user));
+    sessionStorage.setItem(USER_KEY, JSON.stringify(user));
     this._currentUser.set(user);
   }
 
   getToken(): string | null {
-    return localStorage.getItem(TOKEN_KEY);
+    return sessionStorage.getItem(TOKEN_KEY);
   }
 
   // ──────────────────────────────────────────────────
@@ -108,13 +114,13 @@ export class AuthService {
   // ──────────────────────────────────────────────────
 
   private saveSession(response: LoginResponse): void {
-    localStorage.setItem(TOKEN_KEY, response.token);
-    localStorage.setItem(USER_KEY, JSON.stringify(response.user));
+    sessionStorage.setItem(TOKEN_KEY, response.token);
+    sessionStorage.setItem(USER_KEY, JSON.stringify(response.user));
     this._currentUser.set(response.user);
   }
 
   private loadUserFromStorage(): UserResponse | null {
-    const stored = localStorage.getItem(USER_KEY);
+    const stored = sessionStorage.getItem(USER_KEY);
     return stored ? JSON.parse(stored) : null;
   }
 }

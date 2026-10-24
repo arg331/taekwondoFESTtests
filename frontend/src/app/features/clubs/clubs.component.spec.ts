@@ -22,8 +22,8 @@ describe('ClubsComponent', () => {
   let el: HTMLElement;
 
   async function render(user: UserResponse, clubs: ClubResponse[]): Promise<void> {
-    localStorage.setItem('fest_token', 't');
-    localStorage.setItem('fest_user', JSON.stringify(user));
+    sessionStorage.setItem('fest_token', 't');
+    sessionStorage.setItem('fest_user', JSON.stringify(user));
     TestBed.configureTestingModule({
       imports: [ClubsComponent],
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
@@ -50,7 +50,7 @@ describe('ClubsComponent', () => {
 
   afterEach(() => {
     http.verify();
-    localStorage.clear();
+    (localStorage.clear(), sessionStorage.clear());
   });
 
   it('lista los clubes y marca el del profesor, que se abre al entrar', async () => {

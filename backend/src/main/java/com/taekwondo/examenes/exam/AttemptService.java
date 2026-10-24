@@ -111,9 +111,9 @@ public class AttemptService {
         if (attempt.isSubmitted()) {
             throw new BusinessRuleException("Este intento ya se ha entregado");
         }
-        // Basta con que el examen estuviera abierto al empezar: si caduca a mitad, el intento sigue.
-        // Si el profesor lo cierra manualmente, ya no.
-        if (!exam.isAccessibleAt(attempt.getStartedAt())) {
+        // Basta con que el examen estuviera abierto al empezar: si caduca a mitad o el profesor lo cierra
+        // después, el intento sigue hasta que se le acaba el tiempo (DE-07)
+        if (!exam.acceptsAttemptStartedAt(attempt.getStartedAt())) {
             throw new BusinessRuleException("Este examen no está disponible en este momento");
         }
         if (!attempt.isOpenAt(now(), attemptValidity(exam.getConfig()))) {

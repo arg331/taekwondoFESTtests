@@ -35,8 +35,8 @@ describe('UsersComponent', () => {
   let loader: HarnessLoader;
 
   beforeEach(async () => {
-    localStorage.setItem('fest_token', 't');
-    localStorage.setItem('fest_user', JSON.stringify(ME));
+    sessionStorage.setItem('fest_token', 't');
+    sessionStorage.setItem('fest_user', JSON.stringify(ME));
     TestBed.configureTestingModule({
       imports: [UsersComponent],
       providers: [
@@ -57,7 +57,7 @@ describe('UsersComponent', () => {
 
   afterEach(() => {
     http.verify();
-    localStorage.clear();
+    (localStorage.clear(), sessionStorage.clear());
   });
 
   /** La página que pide la lista: 20 usuarios, con lo buscado (RNF-09). */

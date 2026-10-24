@@ -12,9 +12,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { ExamCodeEntryComponent } from '../../shared/components/exam-code-entry/exam-code-entry.component';
 import { ShareInvitationsComponent } from './components/share-invitations/share-invitations.component';
 import { ExamService } from '../../core/services/exam.service';
-import { ScraperService } from '../../core/services/scraper.service';
 import { EXAM_STATUS_LABEL, ExamResponse, ExamStatus, VISIBILITY_COLOR, VISIBILITY_ICON, VISIBILITY_LABEL } from '../../core/models/exam.models';
-import { CursoArbitrajeResponse } from '../../core/models/scraper.models';
 import { APP_NAME } from '../../core/app-brand';
 
 @Component({
@@ -43,7 +41,6 @@ export class DashboardComponent implements OnInit {
   readonly visibilityColor = VISIBILITY_COLOR;
   auth       = inject(AuthService);
   examSvc    = inject(ExamService);
-  scraperSvc = inject(ScraperService);
   router     = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -51,8 +48,6 @@ export class DashboardComponent implements OnInit {
   exams          = signal<ExamResponse[]>([]);
   publicExams    = signal<ExamResponse[]>([]);
   loadingPublic  = signal(false);
-  cursos         = signal<CursoArbitrajeResponse[]>([]);
-  loadingCursos  = signal(false);
 
   drafts    = computed(() => this.exams().filter(e => e.status === 'DRAFT'));
   published = computed(() => this.exams().filter(e => e.status === 'PUBLISHED'));
@@ -65,11 +60,6 @@ export class DashboardComponent implements OnInit {
         // Solo los propios: los compartidos conmigo (RF-51) están en «Exámenes» y «Resultados»
         next: exams => { this.exams.set(exams.filter(e => !e.sharedBy)); this.loading.set(false); },
         error: () => this.loading.set(false)
-      });
-      this.loadingCursos.set(true);
-      this.scraperSvc.getCursosArbitraje().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-        next: cursos => { this.cursos.set(cursos); this.loadingCursos.set(false); },
-        error: () => this.loadingCursos.set(false)
       });
     } else {
       this.loadingPublic.set(true);
@@ -94,9 +84,5 @@ export class DashboardComponent implements OnInit {
 
   goToExamTake(code: string): void {
     this.router.navigate(['/exam', code]);
-  }
-
-  isCursoError(curso: CursoArbitrajeResponse): boolean {
-    return curso.mes === 'Error' || curso.mes === 'Info';
   }
 }

@@ -54,7 +54,7 @@ class UserActivationCharacterizationTest extends ApiCharacterizationTest {
                 .isEqualTo("No puedes desactivar tu propia cuenta");
         setActive(999_999, adminToken(), false).expectStatus(404);
         assertThat(patch("/api/users/" + student.id() + "/active", adminToken(), obj()).expectStatus(400).message())
-                .startsWith("active");
+                .startsWith("Activa: ");
     }
 
     private HttpResult setActive(long userId, String token, boolean active) {

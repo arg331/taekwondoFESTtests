@@ -12,13 +12,13 @@ public record PublishedQuestionResponse(
         Long questionId,
         String text,
         List<String> options,
-        int correctAnswer,
+        List<Integer> correctAnswers,
         String explanation,
         boolean editedSincePublished
 ) {
     static PublishedQuestionResponse from(PublishedQuestion published, Question current) {
         return new PublishedQuestionResponse(published.getQuestionId(), published.getText(),
-                List.copyOf(published.getOptions()), published.getCorrectAnswer(), published.getExplanation(),
+                List.copyOf(published.getOptions()), published.getCorrectAnswers(), published.getExplanation(),
                 current == null || !published.matches(current));
     }
 }

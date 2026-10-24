@@ -7,6 +7,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ExamService } from '../../core/services/exam.service';
 import { QuestionService } from '../../core/services/question.service';
 import { TagService } from '../../core/services/tag.service';
+import { ShareService } from '../../core/services/share.service';
 import { ExamResponse } from '../../core/models/exam.models';
 import { QuestionResponse } from '../../core/models/question.models';
 import { TagResponse } from '../../core/models/tag.models';
@@ -36,12 +37,15 @@ export class ExamsComponent implements OnInit {
   private examSvc     = inject(ExamService);
   private questionSvc = inject(QuestionService);
   private tagSvc      = inject(TagService);
+  private shareSvc    = inject(ShareService);
   private route       = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
 
   loading      = signal(true);
   exams        = signal<ExamResponse[]>([]);
   questions    = signal<QuestionResponse[]>([]);
+  /** Las de los exámenes que me han compartido: para ver las de un borrador compartido (RF-57). */
+  sharedQuestions = signal<QuestionResponse[]>([]);
   tags         = signal<TagResponse[]>([]);
   draftMode    = signal<DraftMode | null>(null);
   selectedExam = signal<ExamResponse | null>(null);
@@ -53,6 +57,8 @@ export class ExamsComponent implements OnInit {
   ngOnInit(): void {
     this.questionSvc.getAll().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(q => this.questions.set(q));
     this.tagSvc.getAll().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(t => this.tags.set(t));
+    this.shareSvc.questions().pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({ next: q => this.sharedQuestions.set(q), error: () => this.sharedQuestions.set([]) });
     this.examSvc.getMine().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: exams => {
         this.exams.set(exams);

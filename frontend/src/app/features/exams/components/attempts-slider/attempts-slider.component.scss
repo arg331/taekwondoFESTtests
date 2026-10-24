@@ -1,0 +1,16 @@
+:host { display: flex; flex-direction: column; min-width: 220px; max-width: 320px; }
+
+.attempts-label { font-size: 0.85rem; color: #444; }
+
+.attempts-slider { width: 100%; margin: 0; }
+
+// Las marcas van debajo de cada posición de la barra, como una regla
+.attempts-marks {
+  display: flex;
+  justify-content: space-between;
+  margin: -8px 8px 0;
+  font-size: 0.75rem;
+  color: #666;
+
+  span { width: 1em; text-align: center; }
+}

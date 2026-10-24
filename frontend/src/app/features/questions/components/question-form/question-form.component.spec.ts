@@ -10,8 +10,8 @@ const API = 'http://localhost:8080/api';
 
 function existing(overrides: Partial<QuestionResponse>): QuestionResponse {
   return {
-    id: 42, text: 'Pregunta existente', options: ['Sí', 'No'], correctAnswer: 1, explanation: 'Porque sí',
-    grade: 'NEGRO', type: 'D', tags: [], createdAt: '2026-10-08T10:00:00', updatedAt: '2026-10-08T10:00:00',
+    id: 42, text: 'Pregunta existente', options: ['Sí', 'No'], correctAnswers: [1], explanation: 'Porque sí',
+    grade: 'NEGRO', type: 'D', tags: [], createdAt: '2026-10-08T10:00:00', updatedAt: '2026-10-08T10:00:00', sharedBy: null,
     ...overrides
   };
 }
@@ -47,7 +47,7 @@ describe('QuestionFormComponent', () => {
   }
 
   function optionInputs(): HTMLInputElement[] {
-    return Array.from(el.querySelectorAll('.option-row input:not([type=radio])'));
+    return Array.from(el.querySelectorAll('.option-row input:not([type=checkbox])'));
   }
 
   /** Escribe las opciones una a una, como el profesor: cada vez que rellena la última aparece otra. */
@@ -59,7 +59,7 @@ describe('QuestionFormComponent', () => {
   }
 
   async function markCorrect(index: number): Promise<void> {
-    (el.querySelectorAll('.option-row input[type=radio]')[index] as HTMLInputElement).click();
+    (el.querySelectorAll('.option-row input[type=checkbox]')[index] as HTMLInputElement).click();
     await stable();
   }
 
@@ -101,7 +101,7 @@ describe('QuestionFormComponent', () => {
     });
 
     it('se puede quitar una opción y la correcta sigue siendo la misma', async () => {
-      await render(existing({ options: ['Uno', 'Dos', 'Tres'], correctAnswer: 2 }));
+      await render(existing({ options: ['Uno', 'Dos', 'Tres'], correctAnswers: [2] }));
 
       (el.querySelectorAll('.option-row .remove-option')[0] as HTMLButtonElement).click();
       await stable();
@@ -109,7 +109,7 @@ describe('QuestionFormComponent', () => {
 
       const req = http.expectOne(`${API}/questions/42`);
       expect(req.request.body.options).toEqual(['Dos', 'Tres']);
-      expect(req.request.body.correctAnswer).toBe(1);
+      expect(req.request.body.correctAnswers).toEqual([1]);
       req.flush(null);
     });
 
@@ -118,6 +118,25 @@ describe('QuestionFormComponent', () => {
 
       expect(el.querySelectorAll('.option-row .remove-option').length).toBe(0);
     });
+  });
+
+  it('el grado mínimo es opcional: «Sin grado» por defecto y se puede elegir uno', async () => {
+    await render(null);
+    const select = await TestbedHarnessEnvironment.loader(fixture).getHarness(MatSelectHarness.with({ selector: '.grade-select' }));
+
+    expect(Array.from(el.querySelectorAll('mat-label')).map(l => l.textContent?.trim())).toContain('Grado mínimo (opcional)');
+    expect(await select.getValueText()).toBe('Sin grado');
+    await select.open();
+    expect(await (await select.getOptions())[0].getText()).toBe('Sin grado');
+  });
+
+  it('el tipo es el de examen de arbitraje: Tipo C, Tipo D o «Sin tipo definido», marcado por defecto', async () => {
+    await render(null);
+
+    expect(el.querySelector('.type-row .section-label')?.textContent).toBe('Tipo de examen de arbitraje');
+    expect(Array.from(el.querySelectorAll('.type-toggle button')).map(b => b.textContent?.trim()))
+      .toEqual(['Tipo C', 'Tipo D', 'Sin tipo definido']);
+    expect(typeToggle('Sin tipo definido').getAttribute('aria-checked')).toBe('true');
   });
 
   it('nueva: envía grado y tipo, descarta las opciones vacías y reindexa la correcta', async () => {
@@ -137,7 +156,7 @@ describe('QuestionFormComponent', () => {
     expect(req.request.body).toEqual({
       text: '¿Cuántos puntos vale un giro a la cabeza?',
       options: ['1 punto', '3 puntos'],
-      correctAnswer: 1,
+      correctAnswers: [1],
       explanation: 'Son 3',
       grade: 'AZUL',
       type: 'C',
@@ -157,8 +176,47 @@ describe('QuestionFormComponent', () => {
     const req = http.expectOne(`${API}/questions`);
     expect(req.request.body.explanation).toBe('');
     expect(req.request.body.type).toBeNull();
-    expect(req.request.body.grade).toBe('BLANCO');
+    expect(req.request.body.grade).toBeNull();
     req.flush(null);
+  });
+
+  describe('varias respuestas correctas (RF-09)', () => {
+    it('se marcan varias y se envían todas, reindexadas sin las opciones vacías', async () => {
+      await render(null);
+      await fill('¿Qué técnicas puntúan dos puntos?', ['Patada al tronco', 'Puño', 'Patada a la cabeza'], 0, '');
+      await markCorrect(2);
+      type(optionInputs()[1], '');
+      await stable();
+      saveButton().click();
+      await stable();
+
+      const req = http.expectOne(`${API}/questions`);
+      expect(req.request.body.correctAnswers).toEqual([0, 1]);
+      req.flush(null);
+    });
+
+    it('una pregunta nueva no trae ninguna marcada y sin marcar no deja guardar', async () => {
+      await render(null);
+      const textareas = el.querySelectorAll('textarea');
+      type(textareas[0], '¿Cuántos árbitros de esquina hay?');
+      await fillOptions(['Dos', 'Cuatro']);
+
+      expect(el.textContent).toContain('Marca al menos una opción correcta.');
+      expect(saveButton().disabled).toBe(true);
+    });
+
+    it('al quitar una opción, las correctas siguen siendo las mismas', async () => {
+      await render(existing({ options: ['Uno', 'Dos', 'Tres', 'Cuatro'], correctAnswers: [1, 3] }));
+      (el.querySelectorAll('.remove-option')[0] as HTMLButtonElement).click();
+      await stable();
+      saveButton().click();
+      await stable();
+
+      const req = http.expectOne(`${API}/questions/42`);
+      expect(req.request.body.options).toEqual(['Dos', 'Tres', 'Cuatro']);
+      expect(req.request.body.correctAnswers).toEqual([0, 2]);
+      req.flush(null);
+    });
   });
 
   it('avisa y no deja guardar con menos de 2 opciones o con la correcta vacía', async () => {
@@ -187,7 +245,7 @@ describe('QuestionFormComponent', () => {
     const req = http.expectOne(`${API}/questions/42`);
     expect(req.request.method).toBe('PUT');
     expect(req.request.body).toEqual({
-      text: 'Pregunta existente', options: ['Sí', 'No'], correctAnswer: 1, explanation: 'Porque sí',
+      text: 'Pregunta existente', options: ['Sí', 'No'], correctAnswers: [1], explanation: 'Porque sí',
       grade: 'NEGRO', type: 'D', tagIds: []
     });
     req.flush(null);

@@ -1,0 +1,13 @@
+<div class="tag-grid" role="group" aria-label="Filtrar por tags">
+  @for (tag of tags(); track tag.id) {
+    <mat-checkbox class="tag-pill" [style.--tag-color]="tag.color"
+                  [checked]="isSelected(tag.id)" (change)="setSelected(tag.id, $event.checked)">
+      {{ tag.name }} ({{ counts().get(tag.id) ?? 0 }})
+    </mat-checkbox>
+  } @empty {
+    <span class="no-tags">Todavía no hay tags</span>
+  }
+</div>
+<button type="button" class="clear-tags" (click)="clear()" [disabled]="selectedIds().length === 0">
+  Desmarcar tags
+</button>

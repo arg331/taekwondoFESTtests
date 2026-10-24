@@ -11,14 +11,23 @@ const FORMAS: TagResponse = { id: 2, name: 'Formas', color: '#1565C0', createdAt
 
 function question(id: number, tags: TagResponse[] = [], type: QuestionType | null = null): QuestionResponse {
   return {
-    id, text: `Pregunta número ${id}`, options: ['Sí', 'No'], correctAnswer: 0, explanation: '', grade: 'BLANCO', type,
-    tags, createdAt: '2026-10-12T10:00:00', updatedAt: '2026-10-12T10:00:00'
+    id, text: `Pregunta número ${id}`, options: ['Sí', 'No'], correctAnswers: [0], explanation: '', grade: 'BLANCO', type,
+    tags, createdAt: '2026-10-12T10:00:00', updatedAt: '2026-10-12T10:00:00', sharedBy: null
   };
+}
+
+/** El tag «Combate» de la profesora que comparte: otro id, el mismo nombre. */
+const COMBATE_ANA: TagResponse = { id: 90, name: 'Combate', color: '#000000', createdAt: '2026-10-12T10:00:00' };
+
+/** Preguntas de un examen que me ha compartido Ana (RF-57). */
+function shared(id: number, tags: TagResponse[] = []): QuestionResponse {
+  return { ...question(id, tags), text: `Compartida ${id}`, sharedBy: 'Ana Pérez' };
 }
 
 describe('QuestionsComponent', () => {
   let fixture: ComponentFixture<QuestionsComponent>;
   let el: HTMLElement;
+  let http: HttpTestingController;
 
   afterEach(() => localStorage.clear());
 
@@ -27,12 +36,13 @@ describe('QuestionsComponent', () => {
       imports: [QuestionsComponent],
       providers: [provideHttpClient(), provideHttpClientTesting()]
     });
-    const http = TestBed.inject(HttpTestingController);
+    http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(QuestionsComponent);
     el = fixture.nativeElement;
     await stable();
     http.expectOne(`${API}/tags`).flush([COMBATE, FORMAS]);
     http.expectOne(`${API}/questions`).flush([question(1, [COMBATE, FORMAS]), question(2, [FORMAS], 'C'), question(3)]);
+    http.expectOne(`${API}/shares/questions`).flush([shared(10, [COMBATE_ANA]), shared(11)]);
     await stable();
   });
 
@@ -47,7 +57,7 @@ describe('QuestionsComponent', () => {
   }
 
   function tagCheckbox(label: string): HTMLInputElement {
-    const box = Array.from(el.querySelectorAll('.tag-filters mat-checkbox')).find(c => c.textContent?.includes(label));
+    const box = Array.from(el.querySelectorAll('.tag-grid mat-checkbox')).find(c => c.textContent?.includes(label));
     return box?.querySelector('input') as HTMLInputElement;
   }
 
@@ -62,6 +72,74 @@ describe('QuestionsComponent', () => {
   function cards(): HTMLElement[] {
     return Array.from(el.querySelectorAll('app-question-card'));
   }
+
+  describe('preguntas compartidas conmigo (RF-57)', () => {
+    function source(label: string): HTMLButtonElement {
+      return Array.from(el.querySelectorAll('.source-switch button')).find(b => b.textContent?.includes(label)) as HTMLButtonElement;
+    }
+
+    it('tres vistas: mi banco por defecto, las compartidas conmigo y todas las disponibles', async () => {
+      expect(visibleTexts()).toEqual(['Pregunta número 1', 'Pregunta número 2', 'Pregunta número 3']);
+
+      source('Preguntas compartidas conmigo').click();
+      await stable();
+      expect(visibleTexts()).toEqual(['Compartida 10', 'Compartida 11']);
+      expect(el.querySelector('.subtitle')?.textContent).toContain('2 de 2 preguntas');
+
+      source('Todas las preguntas disponibles').click();
+      await stable();
+      expect(visibleTexts().length).toBe(5);
+    });
+
+    it('las compartidas avisan en gris de que no se pueden modificar y no tienen editar ni borrar', async () => {
+      expect(el.querySelector('.shared-hint')).toBeNull();
+
+      source('Preguntas compartidas conmigo').click();
+      await stable();
+
+      expect(el.querySelector('.shared-hint')?.textContent?.trim()).toBe('No puedes modificar las preguntas que han compartido contigo');
+      expect(cards()[0].querySelectorAll('.question-actions button').length).toBe(0);
+      expect(cards()[0].querySelector('.shared-by')?.textContent?.trim()).toBe('Compartida por Ana Pérez');
+    });
+
+    it('en «Todas», el filtro de tags va por nombre: también cuenta el «Combate» de quien la compartió', async () => {
+      source('Todas las preguntas disponibles').click();
+      await stable();
+
+      tagCheckbox('Combate').click();
+      await stable();
+
+      expect(visibleTexts()).toEqual(['Pregunta número 1', 'Compartida 10']);
+    });
+  });
+
+  describe('al cambiar o borrar un tag, las preguntas lo reflejan sin recargar (RF-08)', () => {
+    function tagManager(): import('./components/tag-manager/tag-manager.component').TagManagerComponent {
+      return fixture.debugElement.query(d => d.name === 'app-tag-manager').componentInstance;
+    }
+
+    function chipsOf(card: HTMLElement): string[] {
+      return Array.from(card.querySelectorAll('.tag-chip-small')).map(c => c.textContent?.trim() ?? '');
+    }
+
+    it('un tag borrado desaparece de sus preguntas y del filtro', async () => {
+      tagCheckbox('Combate').click();
+      await stable();
+
+      tagManager().removed.emit(COMBATE.id);
+      await stable();
+
+      expect(chipsOf(cards()[0])).toEqual(['Formas']);
+      expect(visibleTexts().length).toBe(3);
+    });
+
+    it('un tag renombrado cambia en sus preguntas', async () => {
+      tagManager().updated.emit({ ...COMBATE, name: 'Reglas' });
+      await stable();
+
+      expect(chipsOf(cards()[0])).toContain('Reglas');
+    });
+  });
 
   it('al editar, el formulario aparece justo debajo de esa pregunta (RF-45)', async () => {
     const second = cards()[1];
@@ -126,12 +204,12 @@ describe('QuestionsComponent', () => {
     it('al principio no hay ninguna marcada y se ven todas las preguntas', () => {
       expect(tagCheckbox('Combate (1)').checked).toBe(false);
       expect(tagCheckbox('Formas (2)').checked).toBe(false);
-      expect(tagCheckbox('Sin tag (1)').checked).toBe(false);
+      expect(el.textContent).not.toContain('Sin tag');
       expect(visibleTexts().length).toBe(3);
     });
 
     it('cada tag va rodeado de un borde de su color', () => {
-      const label = Array.from(el.querySelectorAll('.tag-filters .tag-pill')).find(l => l.textContent?.includes('Combate')) as HTMLElement;
+      const label = Array.from(el.querySelectorAll('.tag-grid .tag-pill')).find(l => l.textContent?.includes('Combate')) as HTMLElement;
 
       expect(label.style.getPropertyValue('--tag-color')).toBe('#C62828');
     });
@@ -143,12 +221,15 @@ describe('QuestionsComponent', () => {
       expect(visibleTexts()).toEqual(['Pregunta número 1', 'Pregunta número 2']);
     });
 
-    it('con varios marcados, basta con tener uno de ellos', async () => {
+    it('«Desmarcar tags» quita todos los marcados y vuelven a verse todas', async () => {
       tagCheckbox('Combate').click();
-      tagCheckbox('Sin tag').click();
+      tagCheckbox('Formas').click();
+      await stable();
+      (el.querySelector('.clear-tags') as HTMLButtonElement).click();
       await stable();
 
-      expect(visibleTexts()).toEqual(['Pregunta número 1', 'Pregunta número 3']);
+      expect(tagCheckbox('Combate').checked).toBe(false);
+      expect(visibleTexts().length).toBe(3);
     });
 
     it('desmarcarlos todos vuelve a mostrar todas', async () => {

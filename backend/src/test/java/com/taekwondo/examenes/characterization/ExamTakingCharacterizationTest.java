@@ -17,9 +17,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
 
     private static final List<String> RESULT_FIELDS = List.of("id", "examId", "examTitle", "studentName",
-            "studentClub", "studentEmail", "scoreVisible", "answers", "correctAnswers", "totalQuestions", "score",
-            "passed", "timeSpentSeconds", "completedAt");
-    private static final List<String> ANSWER_FIELDS = List.of("questionId", "studentAnswer", "correctAnswer", "correct");
+            "studentClub", "studentEmail", "registered", "studentUserId", "studentKey", "scoreVisible", "answers", "correctAnswers", "totalQuestions", "score",
+            "passed", "timeSpentSeconds", "completedAt", "autoSubmitted");
+    private static final List<String> ANSWER_FIELDS = List.of("questionId", "studentAnswers", "correctAnswers", "correct");
 
     // ───── Portada e intento ─────
 
@@ -60,11 +60,12 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
 
         HttpResult result = start(exam.code(), null, obj("studentName", unique("A"))).expectStatus(200);
 
-        assertThat(result.asMap()).containsOnlyKeys("attemptToken", "questions", "attemptNumber", "maxAttempts");
+        assertThat(result.asMap()).containsOnlyKeys("attemptToken", "questions", "attemptNumber", "maxAttempts", "answers",
+                "secondsLeft");
         List<Map<String, Object>> questions = result.read("$.questions");
         assertThat(questions).extracting(q -> ((Number) q.get("id")).longValue())
                 .containsExactlyElementsOf(exam.questionIds());
-        assertThat(questions.get(0)).containsOnlyKeys("id", "text", "options");
+        assertThat(questions.get(0)).containsOnlyKeys("id", "text", "options", "multipleCorrect");
         assertThat((List<Map<String, Object>>) questions.get(0).get("options"))
                 .extracting(o -> o.get("index"), o -> o.get("text"))
                 .containsExactly(
@@ -135,7 +136,7 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
         List<Map<String, Object>> answers = result.read("$.answers");
         assertThat(answers.get(0)).containsOnlyKeys(ANSWER_FIELDS);
         assertThat(answers).extracting(a -> a.get("correct")).containsExactly(true, true, true, false, false);
-        assertThat(answers.get(4).get("studentAnswer")).isNull();
+        assertThat((List<?>) answers.get(4).get("studentAnswers")).isEmpty();
     }
 
     @Test
@@ -235,7 +236,7 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
         PublishedExam exam = publishedExam(adminToken(), 5, null, true);
         List<Map<String, Object>> missingOne = answers(exam.questionIds().subList(0, 4), allCorrect(4));
         List<Map<String, Object>> duplicated = new ArrayList<>(answers(exam.questionIds(), allCorrect(5)));
-        duplicated.add(obj("questionId", exam.questionIds().get(0), "chosenOption", 0));
+        duplicated.add(obj("questionId", exam.questionIds().get(0), "chosenOptions", List.of(0)));
 
         HttpResult incomplete = submit(exam.code(), startAttempt(exam.code(), null, unique("A")), null, missingOne);
         HttpResult repeated = submit(exam.code(), startAttempt(exam.code(), null, unique("B")), null, duplicated);
@@ -256,7 +257,7 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
         HttpResult missing = submit(exam.code(), startAttempt(exam.code(), null), null,
                 answers(exam.questionIds(), Arrays.asList(4, 0, 0, 0, 0)));
 
-        assertThat(negative.expectStatus(400).message()).startsWith("answers[0].chosenOption:");
+        assertThat(negative.expectStatus(400).message()).startsWith("Opciones marcadas: ");
         assertThat(missing.expectStatus(409).message())
                 .isEqualTo("La opción 4 no existe en la pregunta " + exam.questionIds().get(0));
     }
@@ -270,7 +271,7 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
                 answers(exam.questionIds(), allCorrect(5))).expectStatus(201);
         long firstQuestion = exam.questionIds().get(0);
         put("/api/questions/" + firstQuestion, token, obj("text", "Editada", "options", FOUR_OPTIONS,
-                "correctAnswer", 3, "grade", "VERDE")).expectStatus(200);
+                "correctAnswers", List.of(3), "grade", "VERDE")).expectStatus(200);
 
         List<Map<String, Object>> results = get("/api/results/exam/" + exam.id(), token).expectStatus(200).asList();
 
@@ -300,8 +301,27 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
         assertThat(results).extracting(r -> r.get("studentName")).containsExactly("Segunda", "Primera");
         assertThat(results).allMatch(r -> Boolean.TRUE.equals(r.get("scoreVisible")));
         assertThat(stats.asMap()).containsExactlyInAnyOrderEntriesOf(Map.of(
-                "examId", (int) exam.id(), "totalAttempts", 2, "averageScore", 80.0,
+                "examId", (int) exam.id(), "totalAttempts", 2, "totalStudents", 2, "averageScore", 80.0,
                 "passedCount", 1, "failedCount", 1, "highestScore", 100, "lowestScore", 60));
+    }
+
+    @Test
+    @DisplayName("Profesor: cada entrega dice si la hizo un usuario registrado o un anónimo")
+    void teacherResults_registeredFlag() {
+        Session teacher = newTeacher();
+        PublishedExam exam = publishedExam(teacher.token(), 5, null, true);
+        Session student = newStudent();
+        submit(exam.code(), startAttempt(exam.code(), student.token(), "Registrada"), student.token(),
+                answers(exam.questionIds(), allCorrect(5))).expectStatus(201);
+        submit(exam.code(), startAttempt(exam.code(), null, "Anónima"), null,
+                answers(exam.questionIds(), allCorrect(5))).expectStatus(201);
+
+        List<Map<String, Object>> results = get("/api/results/exam/" + exam.id(), teacher.token())
+                .expectStatus(200).asList();
+
+        assertThat(results).extracting(r -> r.get("studentName"), r -> r.get("registered"))
+                .containsExactlyInAnyOrder(org.assertj.core.groups.Tuple.tuple("Registrada", true),
+                        org.assertj.core.groups.Tuple.tuple("Anónima", false));
     }
 
     @Test
@@ -313,7 +333,7 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
         HttpResult stats = get("/api/results/exam/" + exam.id() + "/statistics", teacher.token()).expectStatus(200);
 
         assertThat(stats.asMap()).containsExactlyInAnyOrderEntriesOf(Map.of(
-                "examId", (int) exam.id(), "totalAttempts", 0, "averageScore", 0.0,
+                "examId", (int) exam.id(), "totalAttempts", 0, "totalStudents", 0, "averageScore", 0.0,
                 "passedCount", 0, "failedCount", 0, "highestScore", 0, "lowestScore", 0));
     }
 

@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, linkedSignal, output, resource, signal, untracked } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { rxResource } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Observable, of, switchMap } from 'rxjs';
 import { MatCardModule } from '@angular/material/card';
@@ -10,19 +10,19 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ExamService } from '../../../../core/services/exam.service';
+import { ShareService } from '../../../../core/services/share.service';
 import { QR_PANEL_SIZE_PX, QrCodeService } from '../../../../core/services/qr-code.service';
 import { QrColorService } from '../../../../core/services/qr-color.service';
 import {
   EXAM_MAX_QUESTIONS,
   EXAM_MIN_ATTEMPTS,
-  EXAM_MAX_ATTEMPTS,
+  attemptsRequest,
   EXAM_MIN_QUESTIONS,
   EXAM_STATUS_COLOR,
   EXAM_STATUS_LABEL,
@@ -30,12 +30,20 @@ import {
   VISIBILITY_COLOR,
   VISIBILITY_ICON,
   VISIBILITY_LABEL,
-  Visibility
+  Visibility,
+  RESULT_DISPLAYS,
+  RESULT_DISPLAY_LABEL,
+  RESULT_DISPLAY_SUMMARY,
+  ResultDisplay,
+  resultDisplayFlags,
+  resultDisplayOf
 } from '../../../../core/models/exam.models';
 import { QuestionResponse } from '../../../../core/models/question.models';
 import { TagResponse } from '../../../../core/models/tag.models';
 import { ExamQuestionPickerComponent } from '../exam-question-picker/exam-question-picker.component';
+import { AttemptsSliderComponent } from '../attempts-slider/attempts-slider.component';
 import { ExamQrDialogComponent, ExamQrDialogData } from '../exam-qr-dialog/exam-qr-dialog.component';
+import { ExamShareComponent } from '../exam-share/exam-share.component';
 
 /** Cuánto se ve un aviso breve (enlace copiado, etc.). */
 const NOTICE_DURATION_MS = 3000;
@@ -43,7 +51,7 @@ const NOTICE_DURATION_MS = 3000;
 /**
  * Panel de un examen: configuración, preguntas, publicación y ciclo de vida.
  * En borrador todo es editable; publicado o cerrado solo se gestionan
- * plazo, visibilidad y estado.
+ * plazo, visibilidad y estado. Un examen que me han compartido (RF-51) solo se consulta y se proyecta.
  */
 @Component({
   selector: 'app-exam-detail',
@@ -57,11 +65,12 @@ const NOTICE_DURATION_MS = 3000;
     MatInputModule,
     MatSelectModule,
     MatSlideToggleModule,
-    MatCheckboxModule,
     MatProgressSpinnerModule,
     MatTooltipModule,
     MatDividerModule,
-    ExamQuestionPickerComponent
+    ExamQuestionPickerComponent,
+    AttemptsSliderComponent,
+    ExamShareComponent
   ],
   templateUrl: './exam-detail.component.html',
   styleUrl: './exam-detail.component.scss',
@@ -70,16 +79,16 @@ const NOTICE_DURATION_MS = 3000;
 export class ExamDetailComponent {
   private fb = inject(FormBuilder);
   private examSvc = inject(ExamService);
+  private shareSvc = inject(ShareService);
   private snackBar = inject(MatSnackBar);
   private dialog = inject(MatDialog);
   private qrCode = inject(QrCodeService);
   private qrColor = inject(QrColorService);
 
-  readonly minAttempts = EXAM_MIN_ATTEMPTS;
-  readonly maxAttempts = EXAM_MAX_ATTEMPTS;
-
   exam = input.required<ExamResponse>();
   questions = input<QuestionResponse[]>([]);
+  /** Las de los exámenes que me han compartido: las de un borrador compartido se ven aquí (RF-57). */
+  sharedQuestions = input<QuestionResponse[]>([]);
   /** Tags del profesor, para filtrar y para crear preguntas desde el selector. */
   tags = input<TagResponse[]>([]);
   /** Códigos de los otros exámenes abiertos: al publicar, el QR toma un color distinto (RF-50). */
@@ -105,6 +114,15 @@ export class ExamDetailComponent {
 
   busy = signal(false);
   error = linkedSignal<number, string | null>({ source: this.examId, computation: () => null });
+  /** Me lo han compartido (RF-51): puedo consultarlo y proyectarlo, no cambiarlo. */
+  readOnly = computed(() => !!this.exam().sharedBy);
+  /** Las preguntas elegidas de un borrador compartido, en su orden. */
+  sharedDraftQuestions = computed(() => {
+    const byId = new Map(this.sharedQuestions().map(q => [q.id, q]));
+    return this.exam().questionIds.map(id => byId.get(id)).filter((q): q is QuestionResponse => !!q);
+  });
+  /** Panel para compartirlo con otros profesores; se carga al abrirlo. */
+  showShare = linkedSignal({ source: this.examId, computation: () => false });
   editingConfig = linkedSignal({ source: this.examId, computation: () => false });
   showQr = linkedSignal({ source: this.examId, computation: () => false });
 
@@ -149,32 +167,31 @@ export class ExamDetailComponent {
     title:                  ['', [Validators.required, Validators.minLength(3), Validators.maxLength(200)]],
     numberOfQuestions:      [10, [Validators.required, Validators.min(EXAM_MIN_QUESTIONS), Validators.max(EXAM_MAX_QUESTIONS)]],
     timeLimitMinutes:       [0, [Validators.min(0), Validators.max(180)]],
-    showScore:              [true],
+    resultDisplay:          ['SCORE_AND_ANSWERS' as ResultDisplay],
     randomizeOptions:       [false],
     randomizeQuestionOrder: [false]
   });
 
+  readonly resultDisplays = RESULT_DISPLAYS;
+  readonly resultDisplayLabel = RESULT_DISPLAY_LABEL;
+  /** Qué ve el alumno al entregar, para el resumen (RF-53). */
+  resultDisplaySummary = computed(() => RESULT_DISPLAY_SUMMARY[resultDisplayOf(this.exam().config)]);
+
   publishForm = this.fb.nonNullable.group({
-    visibility: ['PUBLIC' as Visibility],
+    // Por defecto, oficial: solo entra quien tenga el código
+    visibility: ['PRIVATE' as Visibility],
     accessMode: ['OPEN' as 'OPEN' | 'REGISTERED_ONLY'],
-    expiresAt:  [''],
-    neverExpires: [false],
-    maxAttempts: [EXAM_MIN_ATTEMPTS, [Validators.required, Validators.min(EXAM_MIN_ATTEMPTS), Validators.max(EXAM_MAX_ATTEMPTS)]]
+    // Vacío = no caduca (RF-48)
+    expiresAt:  ['']
   });
+  /** Intentos por alumno al publicar (RF-52); null = sin límite. Vuelve a 1 al cambiar de examen. */
+  publishAttempts = linkedSignal<number, number | null>({ source: this.examId, computation: () => EXAM_MIN_ATTEMPTS });
+  /** Intentos de un examen publicado mientras se eligen otros. */
+  attemptsDraft = linkedSignal(() => this.exam().maxAttempts);
 
   expirationForm = this.fb.nonNullable.group({ expiresAt: [''] });
 
   constructor() {
-    // «Sin caducidad» excluye la fecha (RF-48)
-    this.publishForm.controls.neverExpires.valueChanges.pipe(takeUntilDestroyed()).subscribe(neverExpires => {
-      const date = this.publishForm.controls.expiresAt;
-      if (neverExpires) {
-        date.reset();
-        date.disable();
-      } else {
-        date.enable();
-      }
-    });
     // Los formularios reactivos no son signals: se vacían al cambiar de examen
     effect(() => {
       this.examId();
@@ -195,7 +212,7 @@ export class ExamDetailComponent {
       title,
       numberOfQuestions: config.numberOfQuestions,
       timeLimitMinutes: config.timeLimitMinutes ?? 0,
-      showScore: config.showScore,
+      resultDisplay: resultDisplayOf(config),
       randomizeOptions: config.randomizeOptions,
       randomizeQuestionOrder: config.randomizeQuestionOrder
     });
@@ -205,8 +222,8 @@ export class ExamDetailComponent {
   saveConfig(): void {
     if (this.configForm.invalid) return;
     const exam = this.exam();
-    const { title, ...config } = this.configForm.getRawValue();
-    const newConfig = { ...config, timeLimitMinutes: config.timeLimitMinutes || null };
+    const { title, resultDisplay, ...config } = this.configForm.getRawValue();
+    const newConfig = { ...config, ...resultDisplayFlags(resultDisplay), timeLimitMinutes: config.timeLimitMinutes || null };
 
     const rename$: Observable<ExamResponse> = title.trim() !== exam.title
       ? this.examSvc.rename(exam.id, { newTitle: title.trim() })
@@ -236,13 +253,17 @@ export class ExamDetailComponent {
     this.run(save$.pipe(switchMap(() => this.examSvc.publish(exam.id, {
       visibility: v.visibility,
       accessMode: v.accessMode,
-      expiresAt: v.neverExpires ? null : v.expiresAt || null,
-      neverExpires: v.neverExpires,
-      maxAttempts: v.maxAttempts
+      expiresAt: v.expiresAt || null,
+      ...attemptsRequest(this.publishAttempts())
     }))), published => {
       if (published.code) this.qrColor.assignDistinct(published.code, this.openExamCodes());
       this.showQr.set(true);
     });
+  }
+
+  /** Subir o bajar los intentos de un examen publicado (RF-52). */
+  changeAttempts(): void {
+    this.run(this.examSvc.changeAttempts(this.exam().id, attemptsRequest(this.attemptsDraft())));
   }
 
   close(): void {
@@ -270,6 +291,20 @@ export class ExamDetailComponent {
     if (!confirm(`¿Eliminar el borrador "${exam.title}"?`)) return;
     this.busy.set(true);
     this.examSvc.deleteDraft(exam.id).subscribe({
+      next: () => {
+        this.busy.set(false);
+        this.deleted.emit(exam.id);
+      },
+      error: err => this.handleError(err)
+    });
+  }
+
+  /** «Dejar de ver» un examen que me compartieron (RF-51): sale de mi lista. */
+  leave(): void {
+    const exam = this.exam();
+    if (!confirm(`¿Dejar de ver «${exam.title}»? Ya no tendrás acceso a sus resultados.`)) return;
+    this.busy.set(true);
+    this.shareSvc.leave(exam.id).subscribe({
       next: () => {
         this.busy.set(false);
         this.deleted.emit(exam.id);

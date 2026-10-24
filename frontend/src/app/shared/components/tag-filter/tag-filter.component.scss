@@ -1,0 +1,38 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  --tag-filter-border: #d6d6d6;
+}
+
+// Cuadrícula de tags; «Desmarcar tags» cuelga de su borde inferior derecho como una pestaña
+.tag-grid {
+  align-self: stretch;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--tag-filter-border);
+  border-radius: 8px 8px 0 8px;
+  background: #fafafa;
+}
+
+.no-tags { font-size: 0.85rem; color: #777; }
+
+.clear-tags {
+  margin-top: -1px;
+  padding: 4px 12px;
+  border: 1px solid var(--tag-filter-border);
+  border-top-color: #fafafa;
+  border-radius: 0 0 8px 8px;
+  background: #fafafa;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #C62828;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: #fdecea; }
+  &:focus-visible { outline: 2px solid #C62828; outline-offset: 2px; }
+  &:disabled { color: #aaa; cursor: default; }
+}

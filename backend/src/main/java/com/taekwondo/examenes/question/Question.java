@@ -39,15 +39,18 @@ public class Question {
     @Column(name = "option_text", nullable = false, length = 500)
     private List<String> options = new ArrayList<>();
 
-    /** Índice de la opción correcta dentro de {@link #options}. */
-    @Column(name = "correct_answer", nullable = false)
-    private int correctAnswer;
+    /** Índices de las opciones correctas dentro de {@link #options}: una o varias (RF-09). */
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "question_correct_options", joinColumns = @JoinColumn(name = "question_id"))
+    @Column(name = "option_index", nullable = false)
+    private Set<Integer> correctAnswers = new HashSet<>();
 
     @Column(length = 2000)
     private String explanation;
 
+    /** Cinturón mínimo (RF-43); opcional, null = sin grado. */
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(length = 20)
     private Grade grade;
 
     /** C, D o ninguno (null). */
@@ -85,17 +88,23 @@ public class Question {
         updatedAt = LocalDateTime.now();
     }
 
-    public void update(String text, List<String> options, int correctAnswer,
+    public void update(String text, List<String> options, List<Integer> correctAnswers,
                        String explanation, Grade grade, QuestionType type, Set<Tag> tags) {
         this.text = text;
         this.options.clear();
         this.options.addAll(options);
-        this.correctAnswer = correctAnswer;
+        this.correctAnswers.clear();
+        this.correctAnswers.addAll(correctAnswers);
         this.explanation = explanation;
         this.grade = grade;
         this.type = type;
         this.tags.clear();
         this.tags.addAll(tags);
+    }
+
+    /** Las correctas, de menor a mayor. */
+    public List<Integer> getCorrectAnswers() {
+        return correctAnswers.stream().sorted().toList();
     }
 
     public List<String> getOptions() {

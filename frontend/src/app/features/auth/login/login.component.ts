@@ -59,8 +59,9 @@ export class LoginComponent {
       next: () => this.router.navigateByUrl(safeReturnUrl(this.route)),
       error: (err) => {
         this.error.set(
-          err.status === 401
-            ? 'Usuario o contraseña incorrectos'
+          err.status === 401 ? 'Usuario o contraseña incorrectos'
+            // Demasiados intentos (RNF-07): el servidor dice cuánto esperar
+            : err.status === 429 ? err.error?.message ?? 'Demasiados intentos. Espera un minuto.'
             : 'Error al conectar con el servidor'
         );
         this.loading.set(false);

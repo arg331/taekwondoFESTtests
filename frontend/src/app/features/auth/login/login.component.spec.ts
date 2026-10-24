@@ -100,6 +100,24 @@ describe('LoginComponent', () => {
     expect(navigateByUrl).not.toHaveBeenCalled();
   });
 
+  it('demasiados intentos (RNF-07): muestra el aviso del servidor', async () => {
+    await render(null);
+    await submit('u', 'malamala');
+
+    http.expectOne(`${API}/auth/login`).flush({ message: 'Demasiados intentos. Espera un minuto y vuelve a intentarlo.' },
+      { status: 429, statusText: 'Too Many Requests' });
+    await stable();
+
+    expect(el.textContent).toContain('Demasiados intentos. Espera un minuto y vuelve a intentarlo.');
+  });
+
+  it('enlace para recuperar el usuario o la contraseña (RF-34)', async () => {
+    await render(null);
+
+    const link = el.querySelector('a[href="/auth/recover"]');
+    expect(link?.textContent).toContain('¿Has olvidado tu usuario o contraseña?');
+  });
+
   it('contraseña de menos de 6 caracteres: no envía', async () => {
     await render(null);
     await submit('u', '12345');

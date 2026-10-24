@@ -30,7 +30,7 @@ describe('QuestionService, TagService y UserService (contrato HTTP)', () => {
   it('preguntas', () => {
     const questions = TestBed.inject(QuestionService);
     const request: QuestionRequest = {
-      text: '¿?', options: ['A', 'B'], correctAnswer: 1, explanation: '', grade: 'BLANCO', type: null, tagIds: [2]
+      text: '¿?', options: ['A', 'B'], correctAnswers: [1], explanation: '', grade: 'BLANCO', type: null, tagIds: [2]
     };
 
     questions.getAll().subscribe();

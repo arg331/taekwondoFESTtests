@@ -30,7 +30,7 @@ export const EXAM_MIN_QUESTIONS = 5;
 export const EXAM_MAX_QUESTIONS = 50;
 /** Intentos por alumno que puede fijar el profesor al publicar (RF-52). */
 export const EXAM_MIN_ATTEMPTS = 1;
-export const EXAM_MAX_ATTEMPTS = 20;
+export const EXAM_MAX_ATTEMPTS = 4;
 
 export const EXAM_STATUS_ICON: Record<ExamStatus, string> = {
   DRAFT: 'edit_note', PUBLISHED: 'check_circle', EXPIRED: 'schedule'
@@ -40,6 +40,8 @@ export interface ExamConfig {
   numberOfQuestions: number;
   timeLimitMinutes: number | null;
   showScore: boolean;
+  /** Con la nota, el alumno ve sus respuestas bien o mal (nunca la correcta, RF-53). */
+  showAnswers: boolean;
   randomizeOptions: boolean;
   randomizeQuestionOrder: boolean;
 }
@@ -57,8 +59,10 @@ export interface ExamResponse {
   code: string | null;
   createdAt: string;
   expiresAt: string | null;
-  /** Intentos por alumno (RF-52). */
-  maxAttempts: number;
+  /** Intentos por alumno (RF-52); null = sin límite. */
+  maxAttempts: number | null;
+  /** Quién me lo ha compartido (RF-51): solo puedo consultarlo. null en los exámenes propios. */
+  sharedBy: string | null;
 }
 
 /**
@@ -69,9 +73,36 @@ export interface PublishedQuestionResponse {
   questionId: number;
   text: string;
   options: string[];
-  correctAnswer: number;
+  correctAnswers: number[];
   explanation: string | null;
   editedSincePublished: boolean;
+}
+
+/** Qué ve el alumno al entregar (RF-53). */
+export type ResultDisplay = 'NOTHING' | 'SCORE' | 'SCORE_AND_ANSWERS';
+
+export const RESULT_DISPLAYS: readonly ResultDisplay[] = ['NOTHING', 'SCORE', 'SCORE_AND_ANSWERS'];
+
+export const RESULT_DISPLAY_LABEL: Record<ResultDisplay, string> = {
+  NOTHING: 'Nada',
+  SCORE: 'Nota',
+  SCORE_AND_ANSWERS: 'Nota y respuestas'
+};
+
+/** Cómo lo dice el resumen del examen. */
+export const RESULT_DISPLAY_SUMMARY: Record<ResultDisplay, string> = {
+  NOTHING: 'No muestra nada',
+  SCORE: 'Muestra solo la nota',
+  SCORE_AND_ANSWERS: 'Muestra nota y respuestas'
+};
+
+export function resultDisplayOf(config: Pick<ExamConfig, 'showScore' | 'showAnswers'>): ResultDisplay {
+  if (!config.showScore) return 'NOTHING';
+  return config.showAnswers ? 'SCORE_AND_ANSWERS' : 'SCORE';
+}
+
+export function resultDisplayFlags(display: ResultDisplay): Pick<ExamConfig, 'showScore' | 'showAnswers'> {
+  return { showScore: display !== 'NOTHING', showAnswers: display === 'SCORE_AND_ANSWERS' };
 }
 
 /** Crear borrador vacío o pre-generado (requiredAnyOfTagIds solo aplica al pre-generado). */
@@ -84,10 +115,17 @@ export interface PublishExamRequest {
   visibility: Visibility;
   accessMode: AccessMode;
   expiresAt: string | null;
-  /** Abierto hasta que se cierre a mano (RF-48); no se combina con expiresAt. */
-  neverExpires?: boolean;
-  /** Intentos por alumno (RF-52); sin él, 1. */
+  /** Intentos por alumno (RF-52): de 1 a 4, o unlimitedAttempts; sin ninguno, 1. */
   maxAttempts?: number;
+  unlimitedAttempts?: boolean;
+}
+
+/** Cambiar los intentos de un examen publicado: un número de 1 a 4 o sin límite. */
+export type ChangeAttemptsRequest = { maxAttempts: number } | { unlimitedAttempts: true };
+
+/** Cuerpo para pedir n intentos, o sin límite si es null. */
+export function attemptsRequest(maxAttempts: number | null): ChangeAttemptsRequest {
+  return maxAttempts === null ? { unlimitedAttempts: true } : { maxAttempts };
 }
 
 export interface RenameExamRequest {
@@ -112,6 +150,8 @@ export interface PublicQuestionResponse {
   id: number;
   text: string;
   options: { index: number; text: string }[];
+  /** Tiene varias correctas: hay que marcarlas todas (RF-09). */
+  multipleCorrect: boolean;
 }
 
 /** El alumno se identifica al empezar (DE-04); la entrega queda a su nombre. */
@@ -126,5 +166,17 @@ export interface ExamAttemptResponse {
   questions: PublicQuestionResponse[];
   /** Qué intento es, de cuántos tiene el alumno (RF-52). */
   attemptNumber: number;
-  maxAttempts: number;
+  /** null = sin límite. */
+  maxAttempts: number | null;
+  /** Lo ya marcado en cada pregunta (vacío = sin responder): al recuperar el intento vuelve (RF-24). */
+  answers: Record<number, number[]>;
+  /** Segundos que le quedan; null sin tiempo límite. */
+  secondsLeft: number | null;
+}
+
+/** Lo marcado en una pregunta, guardado al contestarla (RF-24). */
+export interface SaveAnswerRequest {
+  attemptToken: string;
+  questionId: number;
+  chosenOptions: number[];
 }

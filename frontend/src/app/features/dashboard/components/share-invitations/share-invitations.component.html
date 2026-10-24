@@ -1,0 +1,33 @@
+@if ((invitations.value()?.length ?? 0) > 0 || accepted()) {
+  <section class="invitations" aria-label="Invitaciones a exámenes compartidos">
+    @for (invitation of invitations.value() ?? []; track invitation.id) {
+      <mat-card class="invitation">
+        <mat-card-content>
+          <mat-icon class="invitation-icon">group_add</mat-icon>
+          <p class="invitation-text">
+            <strong>{{ invitation.invitedBy }}</strong> quiere compartir contigo el examen:
+            <strong>{{ invitation.examTitle }}</strong>
+          </p>
+          <div class="invitation-actions">
+            <button mat-flat-button color="primary" type="button" (click)="accept(invitation)" [disabled]="busy()">
+              <mat-icon>check</mat-icon>Aceptar
+            </button>
+            <button mat-stroked-button type="button" (click)="reject(invitation)" [disabled]="busy()">
+              <mat-icon>close</mat-icon>Rechazar
+            </button>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    }
+    @if (accepted(); as a) {
+      <p class="accepted-note">
+        <mat-icon>check_circle</mat-icon>
+        Has aceptado «{{ a.examTitle }}»:
+        <a [routerLink]="['/exams']" [queryParams]="{ select: a.examId }">verlo en Exámenes</a>
+      </p>
+    }
+    @if (error()) {
+      <p class="invitation-error">{{ error() }}</p>
+    }
+  </section>
+}

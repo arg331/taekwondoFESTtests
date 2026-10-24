@@ -12,7 +12,8 @@ interface AnswerRow {
   number: number;
   text: string;
   chosen: string | null;
-  correctOption: string;
+  /** null cuando el alumno no recibe la correcta (RF-53). */
+  correctOption: string | null;
   correct: boolean;
 }
 
@@ -41,13 +42,15 @@ export class ExamResultCardComponent {
       .map(answer => {
         const position = shown.findIndex(q => q.id === answer.questionId);
         const question = shown[position];
-        const optionText = (index: number | null) =>
-          index === null ? null : question?.options.find(o => o.index === index)?.text ?? '—';
+        // Varias opciones se muestran separadas por comas; ninguna, null
+        const optionTexts = (indexes: number[] | null) => !indexes?.length ? null : indexes
+          .map(index => question?.options.find(o => o.index === index)?.text ?? '—').join(', ');
         return {
           number: position + 1,
           text: question?.text ?? '',
-          chosen: optionText(answer.studentAnswer),
-          correctOption: optionText(answer.correctAnswer) ?? '—',
+          chosen: optionTexts(answer.studentAnswers),
+          // El alumno nunca recibe la correcta (RF-53): entonces no se muestra
+          correctOption: optionTexts(answer.correctAnswers),
           correct: answer.correct
         };
       })

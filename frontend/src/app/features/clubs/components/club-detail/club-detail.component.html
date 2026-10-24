@@ -35,7 +35,7 @@
         <div class="member">
           <mat-icon class="avatar">account_circle</mat-icon>
           <div class="member-info">
-            <span class="member-name">{{ member.displayName }}</span>
+            <a class="member-name" [routerLink]="['/results/user', member.id]" [attr.aria-label]="'Ver los resultados de ' + member.displayName">{{ member.displayName }}</a>
             <span class="member-username">{{ member.username }}</span>
           </div>
           <span class="role-badge" [attr.data-role]="member.role">{{ roleLabel[member.role] }}</span>

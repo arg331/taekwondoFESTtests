@@ -24,4 +24,14 @@ export class TagService {
   rename(id: number, request: RenameTagRequest): Observable<TagResponse> {
     return this.http.patch<TagResponse>(`${this.api}/${id}`, request);
   }
+
+  /** RF-08. */
+  changeColor(id: number, newColor: string): Observable<TagResponse> {
+    return this.http.patch<TagResponse>(`${this.api}/${id}/color`, { newColor });
+  }
+
+  /** Lo quita de las preguntas que lo tienen; ellas no se borran (RF-08). */
+  delete(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.api}/${id}`);
+  }
 }

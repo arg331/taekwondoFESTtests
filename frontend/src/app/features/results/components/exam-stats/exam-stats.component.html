@@ -1,8 +1,14 @@
 <div class="stats-row">
   <mat-card class="stat-mini">
     <mat-card-content>
+      <p class="stat-n">{{ stats().totalStudents }}</p>
+      <p class="stat-l">Alumnos</p>
+    </mat-card-content>
+  </mat-card>
+  <mat-card class="stat-mini">
+    <mat-card-content>
       <p class="stat-n">{{ stats().totalAttempts }}</p>
-      <p class="stat-l">Intentos</p>
+      <p class="stat-l">Entregas</p>
     </mat-card-content>
   </mat-card>
   <mat-card class="stat-mini">
@@ -37,7 +43,7 @@
   </mat-card>
 </div>
 
-@if (stats().totalAttempts > 0) {
+@if (stats().totalStudents > 0) {
   <div class="pie-row">
     <svg class="pie-chart" viewBox="-1.1 -1.1 2.2 2.2" role="img"
          [attr.aria-label]="'Aprobados ' + (passedPct() * 100 | number:'1.0-0') + '%'">

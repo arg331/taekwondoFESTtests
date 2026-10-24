@@ -53,6 +53,36 @@ describe('UsersComponent', () => {
     localStorage.clear();
   });
 
+  describe('buscar (RF-37: si alguien olvida su usuario, se busca por su email)', () => {
+    async function search(text: string): Promise<string[]> {
+      const input = el.querySelector('.user-search input') as HTMLInputElement;
+      input.value = text;
+      input.dispatchEvent(new Event('input'));
+      await stable();
+      return Array.from(el.querySelectorAll('.user-card')).map(c => c.querySelector('.user-name')?.textContent?.trim() ?? '');
+    }
+
+    it('por email, usuario o nombre, sin distinguir mayúsculas ni tildes', async () => {
+      expect((await search('U3@X.ES'))[0]).toContain('Luis');
+      expect(await search('u2')).toHaveLength(1);
+      expect((await search('ána'))[0]).toContain('Ana');
+      expect(await search('')).toHaveLength(3);
+    });
+
+    it('sin resultados lo dice', async () => {
+      await search('nadie');
+
+      expect(el.textContent).toContain('Ningún usuario coincide con «nadie».');
+    });
+  });
+
+  it('cada usuario lleva a sus resultados (RF-55)', () => {
+    const link = el.querySelector('[data-id="2"] a.user-results') as HTMLAnchorElement;
+
+    expect(link.getAttribute('href')).toBe('/results/user/2');
+    expect(link.textContent).toContain('Ver resultados');
+  });
+
   async function stable(): Promise<void> {
     fixture.detectChanges();
     await fixture.whenStable();

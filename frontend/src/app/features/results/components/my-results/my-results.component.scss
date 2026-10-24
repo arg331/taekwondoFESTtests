@@ -15,3 +15,9 @@
   mat-icon { font-size: 3rem; height: 3rem; width: 3rem; }
   p { margin: 0; }
 }
+
+.auto-tag {
+  display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 10px;
+  font-size: 0.7rem; font-weight: 600; white-space: nowrap;
+  background: #eeeeee; color: #616161;
+}

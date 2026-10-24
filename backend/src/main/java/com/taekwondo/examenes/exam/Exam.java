@@ -33,7 +33,7 @@ public class Exam {
 
     public static final int MAX_TITLE_LENGTH = 200;
     public static final int MIN_ATTEMPTS = 1;
-    public static final int MAX_ATTEMPTS = 20;
+    public static final int MAX_ATTEMPTS = 4;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -60,9 +60,9 @@ public class Exam {
     @Embedded
     private ExamConfig config;
 
-    /** Intentos por alumno (RF-52); se fija al publicar. */
-    @Column(name = "max_attempts", nullable = false)
-    private int maxAttempts = MIN_ATTEMPTS;
+    /** Intentos por alumno (RF-52): de 1 a 4, o null = sin límite. Se fija al publicar y se puede cambiar. */
+    @Column(name = "max_attempts")
+    private Integer maxAttempts = MIN_ATTEMPTS;
 
     /** IDs de las preguntas, en orden. Sin FK: las preguntas viven en su propio agregado. */
     @ElementCollection(fetch = FetchType.EAGER)
@@ -134,7 +134,8 @@ public class Exam {
      */
     public Exam copyAs(String newTitle) {
         ExamConfig configCopy = new ExamConfig(config.getNumberOfQuestions(), config.getTimeLimitMinutes(),
-                config.isShowScore(), config.isRandomizeOptions(), config.isRandomizeQuestionOrder());
+                config.isShowScore(), config.isShowAnswers(), config.isRandomizeOptions(),
+                config.isRandomizeQuestionOrder());
         Exam copy = new Exam(newTitle, ownerId, configCopy, generationTags);
         copy.questionIds.addAll(questionIds);
         return copy;
@@ -144,11 +145,9 @@ public class Exam {
 
     /** Publica con las preguntas del banco en el orden del examen; se guarda una copia de cada una. */
     public void publish(String code, Visibility visibility, ExamAccessMode accessMode, LocalDateTime expiresAt,
-                        int maxAttempts, List<Question> questionsInOrder) {
+                        Integer maxAttempts, List<Question> questionsInOrder) {
         requireDraft("publicar");
-        if (maxAttempts < MIN_ATTEMPTS || maxAttempts > MAX_ATTEMPTS) {
-            throw new IllegalArgumentException("Intentos fuera de rango: " + maxAttempts);
-        }
+        requireAttemptsInRange(maxAttempts);
         int count = questionIds.size();
         if (count < ExamConfig.MIN_QUESTIONS || count > ExamConfig.MAX_QUESTIONS) {
             throw new BusinessRuleException("El examen debe tener entre " + ExamConfig.MIN_QUESTIONS + " y "
@@ -193,6 +192,20 @@ public class Exam {
         expiresAt = newExpiresAt;
     }
 
+    /** Subir o bajar los intentos de un examen ya publicado; null = sin límite. */
+    public void changeMaxAttempts(Integer newMaxAttempts) {
+        if (status == ExamStatus.DRAFT) {
+            throw new BusinessRuleException("Los intentos de un borrador se eligen al publicarlo");
+        }
+        requireAttemptsInRange(newMaxAttempts);
+        maxAttempts = newMaxAttempts;
+    }
+
+    /** ¿Ha gastado ya todos sus intentos quien lleva usedAttempts? Sin límite, nunca. */
+    public boolean attemptsUsedUp(int usedAttempts) {
+        return maxAttempts != null && usedAttempts >= maxAttempts;
+    }
+
     public void changeVisibility(Visibility newVisibility) {
         if (status == ExamStatus.DRAFT) {
             throw new BusinessRuleException("Un borrador no tiene visibilidad pública");
@@ -229,6 +242,12 @@ public class Exam {
 
     public Set<Tag> getGenerationTags() {
         return Collections.unmodifiableSet(generationTags);
+    }
+
+    private static void requireAttemptsInRange(Integer attempts) {
+        if (attempts != null && (attempts < MIN_ATTEMPTS || attempts > MAX_ATTEMPTS)) {
+            throw new IllegalArgumentException("Intentos fuera de rango: " + attempts);
+        }
     }
 
     private void requireDraft(String action) {

@@ -18,9 +18,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ExamLifecycleCharacterizationTest extends ApiCharacterizationTest {
 
     private static final List<String> EXAM_FIELDS = List.of("id", "title", "ownerId", "status", "visibility",
-            "accessMode", "config", "questionIds", "generationTags", "code", "createdAt", "expiresAt", "maxAttempts");
+            "accessMode", "config", "questionIds", "generationTags", "code", "createdAt", "expiresAt", "maxAttempts",
+            "sharedBy");
     private static final List<String> CONFIG_FIELDS = List.of("numberOfQuestions", "timeLimitMinutes",
-            "showScore", "randomizeOptions", "randomizeQuestionOrder");
+            "showScore", "showAnswers", "randomizeOptions", "randomizeQuestionOrder");
 
     // ───── Creación ─────
 
@@ -44,7 +45,7 @@ class ExamLifecycleCharacterizationTest extends ApiCharacterizationTest {
         assertThat((List<?>) result.read("$.questionIds")).isEmpty();
         assertThat((List<?>) result.read("$.generationTags")).isEmpty();
         assertThat((Map<String, Object>) result.read("$.config")).containsExactlyInAnyOrderEntriesOf(Map.of(
-                "numberOfQuestions", 10, "timeLimitMinutes", 30, "showScore", true,
+                "numberOfQuestions", 10, "timeLimitMinutes", 30, "showScore", true, "showAnswers", true,
                 "randomizeOptions", true, "randomizeQuestionOrder", false));
     }
 
@@ -59,11 +60,11 @@ class ExamLifecycleCharacterizationTest extends ApiCharacterizationTest {
 
     @ParameterizedTest(name = "preguntas={0}, minutos={1}, título=''{2}''")
     @CsvSource({
-            "4, 10, Válido, numberOfQuestions",
-            "51, 10, Válido, numberOfQuestions",
-            "10, 181, Válido, timeLimitMinutes",
-            "10, -1, Válido, timeLimitMinutes",
-            "10, 10, ' ', title"
+            "4, 10, Válido, Número de preguntas",
+            "51, 10, Válido, Número de preguntas",
+            "10, 181, Válido, Tiempo límite",
+            "10, -1, Válido, Tiempo límite",
+            "10, 10, ' ', Título"
     })
     @DisplayName("Borrador: límites de configuración devuelven 400")
     void createDraft_outOfRange_badRequest(int questions, int minutes, String title, String field) {
@@ -188,7 +189,7 @@ class ExamLifecycleCharacterizationTest extends ApiCharacterizationTest {
     // ───── Publicación y estados ─────
 
     @Test
-    @DisplayName("Publicar: sin fecha expira en 1 h, genera código EXM-XXXXXXXX y acceso OPEN por defecto")
+    @DisplayName("Publicar: sin fecha no caduca (RF-48), genera código EXM-XXXXXXXX y acceso OPEN por defecto")
     void publish_defaults() {
         Session teacher = newTeacher();
         List<Long> questionIds = createQuestions(teacher.token(), 5);
@@ -201,7 +202,9 @@ class ExamLifecycleCharacterizationTest extends ApiCharacterizationTest {
         assertThat((String) result.read("$.visibility")).isEqualTo("PRIVATE");
         assertThat((String) result.read("$.accessMode")).isEqualTo("OPEN");
         assertThat((String) result.read("$.code")).matches("EXM-[0-9A-F]{8}");
-        assertThat(LocalDateTime.parse(result.read("$.expiresAt"))).isEqualTo(now().plusHours(1));
+        assertThat((Object) result.read("$.expiresAt")).isNull();
+        clock.advance(Duration.ofDays(30));
+        get("/api/exams/by-code/" + result.read("$.code"), null).expectStatus(200);
     }
 
     @Test
@@ -231,35 +234,6 @@ class ExamLifecycleCharacterizationTest extends ApiCharacterizationTest {
     }
 
     @Test
-    @DisplayName("Publicar sin caducidad: no tiene fecha de expiración y sigue abierto días después (RF-48)")
-    void publish_neverExpires() {
-        Session teacher = newTeacher();
-        long examId = createDraft(teacher.token(), 5, null, true);
-        setQuestions(teacher.token(), examId, createQuestions(teacher.token(), 5));
-
-        HttpResult result = post("/api/exams/" + examId + "/publish", teacher.token(),
-                obj("visibility", "PRIVATE", "neverExpires", true)).expectStatus(200);
-        clock.advance(Duration.ofDays(30));
-
-        assertThat((Object) result.read("$.expiresAt")).isNull();
-        get("/api/exams/by-code/" + result.read("$.code"), null).expectStatus(200);
-    }
-
-    @Test
-    @DisplayName("Publicar: pedir a la vez fecha de caducidad y «sin caducidad» devuelve 409")
-    void publish_neverExpiresWithDate_conflict() {
-        Session teacher = newTeacher();
-        long examId = createDraft(teacher.token(), 5, null, true);
-        setQuestions(teacher.token(), examId, createQuestions(teacher.token(), 5));
-
-        HttpResult result = post("/api/exams/" + examId + "/publish", teacher.token(), obj(
-                "visibility", "PRIVATE", "neverExpires", true, "expiresAt", now().plusDays(1).toString()));
-
-        assertThat(result.expectStatus(409).message())
-                .isEqualTo("Indica una fecha de caducidad o «sin caducidad», no las dos");
-    }
-
-    @Test
     @DisplayName("Publicar: fecha de expiración en el pasado devuelve 409; sin visibilidad, 400")
     void publish_pastExpirationOrMissingVisibility() {
         Session teacher = newTeacher();
@@ -271,7 +245,7 @@ class ExamLifecycleCharacterizationTest extends ApiCharacterizationTest {
 
         assertThat(past.expectStatus(409).message())
                 .isEqualTo("La fecha de expiración debe ser posterior al momento actual");
-        assertThat(noVisibility.expectStatus(400).message()).startsWith("visibility:");
+        assertThat(noVisibility.expectStatus(400).message()).startsWith("Tipo de examen:");
     }
 
     @Test

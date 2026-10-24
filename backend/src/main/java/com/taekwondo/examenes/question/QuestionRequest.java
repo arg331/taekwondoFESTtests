@@ -1,7 +1,6 @@
 package com.taekwondo.examenes.question;
 
 import jakarta.validation.constraints.AssertTrue;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -15,14 +14,19 @@ public record QuestionRequest(
         @NotNull @Size(min = Question.MIN_OPTIONS, max = Question.MAX_OPTIONS,
                 message = "debe tener entre " + Question.MIN_OPTIONS + " y " + Question.MAX_OPTIONS + " opciones")
         List<@NotBlank @Size(max = 500) String> options,
-        @Min(0) int correctAnswer,
+        /** Una o varias (RF-09). */
+        List<Integer> correctAnswers,
         @Size(max = 2000) String explanation,
-        @NotNull Grade grade,
+        /** Opcional (RF-43). */
+        Grade grade,
         QuestionType type,
         Set<Long> tagIds
 ) {
-    @AssertTrue(message = "debe señalar una de las opciones")
-    public boolean isCorrectAnswerInRange() {
-        return options == null || correctAnswer < options.size();
+    @AssertTrue(message = "debe señalar una o más opciones de la pregunta, sin repetir")
+    public boolean isCorrectAnswersValid() {
+        if (correctAnswers == null || correctAnswers.isEmpty() || correctAnswers.contains(null)) return false;
+        boolean inRange = options == null
+                || correctAnswers.stream().allMatch(i -> i >= 0 && i < options.size());
+        return inRange && Set.copyOf(correctAnswers).size() == correctAnswers.size();
     }
 }

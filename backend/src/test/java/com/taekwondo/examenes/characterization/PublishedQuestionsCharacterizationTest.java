@@ -64,7 +64,7 @@ class PublishedQuestionsCharacterizationTest extends ApiCharacterizationTest {
                 .containsExactlyElementsOf(exam.questionIds());
         assertThat(published.get(0)).containsEntry("text", originalText)
                 .containsEntry("options", FOUR_OPTIONS)
-                .containsEntry("correctAnswer", 0)
+                .containsEntry("correctAnswers", List.of(0))
                 .containsEntry("explanation", "Explicación de " + originalText)
                 .containsEntry("editedSincePublished", true);
         assertThat(published.get(1)).containsEntry("editedSincePublished", false);
@@ -90,7 +90,7 @@ class PublishedQuestionsCharacterizationTest extends ApiCharacterizationTest {
 
     private void editQuestion(String token, long questionId, String text, int correctAnswer) {
         put("/api/questions/" + questionId, token, obj("text", text, "options", EDITED_OPTIONS,
-                "correctAnswer", correctAnswer, "grade", "VERDE")).expectStatus(200);
+                "correctAnswers", List.of(correctAnswer), "grade", "VERDE")).expectStatus(200);
     }
 
     private Map<String, Object> attemptQuestion(String code, long questionId) {

@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal, output, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { Observable, of } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
@@ -17,7 +18,7 @@ import { ROLE_LABEL } from '../../../../core/models/auth.models';
  */
 @Component({
   selector: 'app-club-detail',
-  imports: [MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatProgressSpinnerModule],
+  imports: [MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatProgressSpinnerModule, RouterLink],
   templateUrl: './club-detail.component.html',
   styleUrl: './club-detail.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush

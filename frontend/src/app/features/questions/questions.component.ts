@@ -10,6 +10,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { QuestionService } from '../../core/services/question.service';
 import { TagService } from '../../core/services/tag.service';
+import { ShareService } from '../../core/services/share.service';
 import {
   QuestionTypeFilter,
   QuestionResponse
@@ -18,14 +19,20 @@ import { TagResponse } from '../../core/models/tag.models';
 import { QuestionFormComponent } from './components/question-form/question-form.component';
 import { QuestionCardComponent, QuestionCardVariant } from './components/question-card/question-card.component';
 import { TagManagerComponent } from './components/tag-manager/tag-manager.component';
-import { countByTag, matchesGrade, matchesTags, matchesType } from '../exams/components/exam-question-picker/question-filters';
+import { matchesGrade, matchesType } from '../exams/components/exam-question-picker/question-filters';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { FULL_GRADE_RANGE, GradeRange, GradeRangeComponent } from '../../shared/components/grade-range/grade-range.component';
+import { TagFilterComponent } from '../../shared/components/tag-filter/tag-filter.component';
 
 type QuestionsView = 'cards' | 'list';
+/** Qué preguntas se ven (RF-57): las mías, las que me han compartido o todas. */
+type QuestionsSource = 'mine' | 'shared' | 'all';
 const VIEW_STORAGE_KEY = 'questions-view';
 
-/** Banco de preguntas del profesor: filtros, listado, alta/edición y tags. */
+/**
+ * Banco de preguntas del profesor: filtros, listado, alta/edición y tags. Además consulta, sin poder
+ * cambiarlas, las preguntas de los exámenes que le han compartido (RF-57).
+ */
 @Component({
   selector: 'app-questions',
   imports: [
@@ -38,6 +45,7 @@ const VIEW_STORAGE_KEY = 'questions-view';
     MatCheckboxModule,
     MatButtonToggleModule,
     GradeRangeComponent,
+    TagFilterComponent,
     MatProgressSpinnerModule,
     QuestionFormComponent,
     QuestionCardComponent,
@@ -50,11 +58,23 @@ const VIEW_STORAGE_KEY = 'questions-view';
 export class QuestionsComponent implements OnInit {
   private questionSvc = inject(QuestionService);
   private tagSvc      = inject(TagService);
+  private shareSvc    = inject(ShareService);
   private readonly destroyRef = inject(DestroyRef);
 
 
   loading     = signal(true);
   questions   = signal<QuestionResponse[]>([]);
+  /** Las de los exámenes que me han compartido: solo se consultan. */
+  sharedQuestions = signal<QuestionResponse[]>([]);
+  source      = signal<QuestionsSource>('mine');
+  /** Las preguntas de la vista elegida, antes de filtrar. */
+  pool        = computed(() => {
+    switch (this.source()) {
+      case 'mine': return this.questions();
+      case 'shared': return this.sharedQuestions();
+      case 'all': return [...this.questions(), ...this.sharedQuestions()];
+    }
+  });
   tags        = signal<TagResponse[]>([]);
   /** undefined = formulario cerrado; null = nueva pregunta; objeto = editando. */
   editing     = signal<QuestionResponse | null | undefined>(undefined);
@@ -67,27 +87,38 @@ export class QuestionsComponent implements OnInit {
   gradeRange   = signal<GradeRange>(FULL_GRADE_RANGE);
   typeFilter   = signal<QuestionTypeFilter>('');
   /** Tags marcados. Ninguno = todas las preguntas; si no, las que tengan alguno de ellos. */
-  selectedTagIds = signal<ReadonlySet<number>>(new Set());
-  /** «Sin tag» marcado: suma las preguntas que no tienen tags. */
-  untaggedSelected = signal(false);
+  selectedTagIds = signal<number[]>([]);
 
-  tagCounts     = computed(() => countByTag(this.questions()));
-  untaggedCount = computed(() => this.questions().filter(q => q.tags.length === 0).length);
+  /**
+   * Los tags se cuentan y se filtran por nombre: los de las preguntas compartidas son de otro profesor,
+   * así que su «Combate» cuenta como el mío.
+   */
+  private tagIdByName = computed(() => new Map(this.tags().map(t => [tagKey(t.name), t.id])));
+  tagCounts     = computed(() => {
+    const counts = new Map<number, number>();
+    for (const question of this.pool()) {
+      for (const tag of question.tags) {
+        const id = this.tagIdByName().get(tagKey(tag.name));
+        if (id !== undefined) counts.set(id, (counts.get(id) ?? 0) + 1);
+      }
+    }
+    return counts;
+  });
   hasFilters    = computed(() =>
-    !!this.filterText().trim() || !!this.typeFilter() || this.selectedTagIds().size > 0 || this.untaggedSelected() ||
+    !!this.filterText().trim() || !!this.typeFilter() || this.selectedTagIds().length > 0 ||
     this.gradeRange()[0] !== FULL_GRADE_RANGE[0] || this.gradeRange()[1] !== FULL_GRADE_RANGE[1]);
 
   filtered = computed(() => {
     const text = this.filterText().toLowerCase().trim();
     const grades = this.gradeRange();
     const type = this.typeFilter();
-    const selected = this.selectedTagIds();
-    const untagged = this.untaggedSelected();
-    return this.questions().filter(q =>
+    const selectedIds = new Set(this.selectedTagIds());
+    const selected = new Set(this.tags().filter(t => selectedIds.has(t.id)).map(t => tagKey(t.name)));
+    return this.pool().filter(q =>
       (!text || q.text.toLowerCase().includes(text)) &&
       matchesGrade(q, grades) &&
       matchesType(q, type) &&
-      matchesTags(q, selected, untagged));
+      (selected.size === 0 || q.tags.some(tag => selected.has(tagKey(tag.name)))));
   });
 
   ngOnInit(): void {
@@ -96,6 +127,8 @@ export class QuestionsComponent implements OnInit {
       next: q => { this.questions.set(q); this.loading.set(false); },
       error: () => this.loading.set(false)
     });
+    this.shareSvc.questions().pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({ next: q => this.sharedQuestions.set(q), error: () => this.sharedQuestions.set([]) });
   }
 
   onSaved(saved: QuestionResponse): void {
@@ -104,22 +137,26 @@ export class QuestionsComponent implements OnInit {
     this.editing.set(undefined);
   }
 
-  isTagSelected(tagId: number): boolean {
-    return this.selectedTagIds().has(tagId);
+  /** Un tag renombrado o con otro color cambia en sus preguntas sin recargar (RF-08). */
+  onTagUpdated(tag: TagResponse): void {
+    this.questions.update(list => list.map(q => q.tags.some(t => t.id === tag.id)
+      ? { ...q, tags: q.tags.map(t => t.id === tag.id ? tag : t) }
+      : q));
   }
 
-  setTagSelected(tagId: number, selected: boolean): void {
-    const ids = new Set(this.selectedTagIds());
-    if (selected) ids.add(tagId); else ids.delete(tagId);
-    this.selectedTagIds.set(ids);
+  /** Un tag borrado desaparece de sus preguntas y del filtro (RF-08). */
+  onTagRemoved(tagId: number): void {
+    this.questions.update(list => list.map(q => q.tags.some(t => t.id === tagId)
+      ? { ...q, tags: q.tags.filter(t => t.id !== tagId) }
+      : q));
+    this.selectedTagIds.update(ids => ids.filter(id => id !== tagId));
   }
 
   clearFilters(): void {
     this.filterText.set('');
     this.gradeRange.set(FULL_GRADE_RANGE);
     this.typeFilter.set('');
-    this.selectedTagIds.set(new Set());
-    this.untaggedSelected.set(false);
+    this.selectedTagIds.set([]);
   }
 
   setView(view: QuestionsView): void {
@@ -140,6 +177,10 @@ export class QuestionsComponent implements OnInit {
       error: err => this.error.set(err?.error?.message ?? 'No se pudo eliminar la pregunta')
     });
   }
+}
+
+function tagKey(name: string): string {
+  return name.trim().toLocaleLowerCase('es');
 }
 
 function loadView(): QuestionsView {

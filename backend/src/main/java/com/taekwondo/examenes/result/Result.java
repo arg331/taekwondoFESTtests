@@ -62,9 +62,13 @@ public class Result {
     @Column(name = "completed_at", nullable = false)
     private LocalDateTime completedAt;
 
+    /** Se corrigió sola al acabarse el plazo, sin que el alumno la entregara (RF-24). */
+    @Column(name = "auto_submitted", nullable = false)
+    private boolean autoSubmitted;
+
     public Result(Long examId, Long studentUserId, String studentName, String studentClub,
                   String studentEmail, List<Answer> answers, int timeSpentSeconds,
-                  LocalDateTime completedAt) {
+                  LocalDateTime completedAt, boolean autoSubmitted) {
         this.examId = examId;
         this.studentUserId = studentUserId;
         this.studentName = studentName;
@@ -76,6 +80,7 @@ public class Result {
         this.score = totalQuestions == 0 ? 0 : Math.round(correctAnswers * 100f / totalQuestions);
         this.timeSpentSeconds = timeSpentSeconds;
         this.completedAt = completedAt;
+        this.autoSubmitted = autoSubmitted;
     }
 
     public boolean isPassed() {

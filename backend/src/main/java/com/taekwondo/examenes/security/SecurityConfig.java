@@ -48,17 +48,21 @@ public class SecurityConfig {
                         new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/error").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login",
+                                "/api/auth/recovery", "/api/auth/recovery/reset").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/exams/by-code/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/clubs").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/exams/by-code/*/attempts").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/exams/by-code/*/attempts",
+                                "/api/exams/by-code/*/attempts/resume").permitAll()
+                        .requestMatchers(HttpMethod.PUT, "/api/exams/by-code/*/attempts/answers").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/results").permitAll()
                         .requestMatchers("/api/auth/me", "/api/auth/me/password", "/api/results/me",
                                 "/api/users/me/club").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/exams/public").authenticated()
                         .requestMatchers("/api/users/**").hasAuthority(ADMIN)
                         .requestMatchers("/api/questions/**", "/api/tags/**", "/api/exams/**",
-                                "/api/favorites/**", "/api/results/**", "/api/clubs/**").hasAnyAuthority(ADMIN, TEACHER)
+                                "/api/favorites/**", "/api/results/**", "/api/clubs/**", "/api/shares/**")
+                                .hasAnyAuthority(ADMIN, TEACHER)
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
@@ -72,6 +76,8 @@ public class SecurityConfig {
         config.setAllowedOrigins(allowedOrigins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
+        // Cuánto esperar tras demasiados intentos (RNF-07)
+        config.setExposedHeaders(List.of("Retry-After"));
         config.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

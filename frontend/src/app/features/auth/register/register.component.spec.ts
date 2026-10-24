@@ -105,4 +105,13 @@ describe('RegisterComponent', () => {
 
     expect(el.textContent).toContain('El usuario o email ya existe');
   });
+
+  it('demasiados intentos (RNF-07): muestra el aviso del servidor', async () => {
+    await fillRequired();
+    submitButton().click();
+    http.expectOne(`${API}/auth/register`).flush({ message: 'Demasiados intentos. Espera un minuto y vuelve a intentarlo.' }, { status: 429, statusText: 'Too Many Requests' });
+    await stable();
+
+    expect(el.textContent).toContain('Demasiados intentos. Espera un minuto y vuelve a intentarlo.');
+  });
 });

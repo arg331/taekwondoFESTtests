@@ -3,7 +3,7 @@
   <div class="page-header">
     <div>
       <h1>Banco de preguntas</h1>
-      <p class="subtitle">{{ filtered().length }} de {{ questions().length }} preguntas</p>
+      <p class="subtitle">{{ filtered().length }} de {{ pool().length }} preguntas</p>
     </div>
     <button mat-flat-button color="primary" (click)="editing.set(null)">
       <mat-icon>add</mat-icon>
@@ -17,9 +17,20 @@
                        (saved)="onSaved($event)" (cancelled)="editing.set(undefined)" />
   }
 
+  <!-- Qué preguntas se ven (RF-57) -->
+  <mat-button-toggle-group class="source-switch" hideSingleSelectionIndicator aria-label="Qué preguntas ver"
+                           [value]="source()" (change)="source.set($event.value)">
+    <mat-button-toggle value="mine">Mi banco de preguntas</mat-button-toggle>
+    <mat-button-toggle value="shared">Preguntas compartidas conmigo</mat-button-toggle>
+    <mat-button-toggle value="all">Todas las preguntas disponibles</mat-button-toggle>
+  </mat-button-toggle-group>
+  @if (source() !== 'mine' && sharedQuestions().length > 0) {
+    <p class="shared-hint">No puedes modificar las preguntas que han compartido contigo</p>
+  }
+
   <!-- El selector de vista va a la altura de «Gestión de tags» -->
   <div class="tags-row">
-    <app-tag-manager class="tags-manager" [(tags)]="tags" />
+    <app-tag-manager class="tags-manager" [(tags)]="tags" (updated)="onTagUpdated($event)" (removed)="onTagRemoved($event)" />
     <div class="view-switch" role="group" aria-label="Vista de las preguntas">
       <button type="button" aria-label="Ver como tarjetas" [attr.aria-pressed]="view() === 'cards'"
               (click)="setView('cards')">
@@ -63,17 +74,9 @@
           </mat-button-toggle-group>
         </div>
       </div>
-      <div class="tag-filters" role="group" aria-label="Filtrar por tags">
+      <div class="tag-filters">
         <span class="filter-title">Tags</span>
-        @for (tag of tags(); track tag.id) {
-          <mat-checkbox class="tag-pill" [style.--tag-color]="tag.color"
-                        [checked]="isTagSelected(tag.id)" (change)="setTagSelected(tag.id, $event.checked)">
-            {{ tag.name }} ({{ tagCounts().get(tag.id) ?? 0 }})
-          </mat-checkbox>
-        }
-        <mat-checkbox class="tag-pill untagged" [checked]="untaggedSelected()" (change)="untaggedSelected.set($event.checked)">
-          Sin tag ({{ untaggedCount() }})
-        </mat-checkbox>
+        <app-tag-filter [tags]="tags()" [counts]="tagCounts()" [(selectedIds)]="selectedTagIds" />
       </div>
     </mat-card-content>
   </mat-card>
@@ -95,8 +98,12 @@
       } @empty {
         <div class="empty">
           <mat-icon>quiz</mat-icon>
-          <p>No hay preguntas que mostrar.</p>
-          <button mat-flat-button color="primary" (click)="editing.set(null)">Crear pregunta</button>
+          @if (source() === 'shared') {
+            <p>Nadie te ha compartido preguntas todavía: llegan con los exámenes que aceptas.</p>
+          } @else {
+            <p>No hay preguntas que mostrar.</p>
+            <button mat-flat-button color="primary" (click)="editing.set(null)">Crear pregunta</button>
+          }
         </div>
       }
     </div>

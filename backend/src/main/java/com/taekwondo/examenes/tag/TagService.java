@@ -38,6 +38,20 @@ public class TagService {
         return TagResponse.from(tag);
     }
 
+    public TagResponse changeColor(Long tagId, ChangeTagColorRequest request, Long ownerId) {
+        Tag tag = getOwned(tagId, ownerId);
+        tag.changeColor(request.newColor());
+        return TagResponse.from(tag);
+    }
+
+    /** Borra el tag: deja de estar en las preguntas y en los exámenes generados con él, que no se borran (RF-08). */
+    public void delete(Long tagId, Long ownerId) {
+        Tag tag = getOwned(tagId, ownerId);
+        tagRepository.detachFromQuestions(tag.getId());
+        tagRepository.detachFromExams(tag.getId());
+        tagRepository.delete(tag);
+    }
+
     @Transactional(readOnly = true)
     public TagResponse get(Long tagId, Long ownerId) {
         return TagResponse.from(getOwned(tagId, ownerId));

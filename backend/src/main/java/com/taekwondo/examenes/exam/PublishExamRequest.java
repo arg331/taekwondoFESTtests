@@ -7,14 +7,13 @@ import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 
 /**
- * accessMode null = OPEN. Sin expiresAt, el examen caduca en una hora,
- * salvo que neverExpires sea true: entonces no caduca nunca.
+ * accessMode null = OPEN. Sin expiresAt, el examen no caduca (RF-48): queda abierto hasta que se cierre.
+ * Intentos por alumno (RF-52): maxAttempts de 1 a 4, o unlimitedAttempts; sin ninguno, 1.
  */
 public record PublishExamRequest(
         @NotNull Visibility visibility,
         ExamAccessMode accessMode,
         LocalDateTime expiresAt,
-        Boolean neverExpires,
-        /** Intentos por alumno (RF-52); null = 1. */
-        @Min(Exam.MIN_ATTEMPTS) @Max(Exam.MAX_ATTEMPTS) Integer maxAttempts
+        @Min(Exam.MIN_ATTEMPTS) @Max(Exam.MAX_ATTEMPTS) Integer maxAttempts,
+        Boolean unlimitedAttempts
 ) {}

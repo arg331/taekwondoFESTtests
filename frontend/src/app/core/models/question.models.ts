@@ -64,22 +64,28 @@ export interface QuestionResponse {
   id: number;
   text: string;
   options: string[];
-  correctAnswer: number;
+  /** Una o varias, de menor a mayor (RF-09). */
+  correctAnswers: number[];
   explanation: string | null;
-  grade: Grade;
+  /** Cinturón mínimo; opcional (null = sin grado). */
+  grade: Grade | null;
   type: QuestionType | null;
   tags: TagResponse[];
   createdAt: string;
   updatedAt: string;
+  /** Quién me la ha compartido (RF-57): solo puedo consultarla. null en las propias. */
+  sharedBy: string | null;
 }
 
 /** Cuerpo para crear y para editar una pregunta. */
 export interface QuestionRequest {
   text: string;
   options: string[];
-  correctAnswer: number;
+  /** Una o varias, de menor a mayor (RF-09). */
+  correctAnswers: number[];
   explanation: string;
-  grade: Grade;
+  /** Cinturón mínimo; opcional (null = sin grado). */
+  grade: Grade | null;
   type: QuestionType | null;
   tagIds: number[];
 }

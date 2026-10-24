@@ -1,0 +1,21 @@
+// Tarjeta de las pantallas sin sesión para recuperar la cuenta (RF-34), como la de cambiar la contraseña
+.page-wrapper {
+  display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 16px;
+  background: linear-gradient(135deg, #3a0000 0%, #6b0000 50%, #3a0000 100%);
+}
+
+.auth-card {
+  width: 100%; max-width: 420px; padding: 8px; border-radius: 8px;
+  border-top: 4px solid var(--mat-sys-primary); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+mat-card-header { margin-bottom: 16px; }
+.full-width { width: 100%; }
+.hint { color: #757575; font-size: 0.85rem; margin: 12px 0 0; }
+.error-msg { color: #c62828; font-size: 0.9rem; margin: 0 0 12px; }
+
+.sent, .done {
+  display: flex; align-items: flex-start; gap: 8px; margin: 0;
+  color: #2e7d32; line-height: 1.5;
+  mat-icon { flex-shrink: 0; }
+}

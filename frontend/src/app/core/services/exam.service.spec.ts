@@ -17,7 +17,7 @@ describe('ExamService y ResultService (contrato HTTP)', () => {
   let http: HttpTestingController;
 
   const draft: ExamDraftRequest = {
-    title: 'Examen', numberOfQuestions: 5, timeLimitMinutes: null, showScore: true,
+    title: 'Examen', numberOfQuestions: 5, timeLimitMinutes: null, showScore: true, showAnswers: true,
     randomizeOptions: false, randomizeQuestionOrder: false
   };
 
@@ -94,7 +94,7 @@ describe('ExamService y ResultService (contrato HTTP)', () => {
   it('resultados', () => {
     const submission = {
       examCode: 'EXM-1', attemptToken: 't',
-      answers: [{ questionId: 1, chosenOption: null }]
+      answers: [{ questionId: 1, chosenOptions: [] }]
     };
     results.submit(submission).subscribe();
     expectCall('POST', `${API}/results`, submission);

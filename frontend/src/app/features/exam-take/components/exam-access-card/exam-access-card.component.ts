@@ -6,8 +6,12 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { ExamResponse, StartAttemptRequest, VISIBILITY_ICON } from '../../../../core/models/exam.models';
+import { ClubService } from '../../../../core/services/club.service';
+import { ClubResponse } from '../../../../core/models/club.models';
 import { UserResponse } from '../../../../core/models/auth.models';
 import { APP_NAME } from '../../../../core/app-brand';
 
@@ -28,6 +32,7 @@ export type StudentInfo = StartAttemptRequest;
     MatIconModule,
     MatFormFieldModule,
     MatInputModule,
+    MatSelectModule,
     MatProgressSpinnerModule
   ],
   templateUrl: './exam-access-card.component.html',
@@ -37,6 +42,10 @@ export type StudentInfo = StartAttemptRequest;
 export class ExamAccessCardComponent {
   readonly appName = APP_NAME;
   private fb = inject(FormBuilder);
+  private clubSvc = inject(ClubService);
+
+  /** Clubes que existen, para elegir el propio (vale también sin cuenta). */
+  readonly clubs = toSignal(this.clubSvc.list(), { initialValue: [] as ClubResponse[] });
 
   exam = input.required<ExamResponse>();
   user = input<UserResponse | null>(null);
@@ -51,7 +60,8 @@ export class ExamAccessCardComponent {
 
   form = this.fb.nonNullable.group({
     studentName:  ['', [Validators.required, Validators.minLength(2), Validators.maxLength(100)]],
-    studentClub:  ['', Validators.maxLength(100)],
+    /** Nombre del club elegido; '' = sin club. */
+    studentClub:  [''],
     studentEmail: ['', Validators.email]
   });
 

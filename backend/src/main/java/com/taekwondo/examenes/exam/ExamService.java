@@ -1,23 +1,24 @@
 package com.taekwondo.examenes.exam;
 
-import com.taekwondo.examenes.attempt.ExamAttempt;
-import com.taekwondo.examenes.attempt.ExamAttemptRepository;
 import com.taekwondo.examenes.common.BusinessRuleException;
 import com.taekwondo.examenes.common.ResourceNotFoundException;
-import com.taekwondo.examenes.question.PublicQuestionResponse;
 import com.taekwondo.examenes.question.Question;
 import com.taekwondo.examenes.question.QuestionRepository;
-import com.taekwondo.examenes.security.JwtService;
+import com.taekwondo.examenes.share.ExamShare;
+import com.taekwondo.examenes.share.ExamShareRepository;
+import com.taekwondo.examenes.share.ShareStatus;
 import com.taekwondo.examenes.tag.Tag;
 import com.taekwondo.examenes.tag.TagService;
+import com.taekwondo.examenes.user.User;
+import com.taekwondo.examenes.user.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -26,7 +27,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static com.taekwondo.examenes.question.QuestionSpecifications.hasAnyTag;
 import static com.taekwondo.examenes.question.QuestionSpecifications.ownedBy;
@@ -35,27 +36,23 @@ import static com.taekwondo.examenes.question.QuestionSpecifications.ownedBy;
 @Transactional
 public class ExamService {
 
-    private static final Duration DEFAULT_PUBLICATION = Duration.ofHours(1);
-    /** Margen sobre el tiempo límite para absorber la latencia del envío. */
-    public static final Duration SUBMIT_GRACE = Duration.ofMinutes(2);
-    private static final Duration UNLIMITED_ATTEMPT_VALIDITY = Duration.ofHours(12);
     private static final int MAX_CODE_ATTEMPTS = 5;
 
     private final ExamRepository examRepository;
     private final QuestionRepository questionRepository;
-    private final ExamAttemptRepository attemptRepository;
     private final TagService tagService;
-    private final JwtService jwtService;
+    private final ExamShareRepository shareRepository;
+    private final UserRepository userRepository;
     private final Clock clock;
 
     public ExamService(ExamRepository examRepository, QuestionRepository questionRepository,
-                       ExamAttemptRepository attemptRepository, TagService tagService,
-                       JwtService jwtService, Clock clock) {
+                       TagService tagService, ExamShareRepository shareRepository, UserRepository userRepository,
+                       Clock clock) {
         this.examRepository = examRepository;
         this.questionRepository = questionRepository;
-        this.attemptRepository = attemptRepository;
         this.tagService = tagService;
-        this.jwtService = jwtService;
+        this.shareRepository = shareRepository;
+        this.userRepository = userRepository;
         this.clock = clock;
     }
 
@@ -109,7 +106,8 @@ public class ExamService {
     public ExamResponse changeConfig(Long examId, ExamConfigRequest request, Long ownerId) {
         Exam exam = getOwned(examId, ownerId);
         exam.changeConfig(new ExamConfig(request.numberOfQuestions(), request.timeLimitMinutes(),
-                request.showScore(), request.randomizeOptions(), request.randomizeQuestionOrder()));
+                request.showScore(), showAnswers(request.showScore(), request.showAnswers()),
+                request.randomizeOptions(), request.randomizeQuestionOrder()));
         return ExamResponse.from(exam);
     }
 
@@ -136,19 +134,37 @@ public class ExamService {
 
     public ExamResponse publish(Long examId, PublishExamRequest request, Long ownerId) {
         Exam exam = getOwned(examId, ownerId);
-        boolean neverExpires = Boolean.TRUE.equals(request.neverExpires());
-        if (neverExpires && request.expiresAt() != null) {
-            throw new BusinessRuleException("Indica una fecha de caducidad o «sin caducidad», no las dos");
-        }
-        LocalDateTime expiresAt = neverExpires ? null
-                : request.expiresAt() != null ? request.expiresAt() : now().plus(DEFAULT_PUBLICATION);
+        // Sin fecha, el examen no caduca: queda abierto hasta que se cierre (RF-48)
+        LocalDateTime expiresAt = request.expiresAt();
         if (expiresAt != null) requireFuture(expiresAt);
         ExamAccessMode accessMode = request.accessMode() != null ? request.accessMode() : ExamAccessMode.OPEN;
+        // Sin indicar nada, 1 intento
+        Integer maxAttempts = request.maxAttempts() == null && !Boolean.TRUE.equals(request.unlimitedAttempts())
+                ? Integer.valueOf(Exam.MIN_ATTEMPTS)
+                : attempts(request.maxAttempts(), request.unlimitedAttempts());
 
-        int maxAttempts = request.maxAttempts() != null ? request.maxAttempts() : Exam.MIN_ATTEMPTS;
         exam.publish(generateUniqueCode(), request.visibility(), accessMode, expiresAt, maxAttempts,
                 loadBankQuestionsInOrder(exam));
         return ExamResponse.from(exam);
+    }
+
+    /** Subir o bajar los intentos de un examen publicado (RF-52). */
+    public ExamResponse changeAttempts(Long examId, ChangeAttemptsRequest request, Long ownerId) {
+        Exam exam = getOwned(examId, ownerId);
+        exam.changeMaxAttempts(attempts(request.maxAttempts(), request.unlimitedAttempts()));
+        return ExamResponse.from(exam);
+    }
+
+    /** Un número de 1 a 4 o «sin límite» (null), nunca las dos cosas ni ninguna. */
+    private static Integer attempts(Integer maxAttempts, Boolean unlimitedAttempts) {
+        boolean unlimited = Boolean.TRUE.equals(unlimitedAttempts);
+        if (unlimited && maxAttempts != null) {
+            throw new BusinessRuleException("Indica un número de intentos o «sin límite», no las dos cosas");
+        }
+        if (!unlimited && maxAttempts == null) {
+            throw new BusinessRuleException("Indica un número de intentos o «sin límite»");
+        }
+        return unlimited ? null : maxAttempts;
     }
 
     public ExamResponse close(Long examId, Long ownerId) {
@@ -182,16 +198,33 @@ public class ExamService {
 
     // ───── Consultas del profesor ─────
 
+    /** Un examen propio, o uno que me han compartido: entonces dice quién (RF-51). */
     @Transactional(readOnly = true)
-    public ExamResponse get(Long examId, Long ownerId) {
-        return ExamResponse.from(getOwned(examId, ownerId));
+    public ExamResponse get(Long examId, Long teacherId) {
+        Exam exam = getViewable(examId, teacherId);
+        return exam.getOwnerId().equals(teacherId) ? ExamResponse.from(exam) : ExamResponse.from(exam, ownerName(exam));
     }
 
+    /** Mis exámenes y los que me han compartido (RF-51), del más reciente al más antiguo. */
     @Transactional(readOnly = true)
-    public List<ExamResponse> listMine(Long ownerId) {
-        return examRepository.findAllByOwnerIdOrderByCreatedAtDesc(ownerId).stream()
-                .map(ExamResponse::from)
+    public List<ExamResponse> listMine(Long teacherId) {
+        List<Exam> shared = examRepository.findAllById(sharedExamIds(teacherId));
+        Map<Long, String> owners = userRepository.findAllById(shared.stream().map(Exam::getOwnerId).collect(Collectors.toSet()))
+                .stream()
+                .collect(Collectors.toMap(User::getId, User::getDisplayName));
+        return Stream.concat(
+                        examRepository.findAllByOwnerIdOrderByCreatedAtDesc(teacherId).stream().map(ExamResponse::from),
+                        shared.stream().map(exam -> ExamResponse.from(exam, owners.get(exam.getOwnerId()))))
+                .sorted(Comparator.comparing(ExamResponse::createdAt).reversed())
                 .toList();
+    }
+
+    /** Los exámenes que me han compartido y he aceptado (RF-51). */
+    @Transactional(readOnly = true)
+    public Set<Long> sharedExamIds(Long teacherId) {
+        return shareRepository.findAllByTeacherIdAndStatusOrderByCreatedAtDesc(teacherId, ShareStatus.ACCEPTED).stream()
+                .map(ExamShare::getExamId)
+                .collect(Collectors.toSet());
     }
 
     /** Exámenes públicos y abiertos ahora mismo, de otros profesores. */
@@ -213,63 +246,12 @@ public class ExamService {
     }
 
     /**
-     * Empieza un intento (DE-04): lo registra a nombre del alumno y devuelve las preguntas sin la
-     * respuesta correcta, barajadas según la configuración, y el token del intento. Cada alumno
-     * tiene un intento abierto como mucho y tantos en total como fije el profesor (RF-52):
-     * los registrados se cuentan por su cuenta y los anónimos por su nombre.
-     */
-    public ExamAttemptResponse startAttempt(String code, StartAttemptRequest identity, Long studentUserId) {
-        Exam exam = getAccessible(code);
-        if (exam.requiresRegistration() && studentUserId == null) {
-            throw new BusinessRuleException("Este examen requiere estar registrado e iniciar sesión");
-        }
-        String studentName = identity.studentName().trim();
-        LocalDateTime now = now();
-        Duration validity = attemptValidity(exam.getConfig());
-        List<ExamAttempt> previous = studentUserId != null
-                ? attemptRepository.findAllByExamIdAndStudentUserId(exam.getId(), studentUserId)
-                : attemptRepository.findAllByExamIdAndStudentUserIdIsNullAndStudentNameIgnoreCase(exam.getId(), studentName);
-        if (previous.stream().anyMatch(a -> a.isOpenAt(now, validity))) {
-            throw new BusinessRuleException("Ya tienes un intento empezado en este examen");
-        }
-        // Cuentan los entregados y los que se quedaron sin entregar fuera de plazo
-        if (previous.size() >= exam.getMaxAttempts()) {
-            throw new BusinessRuleException("Ya has hecho todos los intentos de este examen");
-        }
-        ExamAttempt attempt = attemptRepository.save(new ExamAttempt(exam.getId(), studentUserId, studentName,
-                blankToNull(identity.studentClub()), blankToNull(identity.studentEmail()), now));
-
-        ExamConfig config = exam.getConfig();
-        List<PublicQuestionResponse> questions = new ArrayList<>(exam.getPublishedQuestions().stream()
-                .map(q -> toPublicQuestion(q, config.isRandomizeOptions()))
-                .toList());
-        if (config.isRandomizeQuestionOrder()) {
-            Collections.shuffle(questions);
-        }
-
-        String token = jwtService.generateAttemptToken(attempt.getId(), exam.getId(),
-                now.atZone(clock.getZone()).toInstant(), validity);
-        return new ExamAttemptResponse(token, questions, previous.size() + 1, exam.getMaxAttempts());
-    }
-
-    /** Cuánto dura un intento: el tiempo límite más el margen de entrega, o 12 horas sin límite (RN-07). */
-    public static Duration attemptValidity(ExamConfig config) {
-        return config.hasTimeLimit()
-                ? Duration.ofMinutes(config.getTimeLimitMinutes()).plus(SUBMIT_GRACE)
-                : UNLIMITED_ATTEMPT_VALIDITY;
-    }
-
-    private static String blankToNull(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
-    }
-
-    /**
      * Preguntas tal como se publicaron (DE-03), con solución y explicación, y si se han
      * editado en el banco después. Solo el profesor del examen.
      */
     @Transactional(readOnly = true)
-    public List<PublishedQuestionResponse> publishedQuestions(Long examId, Long ownerId) {
-        Exam exam = getOwned(examId, ownerId);
+    public List<PublishedQuestionResponse> publishedQuestions(Long examId, Long teacherId) {
+        Exam exam = getViewable(examId, teacherId);
         if (exam.isDraft()) {
             throw new BusinessRuleException("El examen todavía no está publicado");
         }
@@ -299,6 +281,21 @@ public class ExamService {
         return exam;
     }
 
+    /**
+     * Un examen para consultarlo: propio o compartido conmigo y aceptado (RF-51). Lo que lo cambia usa
+     * getOwned: para el invitado, el examen responde como inexistente.
+     */
+    public Exam getViewable(Long examId, Long teacherId) {
+        return examRepository.findById(examId)
+                .filter(exam -> exam.getOwnerId().equals(teacherId)
+                        || shareRepository.existsByExamIdAndTeacherIdAndStatus(examId, teacherId, ShareStatus.ACCEPTED))
+                .orElseThrow(() -> new ResourceNotFoundException("No existe un examen con id " + examId));
+    }
+
+    private String ownerName(Exam exam) {
+        return userRepository.findById(exam.getOwnerId()).map(User::getDisplayName).orElse(null);
+    }
+
     public Exam getOwned(Long examId, Long ownerId) {
         return examRepository.findByIdAndOwnerId(examId, ownerId)
                 .orElseThrow(() -> new ResourceNotFoundException("No existe un examen con id " + examId));
@@ -306,20 +303,14 @@ public class ExamService {
 
     // ───── Auxiliares ─────
 
-    private PublicQuestionResponse toPublicQuestion(PublishedQuestion question, boolean shuffleOptions) {
-        List<PublicQuestionResponse.Option> options = new ArrayList<>(IntStream
-                .range(0, question.getOptions().size())
-                .mapToObj(i -> new PublicQuestionResponse.Option(i, question.getOptions().get(i)))
-                .toList());
-        if (shuffleOptions) {
-            Collections.shuffle(options);
-        }
-        return new PublicQuestionResponse(question.getQuestionId(), question.getText(), options);
-    }
-
     private ExamConfig toConfig(ExamDraftRequest r) {
         return new ExamConfig(r.numberOfQuestions(), r.timeLimitMinutes(), r.showScore(),
-                r.randomizeOptions(), r.randomizeQuestionOrder());
+                showAnswers(r.showScore(), r.showAnswers()), r.randomizeOptions(), r.randomizeQuestionOrder());
+    }
+
+    /** Las respuestas solo se muestran con la nota; sin indicarlo, se muestran si se muestra la nota (RF-53). */
+    private static boolean showAnswers(boolean showScore, Boolean requested) {
+        return showScore && (requested == null || requested);
     }
 
     private void requireFuture(LocalDateTime date) {

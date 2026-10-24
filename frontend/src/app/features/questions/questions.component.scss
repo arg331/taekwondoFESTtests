@@ -21,7 +21,7 @@
 }
 .type-filter { --mat-standard-button-toggle-height: 32px; font-size: 0.8rem; }
 .tag-filters {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  display: flex; flex-direction: column; gap: 6px;
   margin-top: 4px; padding-top: 8px; border-top: 1px solid #eee;
 }
 .filter-title {
@@ -103,3 +103,7 @@
   padding-left: 12px;
   border-left: 3px solid #C62828;
 }
+
+// Qué preguntas se ven (RF-57)
+.source-switch { flex-wrap: wrap; margin-bottom: 4px; }
+.shared-hint { margin: 0 0 8px; color: #757575; font-size: 0.9rem; }

@@ -14,10 +14,10 @@ const COMBATE = tag(1, 'Combate');
 const FORMAS = tag(2, 'Formas');
 const ITF = tag(3, 'ITF');
 
-function question(id: number, grade: Grade, tags: TagResponse[], text = `Pregunta ${id}`, type: QuestionType | null = null): QuestionResponse {
+function question(id: number, grade: Grade | null, tags: TagResponse[], text = `Pregunta ${id}`, type: QuestionType | null = null): QuestionResponse {
   return {
-    id, text, options: ['Sí', 'No'], correctAnswer: 1, explanation: `Explicación ${id}`, grade, type, tags,
-    createdAt: '2026-10-10T10:00:00', updatedAt: '2026-10-10T10:00:00'
+    id, text, options: ['Sí', 'No'], correctAnswers: [1], explanation: `Explicación ${id}`, grade, type, tags,
+    createdAt: '2026-10-10T10:00:00', updatedAt: '2026-10-10T10:00:00', sharedBy: null
   };
 }
 
@@ -36,13 +36,13 @@ describe('ExamQuestionPickerComponent', () => {
   let created: QuestionResponse[];
   let dialogOpen: ReturnType<typeof vi.fn>;
 
-  async function render(selected: number[] = [], targetCount = 3): Promise<void> {
+  async function render(selected: number[] = [], targetCount = 3, questions: QuestionResponse[] = QUESTIONS): Promise<void> {
     TestBed.configureTestingModule({
       imports: [ExamQuestionPickerComponent],
       providers: [{ provide: MatDialog, useValue: { open: dialogOpen } }]
     });
     fixture = TestBed.createComponent(ExamQuestionPickerComponent);
-    fixture.componentRef.setInput('questions', QUESTIONS);
+    fixture.componentRef.setInput('questions', questions);
     fixture.componentRef.setInput('tags', [COMBATE, FORMAS, ITF]);
     fixture.componentRef.setInput('targetCount', targetCount);
     fixture.componentRef.setInput('selectedIds', selected);
@@ -125,15 +125,15 @@ describe('ExamQuestionPickerComponent', () => {
 
       expect(await (await checkbox('Combate')).getLabelText()).toContain('(2)');
       expect(await (await checkbox('Formas')).getLabelText()).toContain('(2)');
-      expect(await (await checkbox('Sin tag')).getLabelText()).toContain('(1)');
+      expect(el.textContent).not.toContain('Sin tag');
     });
 
     it('al principio no hay ninguna marcada y se ven todas las preguntas', async () => {
       await render();
 
       expect(await (await checkbox('Combate')).isChecked()).toBe(false);
-      expect(await (await checkbox('Sin tag')).isChecked()).toBe(false);
       expect(visibleIds()).toEqual([1, 2, 3, 4, 5]);
+      expect(el.querySelector('.list-header')?.textContent).not.toContain('filtrando tags');
     });
 
     it('marcar un tag muestra las preguntas que lo tienen, aunque tengan más tags', async () => {
@@ -143,16 +143,31 @@ describe('ExamQuestionPickerComponent', () => {
       await stable();
 
       expect(visibleIds()).toEqual([1, 2]);
+      expect(el.querySelector('.list-header')?.textContent).toContain('2 de 5 preguntas (filtrando tags)');
     });
 
-    it('«Sin tag» suma las preguntas sin tags', async () => {
+    it('«Desmarcar tags» quita todos los marcados; sin ninguno marcado está desactivado', async () => {
       await render();
+      const clear = () => el.querySelector('.clear-tags') as HTMLButtonElement;
+      expect(clear().disabled).toBe(true);
 
+      await (await checkbox('Combate')).check();
       await (await checkbox('Formas')).check();
-      await (await checkbox('Sin tag')).check();
+      await stable();
+      clear().click();
       await stable();
 
-      expect(visibleIds()).toEqual([3, 4, 5]);
+      expect(await (await checkbox('Combate')).isChecked()).toBe(false);
+      expect(await (await checkbox('Formas')).isChecked()).toBe(false);
+      expect(visibleIds()).toEqual([1, 2, 3, 4, 5]);
+    });
+
+    it('los tags van en una cuadrícula y «Desmarcar tags» queda fuera, pegado a ella', async () => {
+      await render();
+
+      expect(el.querySelectorAll('.tag-grid .tag-pill').length).toBe(3);
+      expect(el.querySelector('.tag-grid .clear-tags')).toBeNull();
+      expect(el.querySelector('.tag-grid')?.nextElementSibling?.classList).toContain('clear-tags');
     });
 
     it('cada tag es una pastilla con el borde de su color', async () => {
@@ -164,6 +179,17 @@ describe('ExamQuestionPickerComponent', () => {
   });
 
   describe('barra de grados (RF-43)', () => {
+    it('una pregunta sin grado se ve con la barra completa y se oculta al acotarla; su fila no lleva cinturón', async () => {
+      await render([], 3, [...QUESTIONS, question(6, null, [])]);
+      expect(visibleIds()).toContain(6);
+      expect(el.querySelector('.question-pick-row[data-id="6"] app-grade-badge .grade-badge')).toBeNull();
+
+      await (await (await loader.getHarness(MatSliderHarness)).getEndThumb()).setValue(8);
+      await stable();
+
+      expect(visibleIds()).not.toContain(6);
+    });
+
     it('al mover el inicio a «Verde» se ocultan las de cinturón blanco', async () => {
       await render();
       const slider = await loader.getHarness(MatSliderHarness);
@@ -224,6 +250,9 @@ describe('ExamQuestionPickerComponent', () => {
       expect(el.querySelector('.cart-target')?.textContent).toContain('objetivo 3');
       expect(items[0]).toContain('Pregunta 3');
       expect(items[1]).toContain('Pregunta 1');
+      // Sin carrito ni color de cinturón
+      expect(el.querySelector('.cart-header mat-icon')?.textContent).not.toContain('shopping_cart');
+      expect(el.querySelector('.cart-item app-grade-badge')).toBeNull();
 
       (el.querySelector('.cart-item .cart-remove') as HTMLElement).click();
       await stable();

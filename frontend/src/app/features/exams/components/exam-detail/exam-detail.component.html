@@ -20,6 +20,14 @@
 
   <mat-card-content>
 
+    @if (readOnly()) {
+      <p class="shared-note">
+        <mat-icon>group</mat-icon>
+        Este examen te lo ha compartido {{ exam().sharedBy }}. Puedes consultarlo, proyectarlo y ver sus resultados,
+        pero no cambiarlo.
+      </p>
+    }
+
     <!-- Configuración -->
     @if (editingConfig()) {
       <form [formGroup]="configForm" class="config-edit-form" (ngSubmit)="saveConfig()">
@@ -39,8 +47,15 @@
             <mat-hint>0 = sin límite</mat-hint>
           </mat-form-field>
         </div>
+        <mat-form-field appearance="outline">
+          <mat-label>Mostrar al alumno al entregar</mat-label>
+          <mat-select formControlName="resultDisplay" class="result-display-select">
+            @for (display of resultDisplays; track display) {
+              <mat-option [value]="display">{{ resultDisplayLabel[display] }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
         <div class="toggles">
-          <mat-slide-toggle formControlName="showScore" color="primary">Mostrar puntuación</mat-slide-toggle>
           <mat-slide-toggle formControlName="randomizeOptions" color="primary">Opciones aleatorias</mat-slide-toggle>
           <mat-slide-toggle formControlName="randomizeQuestionOrder" color="primary">Preguntas aleatorias</mat-slide-toggle>
         </div>
@@ -62,7 +77,7 @@
         }
         <span class="config-item">
           <mat-icon>{{ exam().config.showScore ? 'visibility' : 'visibility_off' }}</mat-icon>
-          {{ exam().config.showScore ? 'Muestra nota' : 'Oculta nota' }}
+          {{ resultDisplaySummary() }}
         </span>
         @if (exam().expiresAt) {
           <span class="config-item"><mat-icon>event</mat-icon>Hasta {{ exam().expiresAt | date:'dd/MM/yyyy HH:mm' }}</span>
@@ -71,10 +86,14 @@
         }
         @if (exam().status !== 'DRAFT') {
           <span class="config-item"><mat-icon>replay</mat-icon>
-            {{ exam().maxAttempts }} {{ exam().maxAttempts === 1 ? 'intento' : 'intentos' }} por alumno
+            @if (exam().maxAttempts === null) {
+              Intentos sin límite
+            } @else {
+              {{ exam().maxAttempts }} {{ exam().maxAttempts === 1 ? 'intento' : 'intentos' }} por alumno
+            }
           </span>
         }
-        @if (exam().status === 'DRAFT') {
+        @if (exam().status === 'DRAFT' && !readOnly()) {
           <button mat-stroked-button class="edit-btn" (click)="openEditConfig()">
             <mat-icon>edit</mat-icon>Editar
           </button>
@@ -136,7 +155,14 @@
           {{ selectedIds().length }} elegidas
         </span>
       </p>
-      @if (exam().status === 'DRAFT') {
+      @if (exam().status === 'DRAFT' && readOnly()) {
+        <p class="published-hint">Todavía es un borrador: {{ exam().sharedBy }} lo está preparando.</p>
+        <ol class="assigned-list">
+          @for (q of sharedDraftQuestions(); track q.id) {
+            <li>{{ q.text }}</li>
+          }
+        </ol>
+      } @else if (exam().status === 'DRAFT') {
         <app-exam-question-picker [questions]="questions()" [tags]="tags()"
                                   [targetCount]="exam().config.numberOfQuestions"
                                   [(selectedIds)]="selectedIds" (questionCreated)="questionCreated.emit($event)" />
@@ -169,97 +195,116 @@
 
     <!-- Acciones según estado -->
     <div class="actions-section">
-      @switch (exam().status) {
-        @case ('DRAFT') {
-          <form [formGroup]="publishForm" class="publish-options">
-            <mat-form-field appearance="outline">
-              <mat-label>Tipo de examen</mat-label>
-              <mat-select formControlName="visibility">
-                <mat-option value="PUBLIC">De prueba (público): cualquiera lo ve para practicar</mat-option>
-                <mat-option value="PRIVATE">Oficial (privado): solo con el código o el QR</mat-option>
-              </mat-select>
-            </mat-form-field>
-            <mat-form-field appearance="outline">
-              <mat-label>Quién puede hacerlo</mat-label>
-              <mat-select formControlName="accessMode">
-                <mat-option value="OPEN">Cualquiera con el código</mat-option>
-                <mat-option value="REGISTERED_ONLY">Solo usuarios registrados</mat-option>
-              </mat-select>
-            </mat-form-field>
-            <mat-form-field appearance="outline">
-              <mat-label>Expira el (opcional)</mat-label>
-              <input matInput type="datetime-local" formControlName="expiresAt" />
-              <mat-hint>Si lo dejas vacío, una hora desde ahora</mat-hint>
-            </mat-form-field>
-            <mat-checkbox class="never-expires" formControlName="neverExpires" color="primary">
-              Sin caducidad: abierto hasta que lo cierres
-            </mat-checkbox>
-            <mat-form-field appearance="outline">
-              <mat-label>Intentos por alumno</mat-label>
-              <input matInput type="number" formControlName="maxAttempts" [min]="minAttempts" [max]="maxAttempts" />
-              <mat-hint>De {{ minAttempts }} a {{ maxAttempts }}; cuentan también los que se dejan sin entregar</mat-hint>
-              @if (publishForm.controls.maxAttempts.invalid) {
-                <mat-error>Entre {{ minAttempts }} y {{ maxAttempts }}</mat-error>
-              }
-            </mat-form-field>
-          </form>
-          @if (publishBlockReason()) {
-            <p class="hint-warn"><mat-icon class="inline-icon">warning</mat-icon>{{ publishBlockReason() }}</p>
+      @if (readOnly()) {
+        <button mat-stroked-button color="warn" (click)="leave()" [disabled]="busy()">
+          <mat-icon>visibility_off</mat-icon>Dejar de ver
+        </button>
+      } @else {
+        @switch (exam().status) {
+          @case ('DRAFT') {
+            <form [formGroup]="publishForm" class="publish-options">
+              <mat-form-field appearance="outline">
+                <mat-label>Tipo de examen</mat-label>
+                <mat-select formControlName="visibility" class="visibility-select">
+                  <mat-option value="PRIVATE">OFICIAL / PRIVADO: solo con código</mat-option>
+                  <mat-option value="PUBLIC">PÚBLICO: examen de prueba, cualquiera puede entrar en cualquier momento</mat-option>
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Quién puede hacerlo</mat-label>
+                <mat-select formControlName="accessMode">
+                  <mat-option value="OPEN">Cualquiera con el código</mat-option>
+                  <mat-option value="REGISTERED_ONLY">Solo usuarios registrados</mat-option>
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Expira el (opcional)</mat-label>
+                <input matInput type="datetime-local" formControlName="expiresAt" />
+                <mat-hint>Si lo dejas vacío, no caduca</mat-hint>
+              </mat-form-field>
+              <app-attempts-slider [(value)]="publishAttempts" />
+            </form>
+            @if (publishBlockReason()) {
+              <p class="hint-warn"><mat-icon class="inline-icon">warning</mat-icon>{{ publishBlockReason() }}</p>
+            }
+            <button mat-flat-button color="primary" (click)="publish()" [disabled]="!!publishBlockReason() || busy()">
+              <mat-icon>publish</mat-icon>Publicar examen
+            </button>
+            <button mat-button color="warn" (click)="deleteDraft()" [disabled]="busy()">
+              <mat-icon>delete</mat-icon>Eliminar borrador
+            </button>
           }
-          <button mat-flat-button color="primary" (click)="publish()" [disabled]="!!publishBlockReason() || publishForm.invalid || busy()">
-            <mat-icon>publish</mat-icon>Publicar examen
-          </button>
-          <button mat-button color="warn" (click)="deleteDraft()" [disabled]="busy()">
-            <mat-icon>delete</mat-icon>Eliminar borrador
-          </button>
+
+          @case ('PUBLISHED') {
+            <form [formGroup]="expirationForm" class="inline-form">
+              <mat-form-field appearance="outline">
+                <mat-label>Nueva fecha de expiración</mat-label>
+                <input matInput type="datetime-local" formControlName="expiresAt" />
+                <mat-hint>Vacío = sin expiración</mat-hint>
+              </mat-form-field>
+              <button mat-stroked-button type="button" (click)="changeExpiration()" [disabled]="busy()">
+                Cambiar plazo
+              </button>
+            </form>
+            <div class="inline-form attempts-form">
+              <app-attempts-slider [(value)]="attemptsDraft" />
+              <button mat-stroked-button type="button" (click)="changeAttempts()"
+                      [disabled]="busy() || attemptsDraft() === exam().maxAttempts">
+                Cambiar intentos
+              </button>
+            </div>
+            <button mat-stroked-button (click)="toggleVisibility()" [disabled]="busy()">
+              <mat-icon>{{ visibilityIcon[exam().visibility === 'PUBLIC' ? 'PRIVATE' : 'PUBLIC'] }}</mat-icon>
+              {{ visibilityToggleLabel() }}
+            </button>
+            <button mat-stroked-button color="warn" (click)="close()" [disabled]="busy()">
+              <mat-icon>stop_circle</mat-icon>Cerrar examen
+            </button>
+          }
+
+          @case ('EXPIRED') {
+            <form [formGroup]="expirationForm" class="inline-form">
+              <mat-form-field appearance="outline">
+                <mat-label>Abierto hasta</mat-label>
+                <input matInput type="datetime-local" formControlName="expiresAt" />
+                <mat-hint>Vacío = sin expiración</mat-hint>
+              </mat-form-field>
+              <button mat-flat-button color="primary" type="button" (click)="reopen()" [disabled]="busy()">
+                <mat-icon>replay</mat-icon>Reabrir
+              </button>
+            </form>
+            <div class="inline-form attempts-form">
+              <app-attempts-slider [(value)]="attemptsDraft" />
+              <button mat-stroked-button type="button" (click)="changeAttempts()"
+                      [disabled]="busy() || attemptsDraft() === exam().maxAttempts">
+                Cambiar intentos
+              </button>
+            </div>
+            <button mat-stroked-button (click)="toggleVisibility()" [disabled]="busy()">
+              <mat-icon>{{ visibilityIcon[exam().visibility === 'PUBLIC' ? 'PRIVATE' : 'PUBLIC'] }}</mat-icon>
+              {{ visibilityToggleLabel() }}
+            </button>
+          }
         }
 
-        @case ('PUBLISHED') {
-          <form [formGroup]="expirationForm" class="inline-form">
-            <mat-form-field appearance="outline">
-              <mat-label>Nueva fecha de expiración</mat-label>
-              <input matInput type="datetime-local" formControlName="expiresAt" />
-              <mat-hint>Vacío = sin expiración</mat-hint>
-            </mat-form-field>
-            <button mat-stroked-button type="button" (click)="changeExpiration()" [disabled]="busy()">
-              Cambiar plazo
-            </button>
-          </form>
-          <button mat-stroked-button (click)="toggleVisibility()" [disabled]="busy()">
-            <mat-icon>{{ visibilityIcon[exam().visibility === 'PUBLIC' ? 'PRIVATE' : 'PUBLIC'] }}</mat-icon>
-            {{ visibilityToggleLabel() }}
-          </button>
-          <button mat-stroked-button color="warn" (click)="close()" [disabled]="busy()">
-            <mat-icon>stop_circle</mat-icon>Cerrar examen
-          </button>
-        }
-
-        @case ('EXPIRED') {
-          <form [formGroup]="expirationForm" class="inline-form">
-            <mat-form-field appearance="outline">
-              <mat-label>Abierto hasta</mat-label>
-              <input matInput type="datetime-local" formControlName="expiresAt" />
-              <mat-hint>Vacío = sin expiración</mat-hint>
-            </mat-form-field>
-            <button mat-flat-button color="primary" type="button" (click)="reopen()" [disabled]="busy()">
-              <mat-icon>replay</mat-icon>Reabrir
-            </button>
-          </form>
-          <button mat-stroked-button (click)="toggleVisibility()" [disabled]="busy()">
-            <mat-icon>{{ visibilityIcon[exam().visibility === 'PUBLIC' ? 'PRIVATE' : 'PUBLIC'] }}</mat-icon>
-            {{ visibilityToggleLabel() }}
-          </button>
-        }
+        <button mat-stroked-button class="copy-btn" (click)="copyExam()" [disabled]="busy()">
+          <mat-icon>content_copy</mat-icon>Hacer una copia
+        </button>
+        <button mat-stroked-button class="share-btn" (click)="showShare.set(!showShare())"
+                [attr.aria-expanded]="showShare()">
+          <mat-icon>group_add</mat-icon>Compartir
+        </button>
       }
-
-      <button mat-stroked-button class="copy-btn" (click)="copyExam()" [disabled]="busy()">
-        <mat-icon>content_copy</mat-icon>Hacer una copia
-      </button>
 
       @if (error()) {
         <p class="hint-warn">{{ error() }}</p>
       }
     </div>
+
+    @if (showShare() && !readOnly()) {
+      <mat-divider />
+      <app-exam-share [examId]="exam().id" />
+    }
 
   </mat-card-content>
 </mat-card>

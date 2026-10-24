@@ -8,8 +8,10 @@ import lombok.NoArgsConstructor;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Copia de una pregunta tal como se publicó en un examen (DE-03). Los intentos y la corrección
@@ -42,8 +44,11 @@ public class PublishedQuestion {
     @Column(name = "option_text", nullable = false, length = 500)
     private List<String> options = new ArrayList<>();
 
-    @Column(name = "correct_answer", nullable = false)
-    private int correctAnswer;
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "published_question_correct_options",
+            joinColumns = @JoinColumn(name = "published_question_id"))
+    @Column(name = "option_index", nullable = false)
+    private Set<Integer> correctAnswers = new HashSet<>();
 
     @Column(length = 2000)
     private String explanation;
@@ -53,7 +58,7 @@ public class PublishedQuestion {
         this.questionId = source.getId();
         this.text = source.getText();
         this.options.addAll(source.getOptions());
-        this.correctAnswer = source.getCorrectAnswer();
+        this.correctAnswers.addAll(source.getCorrectAnswers());
         this.explanation = source.getExplanation();
     }
 
@@ -65,8 +70,13 @@ public class PublishedQuestion {
     public boolean matches(Question current) {
         return text.equals(current.getText())
                 && options.equals(current.getOptions())
-                && correctAnswer == current.getCorrectAnswer()
+                && getCorrectAnswers().equals(current.getCorrectAnswers())
                 && Objects.equals(explanation, current.getExplanation());
+    }
+
+    /** Las correctas, de menor a mayor. */
+    public List<Integer> getCorrectAnswers() {
+        return correctAnswers.stream().sorted().toList();
     }
 
     public List<String> getOptions() {

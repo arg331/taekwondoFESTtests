@@ -1,5 +1,8 @@
 package com.taekwondo.examenes.result;
 
+import com.taekwondo.examenes.attempt.StudentIdentity;
+import com.taekwondo.examenes.exam.ExamConfig;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -15,6 +18,12 @@ public record ResultResponse(
         String studentName,
         String studentClub,
         String studentEmail,
+        /** La hizo un usuario con cuenta, no un anónimo. */
+        boolean registered,
+        /** Su cuenta, para ver todos sus resultados (RF-55); null si es anónimo. */
+        Long studentUserId,
+        /** Qué alumno la hizo, para agrupar sus intentos (RF-54): «u:<id>» o «n:<nombre normalizado>». */
+        String studentKey,
         boolean scoreVisible,
         List<AnswerResponse> answers,
         Integer correctAnswers,
@@ -22,28 +31,56 @@ public record ResultResponse(
         Integer score,
         Boolean passed,
         int timeSpentSeconds,
-        LocalDateTime completedAt
+        LocalDateTime completedAt,
+        /** Se corrigió sola al acabarse el plazo (RF-24). */
+        boolean autoSubmitted
 ) {
-    public record AnswerResponse(Long questionId, Integer studentAnswer, int correctAnswer, boolean correct) {
+    /**
+     * Opciones que marcó el alumno (vacío = en blanco) y las correctas (RF-09). correctAnswers es null en la
+     * vista del alumno: nunca ve cuáles eran las correctas (RF-53).
+     */
+    public record AnswerResponse(Long questionId, List<Integer> studentAnswers, List<Integer> correctAnswers,
+                                 boolean correct) {
         static AnswerResponse from(Answer a) {
-            return new AnswerResponse(a.getQuestionId(), a.getStudentAnswer(), a.getCorrectAnswer(), a.isCorrect());
+            return new AnswerResponse(a.getQuestionId(), a.getStudentAnswers(), a.getCorrectAnswers(), a.isCorrect());
+        }
+
+        static AnswerResponse withoutSolution(Answer a) {
+            return new AnswerResponse(a.getQuestionId(), a.getStudentAnswers(), null, a.isCorrect());
         }
     }
 
-    /** Vista completa (profesor, o alumno cuando el examen muestra la nota). */
+    /** Vista completa, la del profesor. */
     public static ResultResponse from(Result r, String examTitle) {
         return new ResultResponse(r.getId(), r.getExamId(), examTitle, r.getStudentName(), r.getStudentClub(),
-                r.getStudentEmail(), true,
+                r.getStudentEmail(), r.getStudentUserId() != null, r.getStudentUserId(),
+                StudentIdentity.key(r.getStudentUserId(), r.getStudentName()), true,
                 r.getAnswers().stream().map(AnswerResponse::from).toList(),
                 r.getCorrectAnswers(), r.getTotalQuestions(), r.getScore(), r.isPassed(),
-                r.getTimeSpentSeconds(), r.getCompletedAt());
+                r.getTimeSpentSeconds(), r.getCompletedAt(), r.isAutoSubmitted());
     }
 
-    /** Vista del alumno: respeta showScore del examen. */
-    public static ResultResponse forStudent(Result r, String examTitle, boolean showScore) {
-        if (showScore) return from(r, examTitle);
+    /**
+     * Vista del alumno según lo que el profesor eligió mostrar (RF-53): nada, la nota, o la nota y
+     * sus respuestas bien o mal, nunca cuál era la correcta.
+     */
+    public static ResultResponse forStudent(Result r, String examTitle, ExamConfig config) {
+        if (!config.isShowScore()) return hidden(r, examTitle);
+        List<AnswerResponse> answers = config.isShowAnswers()
+                ? r.getAnswers().stream().map(AnswerResponse::withoutSolution).toList()
+                : null;
         return new ResultResponse(r.getId(), r.getExamId(), examTitle, r.getStudentName(), r.getStudentClub(),
-                r.getStudentEmail(), false, null, null, r.getTotalQuestions(), null, null,
-                r.getTimeSpentSeconds(), r.getCompletedAt());
+                r.getStudentEmail(), r.getStudentUserId() != null, r.getStudentUserId(),
+                StudentIdentity.key(r.getStudentUserId(), r.getStudentName()), true, answers,
+                r.getCorrectAnswers(), r.getTotalQuestions(), r.getScore(), r.isPassed(),
+                r.getTimeSpentSeconds(), r.getCompletedAt(), r.isAutoSubmitted());
+    }
+
+    /** Vista del alumno sin nota ni respuestas. */
+    public static ResultResponse hidden(Result r, String examTitle) {
+        return new ResultResponse(r.getId(), r.getExamId(), examTitle, r.getStudentName(), r.getStudentClub(),
+                r.getStudentEmail(), r.getStudentUserId() != null, r.getStudentUserId(),
+                StudentIdentity.key(r.getStudentUserId(), r.getStudentName()), false, null, null, r.getTotalQuestions(), null, null,
+                r.getTimeSpentSeconds(), r.getCompletedAt(), r.isAutoSubmitted());
     }
 }

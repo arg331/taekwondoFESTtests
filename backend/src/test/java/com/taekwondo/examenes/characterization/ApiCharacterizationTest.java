@@ -41,7 +41,9 @@ import static com.taekwondo.examenes.characterization.support.Json.write;
  * PostgreSQL (Testcontainers). Por eso cada test crea sus propios datos con
  * nombres únicos y no depende de lo que hagan los demás.
  */
-@SpringBootTest
+// La entrega automática se prueba llamándola: la tarea periódica movería datos a mitad de un test
+// El límite de intentos (RNF-07) tiene su propio test: aquí cientos de logins por minuto lo dispararían
+@SpringBootTest(properties = {"app.attempts.auto-submit.enabled=false", "app.rate-limit.enabled=false"})
 @AutoConfigureMockMvc
 @Import({TestcontainersConfiguration.class, ApiCharacterizationTest.ClockConfig.class})
 abstract class ApiCharacterizationTest {
@@ -170,7 +172,7 @@ abstract class ApiCharacterizationTest {
         return post("/api/questions", token, obj(
                 "text", text,
                 "options", options,
-                "correctAnswer", correctAnswer,
+                "correctAnswers", List.of(correctAnswer),
                 "explanation", "Explicación de " + text,
                 "grade", "VERDE",
                 "tagIds", tagIds))
@@ -229,8 +231,8 @@ abstract class ApiCharacterizationTest {
         List<Long> questionIds = createQuestions(token, n);
         long examId = createDraft(token, n, timeLimit, showScore);
         setQuestions(token, examId, questionIds);
-        String code = post("/api/exams/" + examId + "/publish", token,
-                obj("visibility", "PUBLIC", "maxAttempts", maxAttempts)).expectStatus(200).read("$.code");
+        String code = post("/api/exams/" + examId + "/publish", token, obj("visibility", "PUBLIC",
+                "expiresAt", now().plusHours(1).toString(), "maxAttempts", maxAttempts)).expectStatus(200).read("$.code");
         return new PublishedExam(examId, code, questionIds);
     }
 
@@ -256,7 +258,8 @@ abstract class ApiCharacterizationTest {
     static List<Map<String, Object>> answers(List<Long> questionIds, List<Integer> chosen) {
         List<Map<String, Object>> answers = new ArrayList<>();
         for (int i = 0; i < questionIds.size(); i++) {
-            answers.add(obj("questionId", questionIds.get(i), "chosenOption", chosen.get(i)));
+            Integer option = chosen.get(i);
+            answers.add(obj("questionId", questionIds.get(i), "chosenOptions", option == null ? List.of() : List.of(option)));
         }
         return answers;
     }

@@ -31,7 +31,11 @@
       </ng-container>
       <ng-container matColumnDef="time">
         <th mat-header-cell *matHeaderCellDef>Tiempo</th>
-        <td mat-cell *matCellDef="let r">{{ formatDuration(r.timeSpentSeconds) }}</td>
+        <td mat-cell *matCellDef="let r">
+          {{ formatDuration(r.timeSpentSeconds) }}
+          <!-- No lo entregó: se corrigió solo al acabarse el plazo (RF-24) -->
+          @if (r.autoSubmitted) { <span class="auto-tag">Entrega automática</span> }
+        </td>
       </ng-container>
       <ng-container matColumnDef="date">
         <th mat-header-cell *matHeaderCellDef>Fecha</th>

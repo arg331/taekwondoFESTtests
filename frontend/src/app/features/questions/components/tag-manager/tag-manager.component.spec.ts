@@ -3,6 +3,8 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TagManagerComponent } from './tag-manager.component';
 import { TagResponse } from '../../../../core/models/tag.models';
+import { ConfirmService } from '../../../../core/services/confirm.service';
+import { of } from 'rxjs';
 
 const API = 'http://localhost:8080/api';
 const COMBATE: TagResponse = { id: 1, name: 'Combate', color: '#C62828', createdAt: '2026-10-10T10:00:00' };
@@ -118,12 +120,12 @@ describe('TagManagerComponent', () => {
   });
 
   it('borrar pide confirmación, lo quita de la lista y lo avisa (RF-08)', async () => {
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const confirm = vi.spyOn(ConfirmService.prototype, 'ask').mockReturnValue(of(true));
     renameButton().click();
     await stable();
 
     button('Borrar tag').click();
-    expect(confirm.mock.calls[0][0]).toContain('Combate');
+    expect(confirm.mock.calls[0][0].message).toContain('Combate');
     const req = http.expectOne(`${API}/tags/1`);
     expect(req.request.method).toBe('DELETE');
     req.flush(null);
@@ -134,7 +136,7 @@ describe('TagManagerComponent', () => {
   });
 
   it('si no se confirma, no se borra', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    vi.spyOn(ConfirmService.prototype, 'ask').mockReturnValue(of(false));
     renameButton().click();
     await stable();
 

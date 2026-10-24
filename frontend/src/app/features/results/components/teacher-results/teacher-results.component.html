@@ -62,7 +62,7 @@
             </tr>
           </thead>
           <tbody>
-            @for (student of students(); track student.key) {
+            @for (student of visibleStudents(); track student.key) {
               <tr class="student-row">
                 <td>
                   <span class="registration-tag" [class.registered]="student.best.registered">
@@ -113,6 +113,11 @@
           </tbody>
         </table>
       </div>
+      @if (students().length > pageSize) {
+        <mat-paginator class="results-paginator" [length]="students().length" [pageSize]="pageSize"
+                       [pageIndex]="currentPage()" hidePageSize aria-label="Páginas de participantes"
+                       (page)="page.set($event.pageIndex)" />
+      }
 
       <mat-divider />
       <app-question-stats [examId]="selectedExam()!.id" />

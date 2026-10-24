@@ -73,8 +73,25 @@ public class Question {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    /** Cuándo salió del banco; null = en el banco. Los exámenes publicados la siguen usando. */
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
     public Question(Long ownerId) {
         this.ownerId = ownerId;
+    }
+
+    public boolean isDeleted() {
+        return deletedAt != null;
+    }
+
+    /** Sale del banco: no se puede usar ni editar hasta recuperarla. */
+    public void delete(LocalDateTime now) {
+        if (deletedAt == null) deletedAt = now;
+    }
+
+    public void restore() {
+        deletedAt = null;
     }
 
     @PrePersist

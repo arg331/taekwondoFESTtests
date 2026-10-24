@@ -77,6 +77,33 @@ describe('TeacherResultsComponent', () => {
     fixture.detectChanges();
   }
 
+  describe('participantes por páginas de 20 (RNF-09)', () => {
+    function names(): string[] {
+      return Array.from(el.querySelectorAll('tr.student-row .student-name')).map(n => n.textContent?.trim() ?? '');
+    }
+
+    it('con pocos no hay paginador', () => {
+      expect(el.querySelector('mat-paginator')).toBeNull();
+    });
+
+    it('con más de 20 alumnos, 20 por página; el total sigue contando a todos', async () => {
+      const many = Array.from({ length: 25 }, (_, i) => ({
+        ...result(i + 1, `Alumno ${String(i + 1).padStart(2, '0')}`, true),
+        completedAt: `2026-10-12T11:${String(i).padStart(2, '0')}:00`
+      }));
+      fixture.componentInstance.results.set(many);
+      await stable();
+
+      expect(names()).toHaveLength(20);
+      expect(el.textContent).toContain('Participantes: 25 alumnos');
+      expect(el.querySelector('.mat-mdc-paginator-range-label')?.textContent?.trim()).toBe('1 – 20 de 25');
+
+      (el.querySelector('.mat-mdc-paginator-navigation-next') as HTMLButtonElement).click();
+      await stable();
+      expect(names()).toEqual(['Alumno 21', 'Alumno 22', 'Alumno 23', 'Alumno 24', 'Alumno 25']);
+    });
+  });
+
   it('marca quién es usuario registrado y quién no; primero los registrados y, dentro, por nombre', () => {
     const rows = Array.from(el.querySelectorAll('.results-table tr.student-row'));
     const names = rows.map(r => r.querySelector('.student-name')?.textContent?.trim());

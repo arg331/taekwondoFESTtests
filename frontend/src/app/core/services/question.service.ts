@@ -32,7 +32,16 @@ export class QuestionService {
     return this.http.put<QuestionResponse>(`${this.api}/${id}`, request);
   }
 
+  /** La saca del banco; queda en «Preguntas eliminadas». */
   delete(id: number): Observable<void> {
     return this.http.delete<void>(`${this.api}/${id}`);
+  }
+
+  getDeleted(): Observable<QuestionResponse[]> {
+    return this.http.get<QuestionResponse[]>(`${this.api}/deleted`);
+  }
+
+  restore(id: number): Observable<QuestionResponse> {
+    return this.http.post<QuestionResponse>(`${this.api}/${id}/restore`, null);
   }
 }

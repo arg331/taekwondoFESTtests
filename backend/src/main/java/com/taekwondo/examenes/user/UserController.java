@@ -1,10 +1,9 @@
 package com.taekwondo.examenes.user;
 
+import com.taekwondo.examenes.common.PageResponse;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 /** Gestión de usuarios. Solo ADMIN (ver SecurityConfig). */
 @RestController
@@ -17,9 +16,12 @@ public class UserController {
         this.userService = userService;
     }
 
+    /** Por páginas (RNF-09); q busca en el nombre, el usuario o el email (RF-37). */
     @GetMapping
-    public List<UserResponse> findAll() {
-        return userService.findAll();
+    public PageResponse<UserResponse> search(@RequestParam(defaultValue = "") String q,
+                                             @RequestParam(defaultValue = "0") int page,
+                                             @RequestParam(defaultValue = "20") int size) {
+        return userService.search(q, page, size);
     }
 
     @PatchMapping("/{id}/role")

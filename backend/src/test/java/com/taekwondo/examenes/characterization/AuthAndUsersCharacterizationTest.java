@@ -196,17 +196,57 @@ class AuthAndUsersCharacterizationTest extends ApiCharacterizationTest {
     // ───── Gestión de usuarios ─────
 
     @Test
-    @DisplayName("Usuarios: el listado incluye a todos, ordenados por fecha de alta")
-    void listUsers_includesEveryone_orderedByCreation() {
-        Session first = newStudent();
-        Session second = newStudent();
+    @DisplayName("Usuarios: por páginas de 20 (RNF-09), ordenados por fecha de alta, con el total")
+    void listUsers_paged_orderedByCreation() {
+        HttpResult firstPage = get("/api/users", adminToken()).expectStatus(200);
 
-        List<Map<String, Object>> users = get("/api/users", adminToken()).expectStatus(200).asList();
+        assertThat(firstPage.asMap()).containsOnlyKeys("items", "page", "size", "totalItems", "totalPages");
+        assertThat((Integer) firstPage.read("$.page")).isZero();
+        assertThat((Integer) firstPage.read("$.size")).isEqualTo(20);
+        assertThat((String) firstPage.read("$.items[0].username")).isEqualTo(ADMIN_USERNAME);
+        assertThat((Map<String, Object>) firstPage.read("$.items[0]")).containsOnlyKeys(USER_FIELDS);
 
-        List<Object> usernames = users.stream().map(u -> u.get("username")).toList();
-        assertThat(usernames).contains(ADMIN_USERNAME);
-        assertThat(usernames.indexOf(first.username())).isLessThan(usernames.indexOf(second.username()));
-        assertThat(users.get(0)).containsOnlyKeys(USER_FIELDS);
+        String batch = unique("Lote");
+        List<String> usernames = List.of(register(batch, 1), register(batch, 2), register(batch, 3));
+        HttpResult page0 = get("/api/users?q=" + batch + "&size=2", adminToken()).expectStatus(200);
+        HttpResult page1 = get("/api/users?q=" + batch + "&size=2&page=1", adminToken()).expectStatus(200);
+
+        assertThat((List<String>) page0.read("$.items[*].username")).containsExactlyElementsOf(usernames.subList(0, 2));
+        assertThat((List<String>) page1.read("$.items[*].username")).containsExactly(usernames.get(2));
+        assertThat((Integer) page0.read("$.totalItems")).isEqualTo(3);
+        assertThat((Integer) page0.read("$.totalPages")).isEqualTo(2);
+        assertThat((Integer) page1.read("$.page")).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Usuarios: se buscan por nombre, usuario o email, sin distinguir mayúsculas ni tildes (RF-37)")
+    void listUsers_search() {
+        String tag = unique("Busca");
+        String username = register("Íñigo Pérez " + tag, 1);
+
+        assertThat(searchUsernames("inigo perez " + tag)).containsExactly(username);
+        assertThat(searchUsernames(username.toUpperCase())).containsExactly(username);
+        assertThat(searchUsernames(username.toUpperCase() + "@TEST.COM")).containsExactly(username);
+        assertThat(searchUsernames(unique("nadie"))).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Usuarios: como mucho 100 por página")
+    void listUsers_sizeCapped() {
+        assertThat((Integer) get("/api/users?size=500", adminToken()).expectStatus(200).read("$.size")).isEqualTo(100);
+    }
+
+    /** Alta con el nombre indicado; devuelve el usuario. */
+    private String register(String displayName, int n) {
+        String username = unique("u" + n);
+        post("/api/auth/register", null, obj("username", username, "email", username + "@test.com",
+                "plainPassword", STUDENT_PASSWORD, "displayName", displayName)).expectStatus(201);
+        return username;
+    }
+
+    private List<String> searchUsernames(String q) {
+        // MockMvc codifica la URL: el texto va tal cual
+        return get("/api/users?q=" + q, adminToken()).expectStatus(200).read("$.items[*].username");
     }
 
     @ParameterizedTest(name = "STUDENT → {0}")

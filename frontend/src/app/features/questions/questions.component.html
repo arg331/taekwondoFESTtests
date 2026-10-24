@@ -23,8 +23,9 @@
     <mat-button-toggle value="mine">Mi banco de preguntas</mat-button-toggle>
     <mat-button-toggle value="shared">Preguntas compartidas conmigo</mat-button-toggle>
     <mat-button-toggle value="all">Todas las preguntas disponibles</mat-button-toggle>
+    <mat-button-toggle value="deleted">Preguntas eliminadas</mat-button-toggle>
   </mat-button-toggle-group>
-  @if (source() !== 'mine' && sharedQuestions().length > 0) {
+  @if ((source() === 'shared' || source() === 'all') && sharedQuestions().length > 0) {
     <p class="shared-hint">No puedes modificar las preguntas que han compartido contigo</p>
   }
 
@@ -89,8 +90,8 @@
     <div class="loading"><mat-spinner diameter="40" /></div>
   } @else {
     <div class="questions-list" [class.view-cards]="view() === 'cards'" [class.view-list]="view() === 'list'">
-      @for (q of filtered(); track q.id) {
-        <app-question-card [question]="q" [variant]="cardVariant()" (edit)="editing.set(q)" (remove)="delete(q)" />
+      @for (q of visible(); track q.id) {
+        <app-question-card [question]="q" [variant]="cardVariant()" (edit)="editing.set(q)" (remove)="delete(q)" (restore)="restore(q)" />
         @if (editing()?.id === q.id) {
           <app-question-form class="inline-edit" [question]="q" [tags]="tags()"
                              (saved)="onSaved($event)" (cancelled)="editing.set(undefined)" />
@@ -100,6 +101,8 @@
           <mat-icon>quiz</mat-icon>
           @if (source() === 'shared') {
             <p>Nadie te ha compartido preguntas todavía: llegan con los exámenes que aceptas.</p>
+          } @else if (source() === 'deleted') {
+            <p>No has eliminado ninguna pregunta.</p>
           } @else {
             <p>No hay preguntas que mostrar.</p>
             <button mat-flat-button color="primary" (click)="editing.set(null)">Crear pregunta</button>
@@ -107,5 +110,10 @@
         </div>
       }
     </div>
+    @if (filtered().length > pageSize) {
+      <mat-paginator class="questions-paginator" [length]="filtered().length" [pageSize]="pageSize"
+                     [pageIndex]="currentPage()" hidePageSize aria-label="Páginas de preguntas"
+                     (page)="page.set($event.pageIndex)" />
+    }
   }
 </div>

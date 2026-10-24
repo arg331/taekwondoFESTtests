@@ -5,9 +5,11 @@ import { provideRouter } from '@angular/router';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { HarnessLoader } from '@angular/cdk/testing';
 import { MatSelectHarness } from '@angular/material/select/testing';
+import { MatPaginatorHarness } from '@angular/material/paginator/testing';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
 import { UsersComponent } from './users.component';
 import { UserResponse, UserRole } from '../../core/models/auth.models';
+import { PageResponse } from '../../core/models/page.models';
 
 const API = 'http://localhost:8080/api';
 
@@ -20,6 +22,10 @@ function user(id: number, role: UserRole, displayName: string): UserResponse {
 const ME = user(1, 'ADMIN', 'Administrador');
 const ANA = user(2, 'STUDENT', 'Ana');
 const LUIS = user(3, 'TEACHER', 'Luis');
+
+function page(items: UserResponse[], totalItems = items.length, pageIndex = 0): PageResponse<UserResponse> {
+  return { items, page: pageIndex, size: 20, totalItems, totalPages: Math.ceil(totalItems / 20) };
+}
 
 /** Gestión de usuarios: el administrador cambia el rol de los demás (RF-36). */
 describe('UsersComponent', () => {
@@ -43,8 +49,9 @@ describe('UsersComponent', () => {
     fixture = TestBed.createComponent(UsersComponent);
     el = fixture.nativeElement;
     loader = TestbedHarnessEnvironment.loader(fixture);
-    await stable();
-    http.expectOne(`${API}/users`).flush([ME, ANA, LUIS]);
+    // El resource espera su petición: se responde antes de esperar a que se estabilice
+    fixture.detectChanges();
+    usersRequest('', 0).flush(page([ME, ANA, LUIS]));
     await stable();
   });
 
@@ -53,26 +60,69 @@ describe('UsersComponent', () => {
     localStorage.clear();
   });
 
-  describe('buscar (RF-37: si alguien olvida su usuario, se busca por su email)', () => {
-    async function search(text: string): Promise<string[]> {
-      const input = el.querySelector('.user-search input') as HTMLInputElement;
-      input.value = text;
-      input.dispatchEvent(new Event('input'));
-      await stable();
-      return Array.from(el.querySelectorAll('.user-card')).map(c => c.querySelector('.user-name')?.textContent?.trim() ?? '');
-    }
+  /** La página que pide la lista: 20 usuarios, con lo buscado (RNF-09). */
+  function usersRequest(q: string, pageIndex: number) {
+    return http.expectOne(r => r.url === `${API}/users` && r.params.get('q') === q &&
+      r.params.get('page') === String(pageIndex) && r.params.get('size') === '20');
+  }
 
-    it('por email, usuario o nombre, sin distinguir mayúsculas ni tildes', async () => {
-      expect((await search('U3@X.ES'))[0]).toContain('Luis');
-      expect(await search('u2')).toHaveLength(1);
-      expect((await search('ána'))[0]).toContain('Ana');
-      expect(await search('')).toHaveLength(3);
+  function names(): string[] {
+    return Array.from(el.querySelectorAll('.user-card')).map(c => c.querySelector('.user-name')?.textContent?.trim() ?? '');
+  }
+
+  /** Escribe en el buscador y espera a que se deje de escribir. */
+  async function type(text: string): Promise<void> {
+    const input = el.querySelector('.user-search input') as HTMLInputElement;
+    input.value = text;
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    await new Promise(resolve => setTimeout(resolve, 350));
+    fixture.detectChanges();
+  }
+
+  describe('buscar (RF-37: si alguien olvida su usuario, se busca por su email)', () => {
+    it('busca en el servidor al dejar de escribir y enseña cuántos coinciden', async () => {
+      expect(el.querySelector('.subtitle')?.textContent).toContain('3 usuarios registrados');
+
+      await type('  luis ');
+      usersRequest('luis', 0).flush(page([LUIS]));
+      await stable();
+
+      expect(names()).toEqual(['Luis']);
+      expect(el.querySelector('.subtitle')?.textContent).toContain('1 coincide con «luis»');
     });
 
     it('sin resultados lo dice', async () => {
-      await search('nadie');
+      await type('nadie');
+      usersRequest('nadie', 0).flush(page([]));
+      await stable();
 
       expect(el.textContent).toContain('Ningún usuario coincide con «nadie».');
+    });
+  });
+
+  describe('por páginas de 20 (RNF-09)', () => {
+    it('con una sola página no hay paginador', () => {
+      expect(el.querySelector('mat-paginator')).toBeNull();
+    });
+
+    it('con más, el paginador pide la siguiente; buscar vuelve a la primera', async () => {
+      await type('alumno');
+      usersRequest('alumno', 0).flush(page([ANA], 45));
+      await stable();
+
+      const paginator = await loader.getHarness(MatPaginatorHarness);
+      expect(await paginator.getRangeLabel()).toBe('1 – 20 de 45');
+      (el.querySelector('.mat-mdc-paginator-navigation-next') as HTMLButtonElement).click();
+      fixture.detectChanges();
+      usersRequest('alumno', 1).flush(page([LUIS], 45, 1));
+      await stable();
+      expect(names()).toEqual(['Luis']);
+
+      await type('alumna');
+      usersRequest('alumna', 0).flush(page([ANA]));
+      await stable();
+      expect(names()).toEqual(['Ana']);
     });
   });
 

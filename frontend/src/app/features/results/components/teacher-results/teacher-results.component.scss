@@ -87,3 +87,5 @@ a.student-name { color: inherit; font-weight: 600; text-decoration: none; &:hove
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   .section-title { margin: 0; }
 }
+
+.results-paginator { margin-top: 8px; background: transparent; }

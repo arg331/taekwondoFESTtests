@@ -75,6 +75,10 @@ export interface QuestionResponse {
   updatedAt: string;
   /** Quién me la ha compartido (RF-57): solo puedo consultarla. null en las propias. */
   sharedBy: string | null;
+  /** En cuántos exámenes míos está, borradores incluidos. null en las compartidas. */
+  usedInExams: number | null;
+  /** Cuándo la eliminé del banco; null si está en él. */
+  deletedAt: string | null;
 }
 
 /** Cuerpo para crear y para editar una pregunta. */

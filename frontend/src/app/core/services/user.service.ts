@@ -1,16 +1,19 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { UserResponse, UserRole } from '../models/auth.models';
+import { PageResponse } from '../models/page.models';
 
 @Injectable({ providedIn: 'root' })
 export class UserService {
   private http = inject(HttpClient);
   private api  = `${environment.apiUrl}/users`;
 
-  getAll(): Observable<UserResponse[]> {
-    return this.http.get<UserResponse[]>(this.api);
+  /** Una página de usuarios por fecha de alta; q busca en el nombre, el usuario o el email (RF-37, RNF-09). */
+  search(q: string, page: number, size: number): Observable<PageResponse<UserResponse>> {
+    const params = new HttpParams().set('q', q).set('page', String(page)).set('size', String(size));
+    return this.http.get<PageResponse<UserResponse>>(this.api, { params });
   }
 
   /** Solo el administrador, y nunca su propio rol (RF-36). */

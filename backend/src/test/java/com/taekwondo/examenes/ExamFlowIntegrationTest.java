@@ -105,12 +105,12 @@ class ExamFlowIntegrationTest {
                 .andExpect(status().isOk());
         String code = publish(examId);
 
-        // Un examen publicado ya no se puede reconfigurar ni perder preguntas
+        // Un examen publicado ya no se puede reconfigurar; eliminar una de sus preguntas del banco no le afecta
         patch("/api/exams/" + examId + "/config", adminToken, """
                 {"numberOfQuestions":6,"timeLimitMinutes":10,"showScore":true,"randomizeOptions":false,"randomizeQuestionOrder":false}
                 """).andExpect(status().isConflict());
         mvc.perform(delete("/api/questions/" + questionIds.get(0)).header("Authorization", "Bearer " + adminToken))
-                .andExpect(status().isConflict());
+                .andExpect(status().isNoContent());
 
         // El alumno anónimo ve el examen y empieza un intento sin ver las respuestas correctas
         mvc.perform(get("/api/exams/by-code/" + code)).andExpect(status().isOk());

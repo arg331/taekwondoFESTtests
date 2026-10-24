@@ -1,5 +1,6 @@
 package com.taekwondo.examenes.user;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -19,6 +20,20 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByEmail(String email);
 
     boolean existsByRole(UserRole role);
+
+    /**
+     * Gestión de usuarios (RF-37, RNF-09): text, ya en minúsculas y sin tildes, dentro del nombre visible (también
+     * sin tildes), el usuario o el email; vacío = todos. El texto llega con los comodines de LIKE escapados.
+     */
+    @Query("""
+            select u from User u
+            where :text = ''
+               or cast(function('translate', lower(u.displayName), 'áàâäãéèêëíìîïóòôöõúùûüñç', 'aaaaaeeeeiiiiooooouuuunc')
+                       as String) like concat('%', :text, '%') escape '\\'
+               or lower(u.username) like concat('%', :text, '%') escape '\\'
+               or lower(coalesce(u.email, '')) like concat('%', :text, '%') escape '\\'
+            """)
+    Page<User> search(String text, Pageable pageable);
 
     /** Miembros de un club, por nombre visible. */
     @Query("select u from User u where u.club.id = :clubId order by lower(u.displayName)")

@@ -1,4 +1,7 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, DestroyRef } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, linkedSignal, signal, DestroyRef } from '@angular/core';
+import { MatPaginatorIntl, MatPaginatorModule } from '@angular/material/paginator';
+import { PaginatorIntlEs } from '../../../../shared/paginator-intl-es';
+import { PAGE_SIZE, clampPage, pageItems } from '../../../../shared/utils/pagination';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
@@ -36,10 +39,12 @@ interface StudentResults {
     MatProgressSpinnerModule,
     MatDividerModule,
     MatButtonModule,
+    MatPaginatorModule,
     RouterLink,
     ExamStatsComponent,
     QuestionStatsComponent
   ],
+  providers: [{ provide: MatPaginatorIntl, useClass: PaginatorIntlEs }],
   templateUrl: './teacher-results.component.html',
   styleUrl: './teacher-results.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -79,6 +84,14 @@ export class TeacherResultsComponent implements OnInit {
       .sort((a, b) => Number(b.best.registered) - Number(a.best.registered)
         || a.best.studentName.localeCompare(b.best.studentName, 'es'));
   });
+  readonly pageSize = PAGE_SIZE;
+  /**
+   * Página de participantes, desde 0 (RNF-09). Se pagina aquí porque cada alumno agrupa varias entregas:
+   * paginando las entregas en el servidor, un alumno podría quedar partido. Otro examen vuelve a la primera.
+   */
+  page = linkedSignal({ source: this.selectedExam, computation: () => 0 });
+  currentPage = computed(() => clampPage(this.page(), this.students().length));
+  visibleStudents = computed(() => pageItems(this.students(), this.currentPage()));
   /** Alumno con los intentos desplegados; se cierra al cambiar de examen. */
   expandedKey = signal<string | null>(null);
 

@@ -3,6 +3,8 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ExamShareComponent } from './exam-share.component';
 import { ExamShareResponse } from '../../../../core/models/share.models';
+import { ConfirmService } from '../../../../core/services/confirm.service';
+import { of } from 'rxjs';
 
 const API = 'http://localhost:8080/api';
 
@@ -80,7 +82,7 @@ describe('ExamShareComponent', () => {
   });
 
   it('retira el acceso tras confirmarlo', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    vi.spyOn(ConfirmService.prototype, 'ask').mockReturnValue(of(true));
     await render();
 
     button('Quitar', rows()[0]).click();

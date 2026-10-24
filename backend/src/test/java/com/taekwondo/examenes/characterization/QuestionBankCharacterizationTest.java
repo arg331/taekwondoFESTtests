@@ -15,7 +15,7 @@ class QuestionBankCharacterizationTest extends ApiCharacterizationTest {
 
     private static final List<String> TAG_FIELDS = List.of("id", "name", "color", "createdAt");
     private static final List<String> QUESTION_FIELDS = List.of("id", "text", "options", "correctAnswers",
-            "explanation", "grade", "type", "tags", "createdAt", "updatedAt", "sharedBy");
+            "explanation", "grade", "type", "tags", "createdAt", "updatedAt", "sharedBy", "usedInExams", "deletedAt");
 
     // ───── Tags ─────
 
@@ -278,16 +278,107 @@ class QuestionBankCharacterizationTest extends ApiCharacterizationTest {
         get("/api/questions/" + questionIds.get(0), teacher.token()).expectStatus(404);
     }
 
+    // ───── Preguntas eliminadas ─────
+
     @Test
-    @DisplayName("Preguntas: no se puede borrar una pregunta de un examen publicado (409 con su título)")
-    void deleteQuestion_usedInPublishedExam_conflict() {
+    @DisplayName("Eliminadas: una pregunta de un examen publicado se elimina; sale del banco y el examen sigue igual")
+    void deleteQuestion_usedInPublishedExam_goesToDeleted() {
         Session teacher = newTeacher();
         PublishedExam exam = publishedExam(teacher.token(), 5, null, true);
-        String title = get("/api/exams/" + exam.id(), teacher.token()).read("$.title");
+        long questionId = exam.questionIds().get(0);
 
-        HttpResult result = delete("/api/questions/" + exam.questionIds().get(0), teacher.token());
+        delete("/api/questions/" + questionId, teacher.token()).expectStatus(204);
 
-        assertThat(result.expectStatus(409).message()).isEqualTo("La pregunta se usa en exámenes ya publicados: " + title);
+        assertThat(ids(get("/api/questions", teacher.token()).expectStatus(200).asList())).doesNotContain(questionId);
+        assertThat(ids(get("/api/questions/search", teacher.token()).expectStatus(200).asList())).doesNotContain(questionId);
+        List<Map<String, Object>> deleted = get("/api/questions/deleted", teacher.token()).expectStatus(200).asList();
+        assertThat(ids(deleted)).containsExactly(questionId);
+        assertThat(deleted.get(0)).containsEntry("usedInExams", 1);
+        assertThat(deleted.get(0).get("deletedAt")).isNotNull();
+        // El examen publicado conserva sus 5 preguntas y se puede hacer
+        assertThat((List<?>) start(exam.code(), null, obj("studentName", "Ana")).expectStatus(200).read("$.questions"))
+                .hasSize(5);
+    }
+
+    @Test
+    @DisplayName("Eliminadas: recuperar la devuelve al banco; las ajenas no se recuperan (404)")
+    void restoreQuestion_backToBank() {
+        Session teacher = newTeacher();
+        Session other = newTeacher();
+        long questionId = createQuestions(teacher.token(), 1).get(0);
+        delete("/api/questions/" + questionId, teacher.token()).expectStatus(204);
+
+        post("/api/questions/" + questionId + "/restore", other.token(), null).expectStatus(404);
+        HttpResult restored = post("/api/questions/" + questionId + "/restore", teacher.token(), null).expectStatus(200);
+
+        assertThat((Object) restored.read("$.deletedAt")).isNull();
+        assertThat(ids(get("/api/questions", teacher.token()).expectStatus(200).asList())).contains(questionId);
+        assertThat(get("/api/questions/deleted", teacher.token()).expectStatus(200).asList()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Eliminadas: no se pueden poner en un examen ni editar sin recuperarlas")
+    void deletedQuestion_notUsable() {
+        Session teacher = newTeacher();
+        List<Long> questionIds = createQuestions(teacher.token(), 5);
+        long draftId = createDraft(teacher.token(), 5, null, true);
+        delete("/api/questions/" + questionIds.get(0), teacher.token()).expectStatus(204);
+
+        assertThat(put("/api/exams/" + draftId + "/questions", teacher.token(), obj("questionIds", questionIds))
+                .expectStatus(409).message()).isEqualTo("Alguna de las preguntas indicadas no existe");
+        put("/api/questions/" + questionIds.get(0), teacher.token(), obj("text", "x", "options", FOUR_OPTIONS,
+                "correctAnswers", List.of(0))).expectStatus(404);
+    }
+
+    @Test
+    @DisplayName("Eliminadas: el examen al azar no las elige")
+    void deletedQuestion_notPreGenerated() {
+        Session teacher = newTeacher();
+        long tagId = createTag(teacher.token(), unique("Azar"), "#112233");
+        List<Long> questionIds = new java.util.ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            questionIds.add(createQuestion(teacher.token(), unique("Azar"), FOUR_OPTIONS, 0, List.of(tagId)));
+        }
+        delete("/api/questions/" + questionIds.get(0), teacher.token()).expectStatus(204);
+
+        Map<String, Object> body = draftBody(unique("Azar"), 5, null, true, false, false);
+        body.put("requiredAnyOfTagIds", List.of(tagId));
+        HttpResult result = post("/api/exams/drafts/pre-generated", teacher.token(), body);
+
+        assertThat(result.expectStatus(409).message())
+                .isEqualTo("No hay suficientes preguntas con los tags solicitados: se necesitan 5 y solo hay 4");
+    }
+
+    @Test
+    @DisplayName("Eliminadas: la copia de un examen publicado no se las lleva")
+    void deletedQuestion_notCopied() {
+        Session teacher = newTeacher();
+        PublishedExam exam = publishedExam(teacher.token(), 5, null, true);
+        delete("/api/questions/" + exam.questionIds().get(0), teacher.token()).expectStatus(204);
+
+        List<Integer> copied = post("/api/exams/" + exam.id() + "/copy", teacher.token(), null)
+                .expectStatus(201).read("$.questionIds");
+
+        assertThat(copied).hasSize(4).doesNotContain(exam.questionIds().get(0).intValue());
+    }
+
+    @Test
+    @DisplayName("Preguntas: cada una dice en cuántos exámenes se usa, borradores incluidos")
+    void questions_countExamsUsingThem() {
+        Session teacher = newTeacher();
+        PublishedExam exam = publishedExam(teacher.token(), 5, null, true);
+        long draftId = createDraft(teacher.token(), 5, null, true);
+        setQuestions(teacher.token(), draftId, exam.questionIds());
+        long unused = createQuestions(teacher.token(), 1).get(0);
+
+        List<Map<String, Object>> questions = get("/api/questions", teacher.token()).expectStatus(200).asList();
+
+        assertThat(byId(questions, exam.questionIds().get(0))).containsEntry("usedInExams", 2);
+        assertThat(byId(questions, unused)).containsEntry("usedInExams", 0);
+    }
+
+    private static Map<String, Object> byId(List<Map<String, Object>> items, long id) {
+        return items.stream().filter(i -> ((Number) i.get("id")).longValue() == id).findFirst().orElseThrow();
     }
 
     private static List<Long> ids(List<Map<String, Object>> items) {

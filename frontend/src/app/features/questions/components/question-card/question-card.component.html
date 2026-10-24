@@ -35,8 +35,12 @@
 
 <ng-template #actions>
   <div class="question-actions">
-    <!-- Las compartidas conmigo solo se consultan (RF-57) -->
-    @if (!question().sharedBy) {
+    <!-- Las compartidas conmigo solo se consultan (RF-57); las eliminadas solo se recuperan -->
+    @if (question().deletedAt) {
+      <button mat-stroked-button (click)="restore.emit()">
+        <mat-icon>restore_from_trash</mat-icon>Recuperar
+      </button>
+    } @else if (!question().sharedBy) {
       <button mat-icon-button (click)="edit.emit()" matTooltip="Editar">
         <mat-icon>edit</mat-icon>
       </button>
@@ -76,5 +80,11 @@
   }
   @for (tag of question().tags; track tag.id) {
     <span class="tag-chip-small" [style.background]="tag.color">{{ tag.name }}</span>
+  }
+  <!-- Solo en las propias; en gris y a la derecha, sin molestar -->
+  @if (question().usedInExams; as used) {
+    <span class="usage">Se usa en {{ used }} {{ used === 1 ? 'examen' : 'exámenes' }}</span>
+  } @else if (question().usedInExams === 0) {
+    <span class="usage">No se usa en ningún examen</span>
   }
 </ng-template>

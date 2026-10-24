@@ -36,6 +36,17 @@ public class QuestionController {
         questionService.delete(id, userId);
     }
 
+    /** Las eliminadas del banco, para recuperarlas. */
+    @GetMapping("/deleted")
+    public List<QuestionResponse> listDeleted(@AuthenticationPrincipal Long userId) {
+        return questionService.listDeleted(userId);
+    }
+
+    @PostMapping("/{id}/restore")
+    public QuestionResponse restore(@PathVariable Long id, @AuthenticationPrincipal Long userId) {
+        return questionService.restore(id, userId);
+    }
+
     @GetMapping("/{id}")
     public QuestionResponse get(@PathVariable Long id, @AuthenticationPrincipal Long userId) {
         return questionService.get(id, userId);

@@ -1,4 +1,7 @@
-import { ChangeDetectionStrategy, Component, inject, signal, computed, OnInit, DestroyRef } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal, computed, linkedSignal, OnInit, DestroyRef } from '@angular/core';
+import { MatPaginatorIntl, MatPaginatorModule } from '@angular/material/paginator';
+import { PaginatorIntlEs } from '../../shared/paginator-intl-es';
+import { PAGE_SIZE, clampPage, pageItems } from '../../shared/utils/pagination';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -10,6 +13,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { QuestionService } from '../../core/services/question.service';
 import { TagService } from '../../core/services/tag.service';
+import { ConfirmService } from '../../core/services/confirm.service';
 import { ShareService } from '../../core/services/share.service';
 import {
   QuestionTypeFilter,
@@ -25,8 +29,8 @@ import { FULL_GRADE_RANGE, GradeRange, GradeRangeComponent } from '../../shared/
 import { TagFilterComponent } from '../../shared/components/tag-filter/tag-filter.component';
 
 type QuestionsView = 'cards' | 'list';
-/** Qué preguntas se ven (RF-57): las mías, las que me han compartido o todas. */
-type QuestionsSource = 'mine' | 'shared' | 'all';
+/** Qué preguntas se ven (RF-57): las mías, las que me han compartido, todas o las que eliminé. */
+type QuestionsSource = 'mine' | 'shared' | 'all' | 'deleted';
 const VIEW_STORAGE_KEY = 'questions-view';
 
 /**
@@ -47,17 +51,20 @@ const VIEW_STORAGE_KEY = 'questions-view';
     GradeRangeComponent,
     TagFilterComponent,
     MatProgressSpinnerModule,
+    MatPaginatorModule,
     QuestionFormComponent,
     QuestionCardComponent,
     TagManagerComponent
   ],
   templateUrl: './questions.component.html',
   styleUrl: './questions.component.scss',
+  providers: [{ provide: MatPaginatorIntl, useClass: PaginatorIntlEs }],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class QuestionsComponent implements OnInit {
   private questionSvc = inject(QuestionService);
   private tagSvc      = inject(TagService);
+  private confirmSvc = inject(ConfirmService);
   private shareSvc    = inject(ShareService);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -66,6 +73,8 @@ export class QuestionsComponent implements OnInit {
   questions   = signal<QuestionResponse[]>([]);
   /** Las de los exámenes que me han compartido: solo se consultan. */
   sharedQuestions = signal<QuestionResponse[]>([]);
+  /** Fuera del banco: los exámenes publicados las siguen usando. Solo se recuperan. */
+  deletedQuestions = signal<QuestionResponse[]>([]);
   source      = signal<QuestionsSource>('mine');
   /** Las preguntas de la vista elegida, antes de filtrar. */
   pool        = computed(() => {
@@ -73,6 +82,7 @@ export class QuestionsComponent implements OnInit {
       case 'mine': return this.questions();
       case 'shared': return this.sharedQuestions();
       case 'all': return [...this.questions(), ...this.sharedQuestions()];
+      case 'deleted': return this.deletedQuestions();
     }
   });
   tags        = signal<TagResponse[]>([]);
@@ -121,6 +131,20 @@ export class QuestionsComponent implements OnInit {
       (selected.size === 0 || q.tags.some(tag => selected.has(tagKey(tag.name)))));
   });
 
+  readonly pageSize = PAGE_SIZE;
+  /**
+   * Página que se ve, desde 0 (RNF-09): pintar cientos de tarjetas hacía pesada la pantalla. Se pagina aquí
+   * porque los filtros y el recuento por tag necesitan todas las preguntas. Cambiar de vista o de filtro
+   * vuelve a la primera.
+   */
+  page = linkedSignal({
+    source: () => [this.source(), this.filterText(), this.gradeRange(), this.typeFilter(), this.selectedTagIds()],
+    computation: () => 0
+  });
+  /** Si al borrar se vacía la última página, la anterior. */
+  currentPage = computed(() => clampPage(this.page(), this.filtered().length));
+  visible = computed(() => pageItems(this.filtered(), this.currentPage()));
+
   ngOnInit(): void {
     this.tagSvc.getAll().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(tags => this.tags.set(tags));
     this.questionSvc.getAll().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
@@ -129,11 +153,15 @@ export class QuestionsComponent implements OnInit {
     });
     this.shareSvc.questions().pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({ next: q => this.sharedQuestions.set(q), error: () => this.sharedQuestions.set([]) });
+    this.questionSvc.getDeleted().pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({ next: q => this.deletedQuestions.set(q), error: () => this.deletedQuestions.set([]) });
   }
 
   onSaved(saved: QuestionResponse): void {
     const exists = this.questions().some(q => q.id === saved.id);
     this.questions.update(list => exists ? list.map(q => q.id === saved.id ? saved : q) : [saved, ...list]);
+    // La nueva sale la primera: se vuelve a la primera página para verla
+    if (!exists) this.page.set(0);
     this.editing.set(undefined);
   }
 
@@ -168,13 +196,33 @@ export class QuestionsComponent implements OnInit {
     }
   }
 
+  /** Sale del banco a «Preguntas eliminadas»; los exámenes publicados que la usan no cambian. */
   delete(question: QuestionResponse): void {
-    if (!confirm(`¿Eliminar la pregunta "${question.text.substring(0, 50)}..."?`)) return;
+    this.confirmSvc.ask({
+      title: 'Eliminar pregunta', confirmLabel: 'Eliminar',
+      message: `¿Eliminar «${question.text.substring(0, 50)}…»? Podrás recuperarla en «Preguntas eliminadas».`
+    }).subscribe(ok => {
+      if (!ok) return;
+      this.error.set(null);
+      this.questionSvc.delete(question.id).subscribe({
+        next: () => {
+          this.questions.update(list => list.filter(q => q.id !== question.id));
+          this.deletedQuestions.update(list => [{ ...question, deletedAt: new Date().toISOString() }, ...list]);
+        },
+        error: err => this.error.set(err?.error?.message ?? 'No se pudo eliminar la pregunta')
+      });
+    });
+  }
+
+  /** Vuelve al banco una pregunta eliminada. */
+  restore(question: QuestionResponse): void {
     this.error.set(null);
-    this.questionSvc.delete(question.id).subscribe({
-      next: () => this.questions.update(list => list.filter(q => q.id !== question.id)),
-      // p. ej. la pregunta está en un examen ya publicado
-      error: err => this.error.set(err?.error?.message ?? 'No se pudo eliminar la pregunta')
+    this.questionSvc.restore(question.id).subscribe({
+      next: restored => {
+        this.deletedQuestions.update(list => list.filter(q => q.id !== question.id));
+        this.questions.update(list => [restored, ...list]);
+      },
+      error: err => this.error.set(err?.error?.message ?? 'No se pudo recuperar la pregunta')
     });
   }
 }

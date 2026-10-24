@@ -22,6 +22,8 @@ export class QuestionCardComponent {
   variant = input<QuestionCardVariant>('card');
   edit = output<void>();
   remove = output<void>();
+  /** Solo en las eliminadas: vuelve al banco. */
+  restore = output<void>();
 
   /** Solo en la fila: si se ven las opciones y la explicación. */
   expanded = signal(false);

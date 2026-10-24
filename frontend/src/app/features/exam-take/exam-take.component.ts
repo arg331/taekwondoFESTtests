@@ -8,6 +8,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ExamService } from '../../core/services/exam.service';
 import { ResultService } from '../../core/services/result.service';
+import { ConfirmService } from '../../core/services/confirm.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ExamAttemptResponse, ExamResponse, PublicQuestionResponse, SaveAnswerRequest } from '../../core/models/exam.models';
 import { ResultResponse } from '../../core/models/result.models';
@@ -48,6 +49,7 @@ const STORED_ATTEMPT_PREFIX = 'fest_attempt_';
 export class ExamTakeComponent implements OnInit, OnDestroy {
   private examSvc   = inject(ExamService);
   private resultSvc = inject(ResultService);
+  private confirmSvc = inject(ConfirmService);
   private auth      = inject(AuthService);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -226,7 +228,8 @@ export class ExamTakeComponent implements OnInit, OnDestroy {
     const message = pending > 0
       ? `Tienes ${pending} pregunta(s) sin responder. ¿Enviar el examen igualmente?`
       : '¿Enviar el examen? No podrás modificar las respuestas.';
-    if (confirm(message)) this.submit();
+    this.confirmSvc.ask({ title: 'Enviar examen', message, confirmLabel: 'Enviar', cancelLabel: 'Seguir con el examen' })
+      .subscribe(ok => { if (ok) this.submit(); });
   }
 
   private submit(): void {

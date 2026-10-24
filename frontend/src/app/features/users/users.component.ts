@@ -1,6 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal, OnInit, DestroyRef } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, linkedSignal, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { rxResource, toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { debounceTime, distinctUntilChanged, map } from 'rxjs';
+import { MatPaginatorIntl, MatPaginatorModule } from '@angular/material/paginator';
+import { PaginatorIntlEs } from '../../shared/paginator-intl-es';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -17,6 +20,9 @@ import { ResetPasswordDialogComponent } from './reset-password-dialog/reset-pass
 
 /** Cuánto se ven los avisos: un cambio de rol rechazado o una contraseña restablecida. */
 const MESSAGE_DURATION_MS = 5000;
+const PAGE_SIZE = 20;
+/** Se busca cuando se deja de escribir, no con cada tecla. */
+const SEARCH_DEBOUNCE_MS = 300;
 
 /** Gestión de usuarios del administrador: lista, rol (RF-36), contraseña temporal (RF-35) y desactivar (RF-05). */
 @Component({
@@ -29,38 +35,37 @@ const MESSAGE_DURATION_MS = 5000;
     MatSelectModule,
     MatFormFieldModule,
     MatInputModule,
+    MatPaginatorModule,
     RouterLink
   ],
+  providers: [{ provide: MatPaginatorIntl, useClass: PaginatorIntlEs }],
   templateUrl: './users.component.html',
   styleUrl: './users.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class UsersComponent implements OnInit {
+export class UsersComponent {
   private userSvc = inject(UserService);
   private snackBar = inject(MatSnackBar);
   private dialog = inject(MatDialog);
   auth            = inject(AuthService);
-  private readonly destroyRef = inject(DestroyRef);
 
   readonly roles = USER_ROLES;
   readonly roleLabel = ROLE_LABEL;
 
-  loading = signal(true);
-  users   = signal<UserResponse[]>([]);
+  readonly pageSize = PAGE_SIZE;
+
   /** Por nombre, usuario o email (RF-37: quien olvida su usuario se busca por su email). */
   query   = signal('');
-  visibleUsers = computed(() => {
-    const q = normalize(this.query());
-    return !q ? this.users() : this.users().filter(u =>
-      [u.displayName, u.username, u.email ?? ''].some(value => normalize(value).includes(q)));
+  /** Lo escrito, cuando se deja de escribir: busca el servidor. */
+  searchTerm = toSignal(toObservable(this.query).pipe(
+    debounceTime(SEARCH_DEBOUNCE_MS), map(q => q.trim()), distinctUntilChanged()), { initialValue: '' });
+  /** Página que se ve, desde 0; buscar otra cosa vuelve a la primera. */
+  page = linkedSignal({ source: this.searchTerm, computation: () => 0 });
+  /** Por páginas (RNF-09): con cientos de usuarios, traerlos todos hacía la pantalla muy pesada. */
+  users = rxResource({
+    params: () => ({ q: this.searchTerm(), page: this.page() }),
+    stream: ({ params }) => this.userSvc.search(params.q, params.page, PAGE_SIZE)
   });
-
-  ngOnInit(): void {
-    this.userSvc.getAll().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: u => { this.users.set(u); this.loading.set(false); },
-      error: () => this.loading.set(false)
-    });
-  }
 
   /** Si el servidor lo rechaza, el desplegable vuelve al rol que tenía. */
   changeRole(user: UserResponse, role: UserRole, select: MatSelect): void {
@@ -99,11 +104,6 @@ export class UsersComponent implements OnInit {
   }
 
   private replace(updated: UserResponse): void {
-    this.users.update(list => list.map(u => u.id === updated.id ? updated : u));
+    this.users.value.update(page => page && { ...page, items: page.items.map(u => u.id === updated.id ? updated : u) });
   }
-}
-
-/** Sin mayúsculas, tildes ni espacios alrededor, para buscar. */
-function normalize(text: string): string {
-  return text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
 }

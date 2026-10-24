@@ -1,0 +1,88 @@
+# Integración continua: compila y ejecuta los tests del backend y del frontend
+# en cada push a dev/main y en cada pull request hacia ellas.
+name: CI
+
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+    branches: [dev, main]
+
+# Si llega otro push a la misma rama, se cancela la ejecución anterior
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (Spring Boot)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      # Los tests de integración arrancan PostgreSQL con Testcontainers;
+      # los runners ubuntu-latest ya traen Docker.
+      # verify también comprueba la cobertura mínima de JaCoCo (ver pom.xml).
+      - name: Compilar y ejecutar tests
+        run: ./mvnw -B verify
+
+      - name: Guardar informes de tests si fallan
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-test-reports
+          path: backend/target/surefire-reports/
+
+      # También si la cobertura no llega al mínimo, para ver qué falta por cubrir
+      - name: Guardar informe de cobertura
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-coverage
+          path: backend/target/site/jacoco/
+          if-no-files-found: ignore
+
+      - name: Resumen de cobertura
+        if: ${{ !cancelled() && hashFiles('backend/target/site/jacoco/jacoco.csv') != '' }}
+        run: |
+          {
+            echo '### Cobertura del backend (JaCoCo)'
+            echo '| Métrica | Cobertura |'
+            echo '| --- | --- |'
+            awk -F, 'NR > 1 { bm += $6; bc += $7; lm += $8; lc += $9 }
+              END { printf "| Líneas | %.1f %% |\n| Ramas | %.1f %% |\n", 100 * lc / (lc + lm), 100 * bc / (bc + bm) }' \
+              target/site/jacoco/jacoco.csv
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  frontend:
+    name: Frontend (Angular)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Tests
+        run: npx ng test --watch=false
+
+      - name: Build de producción
+        run: npx ng build

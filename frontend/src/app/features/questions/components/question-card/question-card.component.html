@@ -1,0 +1,90 @@
+@if (variant() === 'row') {
+  <div class="question-row" [class.expanded]="expanded()">
+    <div class="row-line">
+      <button type="button" class="row-main" (click)="expanded.update(open => !open)" [attr.aria-expanded]="expanded()">
+        <mat-icon class="row-chevron">{{ expanded() ? 'expand_less' : 'expand_more' }}</mat-icon>
+        <span class="row-text">{{ question().text }}</span>
+      </button>
+      <div class="row-meta">
+        <ng-container [ngTemplateOutlet]="badges" />
+      </div>
+      <ng-container [ngTemplateOutlet]="actions" />
+    </div>
+    @if (expanded()) {
+      <div class="row-details">
+        <ng-container [ngTemplateOutlet]="details" />
+      </div>
+    }
+  </div>
+} @else {
+  <mat-card class="question-card">
+    <mat-card-content>
+      <div class="question-header">
+        <p class="question-text">{{ question().text }}</p>
+        <ng-container [ngTemplateOutlet]="actions" />
+      </div>
+      <div class="card-body">
+        <ng-container [ngTemplateOutlet]="details" />
+      </div>
+      <div class="question-footer">
+        <ng-container [ngTemplateOutlet]="badges" />
+      </div>
+    </mat-card-content>
+  </mat-card>
+}
+
+<ng-template #actions>
+  <div class="question-actions">
+    <!-- Las compartidas conmigo solo se consultan (RF-57); las eliminadas solo se recuperan -->
+    @if (question().deletedAt) {
+      <button mat-stroked-button (click)="restore.emit()">
+        <mat-icon>restore_from_trash</mat-icon>Recuperar
+      </button>
+    } @else if (!question().sharedBy) {
+      <button mat-icon-button (click)="edit.emit()" matTooltip="Editar">
+        <mat-icon>edit</mat-icon>
+      </button>
+      <button mat-icon-button color="warn" (click)="remove.emit()" matTooltip="Eliminar">
+        <mat-icon>delete</mat-icon>
+      </button>
+    }
+  </div>
+</ng-template>
+
+<ng-template #details>
+  <div class="options-list">
+    @for (opt of question().options; track $index) {
+      <div class="option-item" [class.correct]="question().correctAnswers.includes($index)">
+        <mat-icon class="option-icon">
+          {{ question().correctAnswers.includes($index) ? 'check_circle' : 'radio_button_unchecked' }}
+        </mat-icon>
+        <span>{{ opt }}</span>
+      </div>
+    }
+  </div>
+  @if (question().explanation) {
+    <p class="explanation">
+      <mat-icon>lightbulb</mat-icon>
+      {{ question().explanation }}
+    </p>
+  }
+</ng-template>
+
+<ng-template #badges>
+  @if (question().sharedBy; as sharedBy) {
+    <span class="shared-by">Compartida por {{ sharedBy }}</span>
+  }
+  <app-grade-badge [grade]="question().grade" />
+  @if (question().type; as type) {
+    <span class="type-chip">{{ typeLabel[type] }}</span>
+  }
+  @for (tag of question().tags; track tag.id) {
+    <span class="tag-chip-small" [style.background]="tag.color">{{ tag.name }}</span>
+  }
+  <!-- Solo en las propias; en gris y a la derecha, sin molestar -->
+  @if (question().usedInExams; as used) {
+    <span class="usage">Se usa en {{ used }} {{ used === 1 ? 'examen' : 'exámenes' }}</span>
+  } @else if (question().usedInExams === 0) {
+    <span class="usage">No se usa en ningún examen</span>
+  }
+</ng-template>

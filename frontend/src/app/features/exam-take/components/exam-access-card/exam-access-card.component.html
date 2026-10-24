@@ -1,0 +1,92 @@
+<mat-card class="access-card">
+  <div class="brand-header">
+    <span class="brand-icon">🥋</span>
+    <span class="brand-name">{{ appName }}</span>
+  </div>
+  <mat-card-header>
+    <mat-card-title>{{ exam().title }}</mat-card-title>
+    <mat-card-subtitle>
+      {{ exam().config.numberOfQuestions }} preguntas
+      @if (exam().config.timeLimitMinutes) {
+        · {{ exam().config.timeLimitMinutes }} min
+      }
+    </mat-card-subtitle>
+  </mat-card-header>
+
+  <p class="attempts-info">
+    <mat-icon class="inline-icon">replay</mat-icon>
+    @if (exam().maxAttempts === null) {
+      Puedes hacerlo las veces que quieras.
+    } @else if (exam().maxAttempts! > 1) {
+      Puedes hacerlo {{ exam().maxAttempts }} veces.
+    } @else {
+      Solo puedes hacerlo una vez.
+    }
+  </p>
+
+  <p class="exam-kind" [class.practice]="isPractice()">
+    <mat-icon class="inline-icon">{{ kindIcon() }}</mat-icon>
+    @if (isPractice()) {
+      <span><strong>Examen de prueba</strong>: sirve para practicar, no es un examen oficial.</span>
+    } @else {
+      <span><strong>Examen oficial</strong> de tu profesor.</span>
+    }
+  </p>
+
+  @if (needsLogin()) {
+    <mat-card-content>
+      <p class="access-intro">
+        <mat-icon class="inline-icon">lock</mat-icon>
+        Este examen solo puede hacerse con una cuenta registrada.
+      </p>
+    </mat-card-content>
+    <mat-card-actions align="end">
+      <a mat-stroked-button routerLink="/auth/register">Crear cuenta</a>
+      <a mat-flat-button color="primary" routerLink="/auth/login" [queryParams]="loginQueryParams()">
+        <mat-icon>login</mat-icon>
+        Iniciar sesión
+      </a>
+    </mat-card-actions>
+  } @else {
+    <mat-card-content>
+      <p class="access-intro">Introduce tus datos para comenzar el examen.</p>
+      @if (exam().config.timeLimitMinutes) {
+        <p class="access-intro">
+          <mat-icon class="inline-icon">timer</mat-icon>
+          Al terminar el tiempo el examen se enviará automáticamente.
+        </p>
+      }
+      <form [formGroup]="form" (ngSubmit)="submit()">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Nombre completo *</mat-label>
+          <input matInput formControlName="studentName" />
+          @if (form.controls.studentName.hasError('required') && form.controls.studentName.touched) {
+            <mat-error>Campo obligatorio</mat-error>
+          }
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Club (opcional)</mat-label>
+          <mat-select formControlName="studentClub">
+            <mat-option value="">Sin club</mat-option>
+            @for (club of clubs(); track club.id) {
+              <mat-option [value]="club.name">{{ club.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Email (opcional)</mat-label>
+          <input matInput type="email" formControlName="studentEmail" />
+          @if (form.controls.studentEmail.hasError('email')) {
+            <mat-error>Email no válido</mat-error>
+          }
+        </mat-form-field>
+      </form>
+    </mat-card-content>
+    <mat-card-actions align="end">
+      <button mat-flat-button color="primary" (click)="submit()" [disabled]="form.invalid || starting()">
+        @if (starting()) { <mat-spinner diameter="18" /> } @else { <mat-icon>play_arrow</mat-icon> }
+        Comenzar examen
+      </button>
+    </mat-card-actions>
+  }
+</mat-card>

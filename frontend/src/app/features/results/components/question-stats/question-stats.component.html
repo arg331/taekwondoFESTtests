@@ -1,0 +1,45 @@
+<section class="question-stats" aria-label="Acierto por pregunta">
+  <p class="section-title">Acierto por pregunta</p>
+  <p class="hint">De la menos a la más acertada. Pincha en una para ver cuántos marcaron cada opción.</p>
+
+  @if (stats.isLoading()) {
+    <mat-spinner diameter="28" />
+  } @else if (stats.error()) {
+    <p class="error">No se ha podido cargar el acierto por pregunta.</p>
+  } @else {
+    @for (row of rows(); track row.questionId) {
+      <div class="question-row" [class.expanded]="expandedId() === row.questionId">
+        <button type="button" class="question-toggle" (click)="toggle(row.questionId)"
+                [attr.aria-expanded]="expandedId() === row.questionId">
+          <span class="question-number">P{{ row.number }}</span>
+          <span class="question-text">{{ row.text }}</span>
+          <span class="rate-bar" aria-hidden="true">
+            <span class="rate-fill" [style.width.%]="row.successRate ?? 0"
+                  [class.low]="row.successRate !== null && row.successRate < 50"></span>
+          </span>
+          <span class="success-rate">{{ row.successRate === null ? '—' : row.successRate + ' %' }}</span>
+          <span class="success-count">{{ row.correct }} de {{ row.submissions }}</span>
+          <mat-icon class="chevron">{{ expandedId() === row.questionId ? 'expand_less' : 'expand_more' }}</mat-icon>
+        </button>
+
+        @if (expandedId() === row.questionId) {
+          <ul class="option-stats">
+            @for (option of row.options; track $index) {
+              <li class="option-stat" [class.correct]="isCorrect(row, $index)">
+                <span class="option-letter">{{ letter($index) }}</span>
+                <span class="option-text">{{ option }}</span>
+                @if (isCorrect(row, $index)) {
+                  <mat-icon class="correct-icon" aria-label="Correcta">check_circle</mat-icon>
+                }
+                <span class="option-count">{{ row.optionCounts[$index] }} ({{ percent(row.optionCounts[$index], row.submissions) }} %)</span>
+              </li>
+            }
+          </ul>
+          <p class="blank-stat">{{ row.blank }} en blanco</p>
+        }
+      </div>
+    } @empty {
+      <p class="hint">Este examen no tiene preguntas.</p>
+    }
+  }
+</section>

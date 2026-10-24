@@ -1,0 +1,88 @@
+<header class="detail-header">
+  @if (renaming()) {
+    <form class="rename-form" (submit)="$event.preventDefault(); saveName()">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Nombre del club</mat-label>
+        <input matInput [value]="nameDraft()" (input)="nameDraft.set($any($event.target).value)" maxlength="100" />
+      </mat-form-field>
+      <button mat-flat-button color="primary" type="button" (click)="saveName()" [disabled]="busy()">Guardar</button>
+      <button mat-button type="button" (click)="renaming.set(false)">Cancelar</button>
+    </form>
+  } @else {
+    <h2>{{ club().name }}</h2>
+    @if (canManage()) {
+      <button mat-stroked-button type="button" (click)="startRename()">
+        <mat-icon>edit</mat-icon>Renombrar
+      </button>
+    }
+    @if (isAdmin()) {
+      <button mat-stroked-button color="warn" type="button" (click)="deleteClub()" [disabled]="busy()">
+        <mat-icon>delete</mat-icon>Borrar club
+      </button>
+    }
+  }
+</header>
+
+@if (!canManage()) {
+  <p class="hint">Solo el administrador y los profesores del club pueden ver y gestionar sus miembros.</p>
+} @else {
+  <section class="members" aria-label="Miembros del club">
+    <h3>Miembros @if (members.hasValue()) { <span class="count">{{ members.value().length }}</span> }</h3>
+    @if (members.isLoading()) {
+      <mat-spinner diameter="28" />
+    } @else if (members.hasValue()) {
+      @for (member of members.value(); track member.id) {
+        <div class="member">
+          <mat-icon class="avatar">account_circle</mat-icon>
+          <div class="member-info">
+            <a class="member-name" [routerLink]="['/results/user', member.id]" [attr.aria-label]="'Ver los resultados de ' + member.displayName">{{ member.displayName }}</a>
+            <span class="member-username">{{ member.username }}</span>
+          </div>
+          <span class="role-badge" [attr.data-role]="member.role">{{ roleLabel[member.role] }}</span>
+          <button mat-button color="warn" type="button" (click)="remove(member)" [disabled]="busy()">Quitar</button>
+        </div>
+      } @empty {
+        <p class="hint">Aún no hay nadie en este club.</p>
+      }
+    }
+  </section>
+
+  <section class="add-member" aria-label="Añadir miembros">
+    <h3>Añadir miembros</h3>
+    <p class="hint">
+      Busca por nombre o por usuario.
+      @if (isAdmin()) { Si ya está en otro club, se cambiará a este. } @else { Solo aparecen quienes aún no tienen club. }
+    </p>
+    <form class="search-form" (submit)="$event.preventDefault(); search()">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Nombre o usuario</mat-label>
+        <input matInput [value]="query()" (input)="query.set($any($event.target).value)" />
+        <mat-icon matPrefix>search</mat-icon>
+      </mat-form-field>
+      <button mat-stroked-button type="submit" [disabled]="busy() || !query().trim()">Buscar</button>
+    </form>
+
+    @if (candidates(); as found) {
+      <div class="candidates">
+        @for (candidate of found; track candidate.id) {
+          <div class="candidate">
+            <div class="member-info">
+              <span class="member-name">{{ candidate.displayName }}</span>
+              <span class="member-username">
+                {{ candidate.username }} · {{ roleLabel[candidate.role] }}
+                @if (candidate.clubName) { · <strong>ahora en {{ candidate.clubName }}</strong> }
+              </span>
+            </div>
+            <button mat-flat-button color="primary" type="button" (click)="add(candidate)" [disabled]="busy()">Añadir</button>
+          </div>
+        } @empty {
+          <p class="hint">Nadie coincide con la búsqueda.</p>
+        }
+      </div>
+    }
+  </section>
+}
+
+@if (error()) {
+  <p class="error">{{ error() }}</p>
+}

@@ -1,0 +1,153 @@
+<div class="exam-take-page">
+
+  @switch (phase()) {
+    @case ('loading') {
+      <div class="center-screen">
+        <mat-spinner diameter="48" />
+        <p>Cargando examen...</p>
+      </div>
+    }
+
+    @case ('error') {
+      <div class="center-screen">
+        <mat-icon class="error-icon">error_outline</mat-icon>
+        <h2>Examen no disponible</h2>
+        <p class="error-msg">{{ errorMsg() }}</p>
+        <a mat-flat-button color="primary" routerLink="/dashboard">Ir al inicio</a>
+      </div>
+    }
+
+    @case ('access') {
+      <div class="center-screen">
+        <app-exam-access-card [exam]="exam()!" [user]="user()" [starting]="starting()"
+                              (start)="startExam($event)" />
+      </div>
+    }
+
+    @case ('exam') {
+      <div class="exam-wrapper">
+        <div class="exam-header">
+          <div class="exam-header-left">
+            <span class="exam-title">{{ exam()!.title }}</span>
+            <span class="exam-progress">
+              @if (attemptLabel(); as label) { {{ label }} · }
+              {{ answeredCount() }}/{{ questions().length }} respondidas
+            </span>
+          </div>
+          @if (exam()!.config.timeLimitMinutes) {
+            <div class="timer" role="timer" aria-label="Tiempo restante" [class.timer-warn]="timerWarning()">
+              <mat-icon aria-hidden="true">timer</mat-icon>
+              {{ timerDisplay() }}
+            </div>
+            <!-- El lector de pantalla avisa una vez cuando queda poco -->
+            <span class="visually-hidden" aria-live="assertive">
+              @if (timerWarning()) { Queda menos de un minuto: al acabarse, el examen se envía solo. }
+            </span>
+          }
+        </div>
+
+        <div class="progress-bar-wrapper">
+          <div class="progress-bar-fill" [style.width.%]="progress()"></div>
+        </div>
+
+        @if (saveFailed()) {
+          <p class="save-warning" role="status">
+            <mat-icon>cloud_off</mat-icon>
+            No se ha podido guardar tu última respuesta. Comprueba la conexión; se enviará igualmente al entregar.
+          </p>
+        }
+
+        <div class="exam-body">
+          <nav class="question-nav" aria-label="Preguntas del examen">
+            @for (q of questions(); track q.id; let i = $index) {
+              <button type="button" class="nav-btn"
+                      [class.nav-current]="i === currentIndex()"
+                      [class.nav-answered]="isAnswered(q.id)"
+                      [attr.aria-label]="'Pregunta ' + (i + 1) + (isAnswered(q.id) ? ', respondida' : ', sin responder')"
+                      [attr.aria-current]="i === currentIndex() ? 'step' : null"
+                      (click)="goTo(i)">
+                {{ i + 1 }}
+              </button>
+            }
+          </nav>
+
+          <mat-card class="question-card">
+            <mat-card-content>
+              <p class="question-num">Pregunta {{ currentIndex() + 1 }} de {{ questions().length }}</p>
+              @let q = currentQuestion();
+              <p class="question-text" [id]="'question-text-' + q.id">{{ q.text }}</p>
+              @if (q.multipleCorrect) {
+                <p class="multiple-hint" [id]="'question-hint-' + q.id">
+                  <mat-icon aria-hidden="true">checklist</mat-icon>Marca todas las correctas
+                </p>
+              }
+              <!-- Controles nativos (RNF-12): radio con una sola correcta, casilla con varias.
+                   Se eligen con el teclado y el lector de pantalla los anuncia con su opción. -->
+              <div class="options-list" [class.multiple]="q.multipleCorrect"
+                   [attr.role]="q.multipleCorrect ? 'group' : 'radiogroup'"
+                   [attr.aria-labelledby]="'question-text-' + q.id"
+                   [attr.aria-describedby]="q.multipleCorrect ? 'question-hint-' + q.id : null">
+                @for (opt of q.options; track currentQuestion().id + '-' + opt.index; let i = $index) {
+                  <label class="option-item" [class.option-selected]="isChosen(q.id, opt.index)">
+                    <input class="option-input" [type]="q.multipleCorrect ? 'checkbox' : 'radio'"
+                           [name]="'question-' + q.id" [value]="opt.index" [checked]="isChosen(q.id, opt.index)"
+                           (change)="selectAnswer(q, opt.index)" />
+                    <span class="option-letter" aria-hidden="true">{{ letter(i) }}</span>
+                    <span class="option-text">{{ opt.text }}</span>
+                  </label>
+                }
+              </div>
+            </mat-card-content>
+            <mat-card-actions class="question-actions">
+              <button mat-stroked-button (click)="goTo(currentIndex() - 1)" [disabled]="currentIndex() === 0">
+                <mat-icon>arrow_back</mat-icon>
+                Anterior
+              </button>
+              @if (currentIndex() < questions().length - 1) {
+                <button mat-flat-button color="primary" (click)="goTo(currentIndex() + 1)">
+                  Siguiente
+                  <mat-icon>arrow_forward</mat-icon>
+                </button>
+              } @else {
+                <button mat-flat-button color="primary" (click)="confirmSubmit()" [disabled]="submitting()">
+                  @if (submitting()) { <mat-spinner diameter="18" /> } @else { <mat-icon>send</mat-icon> }
+                  Enviar examen
+                </button>
+              }
+            </mat-card-actions>
+          </mat-card>
+        </div>
+
+        @if (submitError() || (allAnswered() && currentIndex() < questions().length - 1)) {
+          <div class="submit-bar">
+            @if (submitError()) {
+              <p class="submit-error">{{ submitError() }}</p>
+            }
+            <button mat-flat-button color="primary" (click)="confirmSubmit()" [disabled]="submitting()">
+              <mat-icon>send</mat-icon>
+              Enviar examen
+            </button>
+          </div>
+        }
+      </div>
+    }
+
+    @case ('result') {
+      <div class="center-screen result-screen">
+        <app-exam-result-card [result]="result()!" [questions]="questions()" />
+        @if (remainingAttempts() !== 0) {
+          <div class="repeat-row">
+            <button mat-flat-button color="primary" class="repeat-btn" (click)="repeat()" [disabled]="starting()">
+              <mat-icon>replay</mat-icon>
+              Repetir examen
+              @if (remainingAttempts(); as left) {
+                <span class="repeat-left">· Te quedan {{ left }} {{ left === 1 ? 'intento' : 'intentos' }}</span>
+              }
+            </button>
+          </div>
+        }
+      </div>
+    }
+  }
+
+</div>

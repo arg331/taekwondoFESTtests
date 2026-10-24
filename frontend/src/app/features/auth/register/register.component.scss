@@ -1,0 +1,89 @@
+.register-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #3a0000 0%, #6b0000 50%, #3a0000 100%);
+  padding: 16px;
+}
+
+.register-card {
+  width: 100%;
+  max-width: 460px;
+  padding: 8px;
+  border-radius: 8px;
+  border-top: 4px solid #C62828;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+
+mat-card-header {
+  margin-bottom: 16px;
+  padding-top: 8px;
+}
+
+mat-card-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.full-width {
+  width: 100%;
+  margin-bottom: 4px;
+}
+
+.submit-btn {
+  height: 48px;
+  font-size: 1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: 8px;
+}
+
+.error-msg {
+  color: #C62828;
+  font-size: 0.9rem;
+  margin: 4px 0 8px;
+}
+
+.login-link {
+  text-align: center;
+  color: #666;
+  font-size: 0.9rem;
+  width: 100%;
+  margin: 0;
+
+  a {
+    color: #C62828;
+    text-decoration: none;
+    font-weight: 600;
+    &:hover { text-decoration: underline; }
+  }
+}
+
+.success-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 48px 24px;
+  text-align: center;
+
+  .success-icon {
+    font-size: 4rem;
+    height: 4rem;
+    width: 4rem;
+    color: #4caf50;
+  }
+
+  h2 { margin: 0; }
+  p  { margin: 0; color: #666; }
+}
+
+// Campos opcionales con una ayuda de dos líneas: espacio para que no se pegue al siguiente
+.with-hint { margin-bottom: 12px; }

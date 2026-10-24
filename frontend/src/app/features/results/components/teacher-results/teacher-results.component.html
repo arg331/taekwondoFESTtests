@@ -1,0 +1,126 @@
+<div class="exams-list">
+  <p class="list-title">Selecciona un examen</p>
+  @if (loadingExams()) {
+    <mat-spinner diameter="32" />
+  } @else {
+    @for (exam of publishedExams(); track exam.id) {
+      <mat-card class="exam-item" [class.selected]="selectedExam()?.id === exam.id" (click)="select(exam)">
+        <mat-card-content>
+          <p class="exam-name">{{ exam.title }}</p>
+          <p class="exam-meta">
+            <span class="status-dot" [style.background]="statusColor[exam.status]"></span>
+            {{ statusLabel[exam.status] }}
+          </p>
+        </mat-card-content>
+      </mat-card>
+    } @empty {
+      <p class="hint">No tienes exámenes publicados todavía.</p>
+    }
+  }
+</div>
+
+<div class="results-panel">
+  @if (!selectedExam()) {
+    <div class="empty">
+      <mat-icon>bar_chart</mat-icon>
+      <p>Selecciona un examen para ver sus resultados.</p>
+    </div>
+  } @else if (loadingResults()) {
+    <div class="empty"><mat-spinner diameter="40" /></div>
+  } @else {
+    <div class="results-header">
+      <h2 class="results-title">{{ selectedExam()!.title }}</h2>
+      <a mat-stroked-button [routerLink]="['/exams']" [queryParams]="{ select: selectedExam()!.id }">
+        <mat-icon>assignment</mat-icon>Ir al examen
+      </a>
+    </div>
+    @if (stats(); as s) {
+      <app-exam-stats [stats]="s" />
+      <mat-divider />
+    }
+
+    @if (results().length === 0) {
+      <div class="empty">
+        <mat-icon>people_outline</mat-icon>
+        <p>Nadie ha realizado este examen todavía.</p>
+      </div>
+    } @else {
+      <div class="participants-header">
+        <p class="section-title">
+          Participantes: {{ students().length }} {{ students().length === 1 ? 'alumno' : 'alumnos' }}
+          · {{ results().length }} {{ results().length === 1 ? 'entrega' : 'entregas' }}
+        </p>
+        <button mat-stroked-button type="button" (click)="exportExcel()" [disabled]="exporting()">
+          <mat-icon>download</mat-icon>Exportar a Excel
+        </button>
+      </div>
+      <div class="table-wrapper">
+        <table class="results-table">
+          <thead>
+            <tr>
+              <th>Nombre</th><th>Club</th><th>Nota</th><th>Resultado</th><th>Tiempo</th><th>Fecha</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (student of visibleStudents(); track student.key) {
+              <tr class="student-row">
+                <td>
+                  <span class="registration-tag" [class.registered]="student.best.registered">
+                    {{ student.best.registered ? 'Registrado' : 'No registrado' }}
+                  </span>
+                  @if (student.best.studentUserId !== null) {
+                    <!-- Todos sus resultados (RF-55) -->
+                    <a class="student-name" [routerLink]="['/results/user', student.best.studentUserId]">{{ student.best.studentName }}</a>
+                  } @else {
+                    <span class="student-name">{{ student.best.studentName }}</span>
+                  }
+                  @if (student.attempts.length > 1) {
+                    <button type="button" class="attempts-toggle" (click)="toggleAttempts(student.key)"
+                            [attr.aria-expanded]="expandedKey() === student.key">
+                      <mat-icon>{{ expandedKey() === student.key ? 'expand_less' : 'expand_more' }}</mat-icon>
+                      {{ student.attempts.length }} intentos
+                    </button>
+                  }
+                </td>
+                <td>{{ student.best.studentClub ?? '—' }}</td>
+                <td><span class="score-badge" [class.passed]="student.best.passed">{{ student.best.score }}</span></td>
+                <td>
+                  <span class="result-label" [class.passed]="student.best.passed">
+                    <mat-icon>{{ student.best.passed ? 'check_circle' : 'cancel' }}</mat-icon>
+                    {{ student.best.passed ? 'Aprobado' : 'Suspenso' }}
+                  </span>
+                  @if (student.best.autoSubmitted) { <span class="auto-tag">Entrega automática</span> }
+                </td>
+                <td>{{ formatDuration(student.best.timeSpentSeconds) }}</td>
+                <td>{{ student.best.completedAt | date:'dd/MM/yy HH:mm' }}</td>
+              </tr>
+              @if (expandedKey() === student.key) {
+                @for (attempt of student.attempts; track attempt.id; let i = $index) {
+                  <tr class="attempt-row">
+                    <td class="attempt-label">Intento {{ student.attempts.length - i }}</td>
+                    <td></td>
+                    <td><span class="score-badge" [class.passed]="attempt.passed">{{ attempt.score }}</span></td>
+                    <td>
+                      {{ attempt.passed ? 'Aprobado' : 'Suspenso' }}
+                      @if (attempt.autoSubmitted) { <span class="auto-tag">Entrega automática</span> }
+                    </td>
+                    <td>{{ formatDuration(attempt.timeSpentSeconds) }}</td>
+                    <td>{{ attempt.completedAt | date:'dd/MM/yy HH:mm' }}</td>
+                  </tr>
+                }
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (students().length > pageSize) {
+        <mat-paginator class="results-paginator" [length]="students().length" [pageSize]="pageSize"
+                       [pageIndex]="currentPage()" hidePageSize aria-label="Páginas de participantes"
+                       (page)="page.set($event.pageIndex)" />
+      }
+
+      <mat-divider />
+      <app-question-stats [examId]="selectedExam()!.id" />
+    }
+  }
+</div>

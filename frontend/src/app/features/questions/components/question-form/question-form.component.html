@@ -1,0 +1,99 @@
+<mat-card class="form-card">
+  <mat-card-header>
+    <mat-card-title>{{ question() ? 'Editar pregunta' : 'Nueva pregunta' }}</mat-card-title>
+  </mat-card-header>
+
+  <mat-card-content>
+    <form [formGroup]="form" (ngSubmit)="save()">
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Texto de la pregunta</mat-label>
+        <textarea matInput formControlName="text" rows="3"></textarea>
+        @if (form.controls.text.hasError('required') && form.controls.text.touched) {
+          <mat-error>Campo obligatorio</mat-error>
+        }
+        @if (form.controls.text.hasError('minlength')) {
+          <mat-error>Mínimo 10 caracteres</mat-error>
+        }
+      </mat-form-field>
+
+      <p class="section-label">Opciones de respuesta</p>
+      <p class="hint">Al menos {{ minOptions }}. Al escribir en la última aparece otra casilla. Marca la correcta o, si hay varias, todas.</p>
+      <div class="options-grid">
+        @for (ctrl of form.controls.options.controls; track ctrl) {
+          <div class="option-row" [class.trailing]="isTrailing($index)">
+            <mat-checkbox color="primary" [checked]="isCorrect($index)" (change)="setCorrect($index, $event.checked)"
+                          [aria-label]="'Opción ' + ($index + 1) + ' es correcta'" />
+            <mat-form-field appearance="outline" class="option-field" subscriptSizing="dynamic">
+              <mat-label>{{ isTrailing($index) ? 'Añadir opción' : 'Opción ' + ($index + 1) }}</mat-label>
+              <input matInput [formControl]="ctrl" />
+            </mat-form-field>
+            @if (canRemoveOptions() && !isTrailing($index)) {
+              <button mat-icon-button type="button" class="remove-option" (click)="removeOption($index)"
+                      matTooltip="Quitar opción" [attr.aria-label]="'Quitar opción ' + ($index + 1)">
+                <mat-icon>close</mat-icon>
+              </button>
+            }
+          </div>
+        }
+      </div>
+      @if (optionsError()) {
+        <p class="hint-warn">{{ optionsError() }}</p>
+      }
+
+      <div class="row-2">
+        <mat-form-field appearance="outline">
+          <mat-label>Grado mínimo (opcional)</mat-label>
+          <mat-select class="grade-select" formControlName="grade">
+            <mat-select-trigger>
+              @if (form.controls.grade.value; as grade) { <app-grade-badge [grade]="grade" /> } @else { Sin grado }
+            </mat-select-trigger>
+            <mat-option [value]="noGrade">Sin grado</mat-option>
+            @for (g of grades; track g) {
+              <mat-option [value]="g"><app-grade-badge [grade]="g" /></mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Tags</mat-label>
+          <mat-select formControlName="tagIds" multiple>
+            @for (tag of tags(); track tag.id) {
+              <mat-option [value]="tag.id">{{ tag.name }}</mat-option>
+            } @empty {
+              <mat-option disabled>Sin tags: créalos en "Gestión de tags"</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <div class="type-row">
+        <span class="section-label">Tipo de examen de arbitraje</span>
+        <mat-button-toggle-group class="type-toggle" formControlName="type" hideSingleSelectionIndicator aria-label="Tipo de examen de arbitraje">
+          @for (t of questionTypes; track t) {
+            <mat-button-toggle [value]="t">{{ typeLabel[t] }}</mat-button-toggle>
+          }
+          <!-- Sin tipo: sirve para cualquier examen; es lo marcado por defecto -->
+          <mat-button-toggle value="">Sin tipo definido</mat-button-toggle>
+        </mat-button-toggle-group>
+      </div>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Explicación de la respuesta (opcional)</mat-label>
+        <textarea matInput formControlName="explanation" rows="2"></textarea>
+      </mat-form-field>
+
+      @if (error()) {
+        <p class="hint-warn">{{ error() }}</p>
+      }
+    </form>
+  </mat-card-content>
+
+  <mat-card-actions align="end">
+    <button mat-button (click)="cancelled.emit()">Cancelar</button>
+    <button mat-flat-button color="primary" (click)="save()"
+            [disabled]="form.invalid || !!optionsError() || saving()">
+      @if (saving()) { <mat-spinner diameter="18" /> }
+      {{ question() ? 'Guardar cambios' : 'Crear pregunta' }}
+    </button>
+  </mat-card-actions>
+</mat-card>

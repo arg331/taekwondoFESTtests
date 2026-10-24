@@ -1,0 +1,17 @@
+:host { display: block; }
+
+.invitations { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+
+.invitation {
+  border-left: 4px solid #c62828;
+  mat-card-content { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+}
+.invitation-icon { color: #c62828; }
+.invitation-text { flex: 1; margin: 0; min-width: 220px; }
+.invitation-actions { display: flex; gap: 8px; }
+
+.accepted-note {
+  display: flex; align-items: center; gap: 6px; margin: 0; color: #2e7d32; font-size: 0.9rem;
+  mat-icon { font-size: 20px; width: 20px; height: 20px; }
+}
+.invitation-error { color: #c62828; margin: 0; }

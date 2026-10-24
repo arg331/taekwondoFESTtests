@@ -1,0 +1,119 @@
+<div class="questions-page">
+
+  <div class="page-header">
+    <div>
+      <h1>Banco de preguntas</h1>
+      <p class="subtitle">{{ filtered().length }} de {{ pool().length }} preguntas</p>
+    </div>
+    <button mat-flat-button color="primary" (click)="editing.set(null)">
+      <mat-icon>add</mat-icon>
+      Nueva pregunta
+    </button>
+  </div>
+
+  <!-- Pregunta nueva arriba; al editar, el formulario se abre debajo de la propia pregunta -->
+  @if (editing() === null) {
+    <app-question-form [question]="null" [tags]="tags()"
+                       (saved)="onSaved($event)" (cancelled)="editing.set(undefined)" />
+  }
+
+  <!-- Qué preguntas se ven (RF-57) -->
+  <mat-button-toggle-group class="source-switch" hideSingleSelectionIndicator aria-label="Qué preguntas ver"
+                           [value]="source()" (change)="source.set($event.value)">
+    <mat-button-toggle value="mine">Mi banco de preguntas</mat-button-toggle>
+    <mat-button-toggle value="shared">Preguntas compartidas conmigo</mat-button-toggle>
+    <mat-button-toggle value="all">Todas las preguntas disponibles</mat-button-toggle>
+    <mat-button-toggle value="deleted">Preguntas eliminadas</mat-button-toggle>
+  </mat-button-toggle-group>
+  @if ((source() === 'shared' || source() === 'all') && sharedQuestions().length > 0) {
+    <p class="shared-hint">No puedes modificar las preguntas que han compartido contigo</p>
+  }
+
+  <!-- El selector de vista va a la altura de «Gestión de tags» -->
+  <div class="tags-row">
+    <app-tag-manager class="tags-manager" [(tags)]="tags" (updated)="onTagUpdated($event)" (removed)="onTagRemoved($event)" />
+    <div class="view-switch" role="group" aria-label="Vista de las preguntas">
+      <button type="button" aria-label="Ver como tarjetas" [attr.aria-pressed]="view() === 'cards'"
+              (click)="setView('cards')">
+        <mat-icon>grid_view</mat-icon>
+        <span>Tarjetas</span>
+      </button>
+      <button type="button" aria-label="Ver como lista" [attr.aria-pressed]="view() === 'list'"
+              (click)="setView('list')">
+        <mat-icon>view_list</mat-icon>
+        <span>Lista</span>
+      </button>
+    </div>
+  </div>
+
+  <mat-card class="filters-card">
+    <mat-card-content>
+      <div class="filters">
+        <mat-form-field appearance="outline" class="filter-text">
+          <mat-label>Buscar</mat-label>
+          <input matInput [value]="filterText()" (input)="filterText.set($any($event.target).value)"
+                 placeholder="Texto de la pregunta..." />
+          <mat-icon matPrefix>search</mat-icon>
+        </mat-form-field>
+        <button mat-stroked-button type="button" class="clear-filters" (click)="clearFilters()" [disabled]="!hasFilters()">
+          <mat-icon>filter_alt_off</mat-icon>Limpiar filtros
+        </button>
+      </div>
+      <div class="filters-secondary">
+        <div class="grade-filter">
+          <span class="filter-title">Grado</span>
+          <app-grade-range [(range)]="gradeRange" />
+        </div>
+        <div class="type-filter-block">
+          <span class="filter-title">Tipo</span>
+          <mat-button-toggle-group class="type-filter" hideSingleSelectionIndicator aria-label="Filtrar por tipo"
+                                   [value]="typeFilter()" (change)="typeFilter.set($event.value)">
+            <mat-button-toggle value="">Todos</mat-button-toggle>
+            <mat-button-toggle value="C">C</mat-button-toggle>
+            <mat-button-toggle value="D">D</mat-button-toggle>
+            <mat-button-toggle value="NONE">Sin tipo</mat-button-toggle>
+          </mat-button-toggle-group>
+        </div>
+      </div>
+      <div class="tag-filters">
+        <span class="filter-title">Tags</span>
+        <app-tag-filter [tags]="tags()" [counts]="tagCounts()" [(selectedIds)]="selectedTagIds" />
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  @if (error()) {
+    <p class="hint-warn">{{ error() }}</p>
+  }
+
+  @if (loading()) {
+    <div class="loading"><mat-spinner diameter="40" /></div>
+  } @else {
+    <div class="questions-list" [class.view-cards]="view() === 'cards'" [class.view-list]="view() === 'list'">
+      @for (q of visible(); track q.id) {
+        <app-question-card [question]="q" [variant]="cardVariant()" (edit)="editing.set(q)" (remove)="delete(q)" (restore)="restore(q)" />
+        @if (editing()?.id === q.id) {
+          <app-question-form class="inline-edit" [question]="q" [tags]="tags()"
+                             (saved)="onSaved($event)" (cancelled)="editing.set(undefined)" />
+        }
+      } @empty {
+        <div class="empty">
+          <mat-icon>quiz</mat-icon>
+          @if (source() === 'shared') {
+            <p>Nadie te ha compartido preguntas todavía: llegan con los exámenes que aceptas.</p>
+          } @else if (source() === 'deleted') {
+            <p>No has eliminado ninguna pregunta.</p>
+          } @else {
+            <p>No hay preguntas que mostrar.</p>
+            <button mat-flat-button color="primary" (click)="editing.set(null)">Crear pregunta</button>
+          }
+        </div>
+      }
+    </div>
+    @if (filtered().length > pageSize) {
+      <mat-paginator class="questions-paginator" [length]="filtered().length" [pageSize]="pageSize"
+                     [pageIndex]="currentPage()" hidePageSize aria-label="Páginas de preguntas"
+                     (page)="page.set($event.pageIndex)" />
+    }
+  }
+</div>

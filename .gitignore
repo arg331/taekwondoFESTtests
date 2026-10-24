@@ -1,0 +1,5 @@
+# Documentación local de trabajo (no se sube al repositorio)
+docs/especificacion-requisitos.md
+
+# Valores locales de compose.yaml / backend
+.env

@@ -1,0 +1,105 @@
+<div class="users-page">
+
+  <div class="page-header">
+    <div>
+      <h1>Gestión de usuarios</h1>
+      @if (users.value(); as result) {
+        <p class="subtitle">
+          @if (searchTerm()) {
+            {{ result.totalItems }} {{ result.totalItems === 1 ? 'coincide' : 'coinciden' }} con «{{ searchTerm() }}»
+          } @else {
+            {{ result.totalItems }} usuarios registrados
+          }
+        </p>
+      }
+    </div>
+    <mat-form-field appearance="outline" class="user-search" subscriptSizing="dynamic">
+      <mat-label>Buscar por nombre, usuario o email</mat-label>
+      <input matInput [value]="query()" (input)="query.set($any($event.target).value)" />
+      <mat-icon matPrefix>search</mat-icon>
+    </mat-form-field>
+  </div>
+
+  @if (users.error()) {
+    <p class="no-match">No se pudo cargar la lista de usuarios.</p>
+  } @else if (!users.hasValue()) {
+    <div class="loading">
+      <mat-spinner diameter="40" />
+    </div>
+  } @else {
+    @let result = users.value();
+    <div class="users-list" [class.reloading]="users.isLoading()">
+      @for (user of result.items; track user.id) {
+        <mat-card class="user-card" [class.inactive]="!user.active" [attr.data-id]="user.id">
+          <mat-card-content>
+            <div class="user-row">
+
+              <div class="user-info">
+                <mat-icon class="avatar-icon">account_circle</mat-icon>
+                <div>
+                  <p class="user-name">
+                    {{ user.displayName }}
+                    @if (isCurrentUser(user)) {
+                      <span class="you-badge">Tú</span>
+                    }
+                    @if (!user.active) {
+                      <span class="inactive-badge">Desactivada</span>
+                    }
+                    @if (user.mustChangePassword) {
+                      <span class="temp-badge">Contraseña temporal</span>
+                    }
+                  </p>
+                  <p class="user-meta">
+                    {{ user.username }} · {{ user.email ?? 'sin email' }}
+                    @if (user.club) { · {{ user.club.name }} }
+                  </p>
+                </div>
+              </div>
+
+              <div class="user-actions">
+                <a mat-stroked-button class="user-results" [routerLink]="['/results/user', user.id]"
+                   [attr.aria-label]="'Ver los resultados de ' + user.displayName">
+                  <mat-icon>bar_chart</mat-icon>
+                  Ver resultados
+                </a>
+                @if (isCurrentUser(user)) {
+                  <!-- El propio rol no se cambia: así nadie se queda sin administrador por error -->
+                  <span class="role-badge" [attr.data-role]="user.role">{{ roleLabel[user.role] }}</span>
+                } @else {
+                  <mat-form-field appearance="outline" class="role-field" subscriptSizing="dynamic">
+                    <mat-label>Rol</mat-label>
+                    <mat-select #roleSelect [value]="user.role"
+                                (selectionChange)="changeRole(user, $event.value, roleSelect)"
+                                [attr.aria-label]="'Rol de ' + user.displayName">
+                      @for (role of roles; track role) {
+                        <mat-option [value]="role">{{ roleLabel[role] }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                  <button mat-stroked-button type="button" class="reset-password" (click)="resetPassword(user)"
+                          [attr.aria-label]="'Restablecer la contraseña de ' + user.displayName">
+                    <mat-icon>lock_reset</mat-icon>
+                    Restablecer contraseña
+                  </button>
+                  <button mat-stroked-button type="button" class="toggle-active" (click)="toggleActive(user)"
+                          [attr.aria-label]="(user.active ? 'Desactivar la cuenta de ' : 'Reactivar la cuenta de ') + user.displayName">
+                    <mat-icon>{{ user.active ? 'block' : 'check_circle' }}</mat-icon>
+                    {{ user.active ? 'Desactivar' : 'Reactivar' }}
+                  </button>
+                }
+              </div>
+
+            </div>
+          </mat-card-content>
+        </mat-card>
+      } @empty {
+        <p class="no-match">Ningún usuario coincide con «{{ searchTerm() }}».</p>
+      }
+    </div>
+    @if (result.totalPages > 1) {
+      <mat-paginator [length]="result.totalItems" [pageSize]="pageSize" [pageIndex]="result.page" hidePageSize
+                     aria-label="Páginas de usuarios" (page)="page.set($event.pageIndex)" />
+    }
+  }
+
+</div>

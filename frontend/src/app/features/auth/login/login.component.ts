@@ -1,0 +1,71 @@
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { FormBuilder, Validators, ReactiveFormsModule } from '@angular/forms';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { MatCardModule } from '@angular/material/card';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { CommonModule } from '@angular/common';
+import { AuthService } from '../../../core/services/auth.service';
+import { ExamCodeEntryComponent } from '../../../shared/components/exam-code-entry/exam-code-entry.component';
+import { APP_NAME } from '../../../core/app-brand';
+import { safeReturnUrl } from '../../../shared/utils/return-url';
+
+@Component({
+  selector: 'app-login',
+  standalone: true,
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    RouterLink,
+    MatCardModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatButtonModule,
+    MatIconModule,
+    MatProgressSpinnerModule,
+    ExamCodeEntryComponent
+  ],
+  templateUrl: './login.component.html',
+  styleUrl: './login.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
+})
+export class LoginComponent {
+  readonly appName = APP_NAME;
+  private fb     = inject(FormBuilder);
+  private auth   = inject(AuthService);
+  private router = inject(Router);
+  private route  = inject(ActivatedRoute);
+
+  loading  = signal(false);
+  error    = signal<string | null>(null);
+  showPass = signal(false);
+
+  form = this.fb.nonNullable.group({
+    usernameOrEmail: ['', [Validators.required]],
+    plainPassword:   ['', [Validators.required, Validators.minLength(6)]]
+  });
+
+  submit(): void {
+    if (this.form.invalid || this.loading()) return;
+
+    this.loading.set(true);
+    this.error.set(null);
+
+    // Con contraseña temporal, el guard lleva antes a cambiarla y conserva este destino (RF-33)
+    this.auth.login(this.form.getRawValue()).subscribe({
+      next: () => this.router.navigateByUrl(safeReturnUrl(this.route)),
+      error: (err) => {
+        this.error.set(
+          err.status === 401 ? 'Usuario o contraseña incorrectos'
+            // Demasiados intentos (RNF-07): el servidor dice cuánto esperar
+            : err.status === 429 ? err.error?.message ?? 'Demasiados intentos. Espera un minuto.'
+            : 'Error al conectar con el servidor'
+        );
+        this.loading.set(false);
+      }
+    });
+  }
+}

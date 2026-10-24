@@ -1,0 +1,53 @@
+<div class="exams-page">
+
+  <div class="page-header">
+    <div>
+      <h1>Mis exámenes</h1>
+      <p class="subtitle">{{ exams().length }} exámenes</p>
+    </div>
+    <div class="header-actions">
+      <button mat-stroked-button color="primary" (click)="openDraftForm('random')">
+        <mat-icon>auto_awesome</mat-icon>
+        Generar aleatorio
+      </button>
+      <button mat-flat-button color="primary" (click)="openDraftForm('manual')">
+        <mat-icon>add</mat-icon>
+        Nuevo examen
+      </button>
+    </div>
+  </div>
+
+  <!-- Un caso por modo para que el formulario se cree de cero al cambiar de uno a otro -->
+  @switch (draftMode()) {
+    @case ('manual') {
+      <app-exam-draft-form mode="manual" (created)="onCreated($event)" (cancelled)="draftMode.set(null)" />
+    }
+    @case ('random') {
+      <app-exam-draft-form mode="random" [tags]="tags()"
+                           (created)="onCreated($event)" (cancelled)="draftMode.set(null)" />
+    }
+  }
+
+  @if (loading()) {
+    <div class="loading"><mat-spinner diameter="40" /></div>
+  } @else if (exams().length === 0) {
+    <div class="empty">
+      <mat-icon>assignment_late</mat-icon>
+      <p>No tienes exámenes todavía.</p>
+      <div class="header-actions">
+        <button mat-stroked-button color="primary" (click)="openDraftForm('random')">Generar aleatorio</button>
+        <button mat-flat-button color="primary" (click)="openDraftForm('manual')">Crear manualmente</button>
+      </div>
+    </div>
+  } @else {
+    <div class="content-grid">
+      <app-exam-list [exams]="exams()" [selectedId]="selectedExam()?.id ?? null" (selected)="select($event)" />
+
+      @if (selectedExam(); as exam) {
+        <app-exam-detail [exam]="exam" [questions]="questions()" [sharedQuestions]="sharedQuestions()" [tags]="tags()" [openExamCodes]="openExamCodes()"
+                         (changed)="onChanged($event)" (deleted)="onDeleted($event)" (copied)="onCreated($event)"
+                         (questionCreated)="onQuestionCreated($event)" />
+      }
+    </div>
+  }
+</div>

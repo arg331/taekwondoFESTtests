@@ -26,10 +26,10 @@ describe('AuthService', () => {
     return TestBed.inject(AuthService);
   }
 
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => (localStorage.clear(), sessionStorage.clear()));
   afterEach(() => http.verify());
 
-  it('login: envía credenciales y guarda token y usuario en localStorage', () => {
+  it('login: guarda token y usuario solo en esta sesión del navegador, nunca en localStorage (DE-10)', () => {
     const auth = setup();
     const response: LoginResponse = { token: 'jwt-123', user: ADMIN };
 
@@ -39,8 +39,11 @@ describe('AuthService', () => {
     expect(req.request.body).toEqual({ usernameOrEmail: 'admin', plainPassword: 'secreto' });
     req.flush(response);
 
-    expect(localStorage.getItem('fest_token')).toBe('jwt-123');
-    expect(JSON.parse(localStorage.getItem('fest_user')!)).toEqual(ADMIN);
+    expect(sessionStorage.getItem('fest_token')).toBe('jwt-123');
+    expect(JSON.parse(sessionStorage.getItem('fest_user')!)).toEqual(ADMIN);
+    // Al cerrar el navegador se pierde: hay que volver a iniciar sesión
+    expect(localStorage.getItem('fest_token')).toBeNull();
+    expect(localStorage.getItem('fest_user')).toBeNull();
     expect(auth.getToken()).toBe('jwt-123');
     expect(auth.currentUser()).toEqual(ADMIN);
     expect(auth.isAuthenticated()).toBe(true);
@@ -56,12 +59,12 @@ describe('AuthService', () => {
     req.flush(STUDENT);
 
     expect(auth.isAuthenticated()).toBe(false);
-    expect(localStorage.getItem('fest_token')).toBeNull();
+    expect(sessionStorage.getItem('fest_token')).toBeNull();
   });
 
   it('recupera la sesión guardada al arrancar; un alumno no es admin', () => {
-    localStorage.setItem('fest_token', 't');
-    localStorage.setItem('fest_user', JSON.stringify(STUDENT));
+    sessionStorage.setItem('fest_token', 't');
+    sessionStorage.setItem('fest_user', JSON.stringify(STUDENT));
 
     const auth = setup();
 
@@ -71,8 +74,8 @@ describe('AuthService', () => {
   });
 
   it('un profesor prepara exámenes pero no administra (RF-04)', () => {
-    localStorage.setItem('fest_token', 't');
-    localStorage.setItem('fest_user', JSON.stringify(TEACHER));
+    sessionStorage.setItem('fest_token', 't');
+    sessionStorage.setItem('fest_user', JSON.stringify(TEACHER));
 
     const auth = setup();
 
@@ -81,8 +84,8 @@ describe('AuthService', () => {
   });
 
   it('el administrador también puede preparar exámenes', () => {
-    localStorage.setItem('fest_token', 't');
-    localStorage.setItem('fest_user', JSON.stringify(ADMIN));
+    sessionStorage.setItem('fest_token', 't');
+    sessionStorage.setItem('fest_user', JSON.stringify(ADMIN));
 
     const auth = setup();
 
@@ -91,15 +94,15 @@ describe('AuthService', () => {
   });
 
   it('logout: borra la sesión y navega al login', () => {
-    localStorage.setItem('fest_token', 't');
-    localStorage.setItem('fest_user', JSON.stringify(ADMIN));
+    sessionStorage.setItem('fest_token', 't');
+    sessionStorage.setItem('fest_user', JSON.stringify(ADMIN));
     const auth = setup();
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
 
     auth.logout();
 
-    expect(localStorage.getItem('fest_token')).toBeNull();
-    expect(localStorage.getItem('fest_user')).toBeNull();
+    expect(sessionStorage.getItem('fest_token')).toBeNull();
+    expect(sessionStorage.getItem('fest_user')).toBeNull();
     expect(auth.isAuthenticated()).toBe(false);
     expect(navigate).toHaveBeenCalledWith(['/auth/login']);
   });
@@ -113,8 +116,8 @@ describe('AuthService', () => {
   });
 
   it('changePassword: guarda la sesión nueva que devuelve el servidor (RF-06)', () => {
-    localStorage.setItem('fest_token', 'viejo');
-    localStorage.setItem('fest_user', JSON.stringify({ ...STUDENT, mustChangePassword: true }));
+    sessionStorage.setItem('fest_token', 'viejo');
+    sessionStorage.setItem('fest_user', JSON.stringify({ ...STUDENT, mustChangePassword: true }));
     const auth = setup();
     expect(auth.mustChangePassword()).toBe(true);
 

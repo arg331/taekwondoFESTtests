@@ -45,6 +45,7 @@ import { ExamQuestionPickerComponent } from '../exam-question-picker/exam-questi
 import { AttemptsSliderComponent } from '../attempts-slider/attempts-slider.component';
 import { ExamQrDialogComponent, ExamQrDialogData } from '../exam-qr-dialog/exam-qr-dialog.component';
 import { ExamShareComponent } from '../exam-share/exam-share.component';
+import { environment } from '../../../../../environments/environment';
 
 /** Cuánto se ve un aviso breve (enlace copiado, etc.). */
 const NOTICE_DURATION_MS = 3000;
@@ -153,7 +154,8 @@ export class ExamDetailComponent {
   visibilityToggleLabel = computed(() =>
     this.exam().visibility === 'PUBLIC' ? 'Pasar a oficial (privado)' : 'Pasar a examen de prueba (público)');
 
-  examUrl = computed(() => `${window.location.origin}/exam/${this.exam().code}`);
+  /** Enlace del examen para el QR: la dirección pública configurada o, si no hay, la del navegador (DE-16). */
+  examUrl = computed(() => `${environment.publicUrl || window.location.origin}/exam/${this.exam().code}`);
   /** Cerrado a mano o fuera de plazo: quien escanee el QR no podrá entregar. */
   closedForSubmissions = computed(() => {
     const { status, expiresAt } = this.exam();
@@ -270,7 +272,9 @@ export class ExamDetailComponent {
 
   close(): void {
     this.confirmSvc.ask({
-      title: 'Cerrar examen', message: '¿Cerrar este examen? Los estudiantes no podrán entregarlo.', confirmLabel: 'Cerrar'
+      title: 'Cerrar examen', confirmLabel: 'Cerrar',
+      // DE-07: los intentos empezados siguen hasta que se les acaba el tiempo
+      message: '¿Cerrar este examen? Nadie más podrá empezarlo; quien ya lo esté haciendo podrá terminarlo en su tiempo.'
     }).subscribe(ok => { if (ok) this.run(this.examSvc.close(this.exam().id)); });
   }
 

@@ -56,7 +56,7 @@ public class ResultService {
         Exam exam = examRepository.findByCode(request.examCode())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "No existe ningún examen con código " + request.examCode()));
-        // Si caduca a mitad, la entrega vale; si el profesor lo cierra manualmente, ya no
+        // Si caduca a mitad o el profesor lo cierra después de empezar, la entrega vale en su tiempo (DE-07)
         ExamAttempt attempt = attemptService.openAttempt(exam, request.attemptToken());
 
         Map<Long, List<Integer>> chosenByQuestion = chosenByQuestion(request);

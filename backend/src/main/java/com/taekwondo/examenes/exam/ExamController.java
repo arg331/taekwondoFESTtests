@@ -135,7 +135,7 @@ public class ExamController {
     // ───── Flujo del alumno (público) ─────
 
     @GetMapping("/by-code/{code}")
-    public ExamResponse getByCode(@PathVariable String code) {
+    public PublicExamResponse getByCode(@PathVariable String code) {
         return examService.getAccessibleByCode(code);
     }
 

@@ -10,7 +10,7 @@ import { ExamService } from '../../core/services/exam.service';
 import { ResultService } from '../../core/services/result.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { AuthService } from '../../core/services/auth.service';
-import { ExamAttemptResponse, ExamResponse, PublicQuestionResponse, SaveAnswerRequest } from '../../core/models/exam.models';
+import { ExamAttemptResponse, PublicExamResponse, PublicQuestionResponse, SaveAnswerRequest } from '../../core/models/exam.models';
 import { ResultResponse } from '../../core/models/result.models';
 import { ExamAccessCardComponent, StudentInfo } from './components/exam-access-card/exam-access-card.component';
 import { ExamResultCardComponent } from './components/exam-result-card/exam-result-card.component';
@@ -60,7 +60,7 @@ export class ExamTakeComponent implements OnInit, OnDestroy {
 
   phase       = signal<Phase>('loading');
   errorMsg    = signal('');
-  exam        = signal<ExamResponse | null>(null);
+  exam        = signal<PublicExamResponse | null>(null);
   questions   = signal<PublicQuestionResponse[]>([]);
   result      = signal<ResultResponse | null>(null);
   starting    = signal(false);

@@ -1,0 +1,43 @@
+.community-page { display: flex; flex-direction: column; gap: 20px; }
+
+.page-header {
+  h1 { margin: 0 0 4px; font-size: 1.6rem; font-weight: 600; }
+  .subtitle { margin: 0; color: #666; font-size: 0.9rem; }
+}
+
+.loading { display: flex; justify-content: center; padding: 48px 0; }
+
+// Lista a la izquierda y examen elegido a la derecha; en pantallas estrechas, uno debajo de otro
+.community-layout { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 800px) { .community-layout { grid-template-columns: 1fr; } }
+
+.exam-list {
+  display: flex; flex-direction: column; gap: 6px;
+  mat-button-toggle-group { align-self: flex-start; }
+  .search { width: 100%; margin: 4px 0; }
+}
+
+.exam-item {
+  display: flex; align-items: center; gap: 4px;
+  border: 1px solid #e0e0e0; border-radius: 10px; background: #fff;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  &:hover { border-color: #C62828; }
+  &.selected { border-color: #C62828; box-shadow: 0 2px 8px rgba(198, 40, 40, 0.15); }
+}
+.exam-select {
+  display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0;
+  padding: 10px 12px; border: none; background: none; cursor: pointer; text-align: left; font: inherit; color: #333;
+  &:focus-visible { outline: 2px solid #C62828; outline-offset: -2px; border-radius: 10px; }
+}
+.exam-title { font-weight: 500; overflow-wrap: anywhere; }
+.exam-meta { font-size: 0.8rem; color: #777; }
+.favorite { color: #9e9e9e; &.on { color: #f9a825; } }
+
+.exam-panel { min-height: 200px; }
+.empty {
+  display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 40px 0; color: #999;
+  mat-icon { font-size: 2.5rem; height: 2.5rem; width: 2.5rem; }
+  p { margin: 0; }
+}
+
+.hint { margin: 8px 0 0; color: #777; font-size: 0.85rem; }

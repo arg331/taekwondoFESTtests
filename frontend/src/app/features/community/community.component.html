@@ -1,0 +1,77 @@
+<div class="community-page">
+  <div class="page-header">
+    <h1>Exámenes de otros profesores</h1>
+    <p class="subtitle">
+      {{ exams().length }} exámenes de prueba publicados por otros profesores. Copia a tu banco las preguntas que te sirvan.
+    </p>
+  </div>
+
+  @if (loading()) {
+    <div class="loading"><mat-spinner diameter="40" /></div>
+  } @else if (exams().length === 0) {
+    <div class="empty">
+      <mat-icon>travel_explore</mat-icon>
+      <p>Ningún otro profesor ha publicado exámenes de prueba todavía.</p>
+    </div>
+  } @else {
+    <div class="community-layout">
+      <aside class="exam-list">
+        <mat-button-toggle-group hideSingleSelectionIndicator aria-label="Qué exámenes ver"
+                                 [value]="filter()" (change)="filter.set($event.value)">
+          <mat-button-toggle value="all">Todos ({{ exams().length }})</mat-button-toggle>
+          <mat-button-toggle value="favorites">Favoritos ({{ favoriteCount() }})</mat-button-toggle>
+        </mat-button-toggle-group>
+
+        <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Buscar por título o profesor</mat-label>
+          <mat-icon matPrefix>search</mat-icon>
+          <input matInput [value]="query()" (input)="query.set($any($event.target).value)" />
+        </mat-form-field>
+
+        @for (exam of pageExams(); track exam.id) {
+          <div class="exam-item" [class.selected]="exam.id === selectedId()">
+            <button type="button" class="exam-select" (click)="selectedId.set(exam.id)">
+              <span class="exam-title">{{ exam.title }}</span>
+              <span class="exam-meta">
+                {{ exam.ownerName }} · {{ exam.questionCount }} preguntas
+                @if (exam.status === 'EXPIRED') { · Cerrado }
+              </span>
+            </button>
+            <button mat-icon-button type="button" class="favorite" [class.on]="exam.favorite"
+                    [attr.aria-pressed]="exam.favorite"
+                    [attr.aria-label]="(exam.favorite ? 'Quitar de favoritos: ' : 'Añadir a favoritos: ') + exam.title"
+                    (click)="toggleFavorite(exam)">
+              <mat-icon>{{ exam.favorite ? 'star' : 'star_border' }}</mat-icon>
+            </button>
+          </div>
+        } @empty {
+          <p class="hint">
+            @if (filter() === 'favorites' && !query()) {
+              Aún no tienes favoritos: márcalos con la estrella.
+            } @else {
+              Ningún examen coincide con «{{ query() }}».
+            }
+          </p>
+        }
+
+        @if (visible().length > pageSize) {
+          <mat-paginator [length]="visible().length" [pageSize]="pageSize" [pageIndex]="page()"
+                         [hidePageSize]="true" (page)="onPage($event)" />
+        }
+      </aside>
+
+      <mat-card class="exam-panel">
+        <mat-card-content>
+          @if (selected(); as exam) {
+            <app-community-exam-detail [exam]="exam" />
+          } @else {
+            <div class="empty">
+              <mat-icon>assignment</mat-icon>
+              <p>Elige un examen para ver sus preguntas.</p>
+            </div>
+          }
+        </mat-card-content>
+      </mat-card>
+    </div>
+  }
+</div>

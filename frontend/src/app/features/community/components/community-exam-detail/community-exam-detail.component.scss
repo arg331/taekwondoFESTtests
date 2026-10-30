@@ -1,0 +1,33 @@
+.detail { display: flex; flex-direction: column; gap: 12px; }
+
+.detail-header {
+  h2 { margin: 0; font-size: 1.35rem; font-weight: 600; overflow-wrap: anywhere; }
+  .meta { margin: 4px 0 0; color: #777; font-size: 0.85rem; }
+}
+
+.loading { display: flex; justify-content: center; padding: 32px 0; }
+
+.actions {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  .copy { margin-left: auto; }
+}
+.hint { margin: 0; color: #777; font-size: 0.8rem; }
+.error { margin: 0; color: #c62828; }
+
+.questions { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.question {
+  padding: 10px 12px; border: 1px solid #e0e0e0; border-left: 4px solid #C62828; border-radius: 8px;
+  transition: opacity 0.15s;
+  &.unselected { opacity: 0.55; border-left-color: #bdbdbd; }
+}
+.question-text { font-weight: 500; white-space: normal; }
+
+.options {
+  margin: 6px 0 0 40px; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px;
+  font-size: 0.9rem; color: #444;
+  li { display: flex; align-items: center; gap: 6px; }
+  .letter { font-weight: 600; color: #888; min-width: 1.2em; }
+  .correct { color: #2e7d32; font-weight: 500; .letter { color: #2e7d32; } }
+  .tick { font-size: 1.1rem; height: 1.1rem; width: 1.1rem; }
+}
+.explanation { margin: 6px 0 0 40px; color: #666; font-size: 0.85rem; font-style: italic; }

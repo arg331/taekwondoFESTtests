@@ -14,8 +14,8 @@ const USER: UserResponse = {
 };
 
 function login(role: UserRole, mustChangePassword = false): void {
-  localStorage.setItem('fest_token', 'jwt-abc');
-  localStorage.setItem('fest_user', JSON.stringify({ ...USER, role, mustChangePassword }));
+  sessionStorage.setItem('fest_token', 'jwt-abc');
+  sessionStorage.setItem('fest_user', JSON.stringify({ ...USER, role, mustChangePassword }));
 }
 
 /**
@@ -27,7 +27,7 @@ describe('Guards y jwtInterceptor', () => {
   let harness: RouterTestingHarness | null;
 
   beforeEach(() => {
-    localStorage.clear();
+    (localStorage.clear(), sessionStorage.clear());
     harness = null;
   });
 

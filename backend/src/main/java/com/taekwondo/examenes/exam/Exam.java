@@ -94,6 +94,10 @@ public class Exam {
     @Column(name = "expires_at")
     private LocalDateTime expiresAt;
 
+    /** Cuándo lo cerró el profesor (DE-07); null si no está cerrado. */
+    @Column(name = "closed_at")
+    private LocalDateTime closedAt;
+
     public Exam(String title, Long ownerId, ExamConfig config, Set<Tag> generationTags) {
         this.title = title;
         this.ownerId = ownerId;
@@ -169,11 +173,13 @@ public class Exam {
         this.status = ExamStatus.PUBLISHED;
     }
 
-    public void close() {
+    /** Nadie más puede empezarlo; quien ya había empezado lo termina en su tiempo (DE-07). */
+    public void close(LocalDateTime now) {
         if (status != ExamStatus.PUBLISHED) {
             throw new BusinessRuleException("Solo se pueden cerrar exámenes publicados (estado actual: " + status + ")");
         }
         status = ExamStatus.EXPIRED;
+        closedAt = now;
     }
 
     public void reopen(LocalDateTime newExpiresAt) {
@@ -182,6 +188,7 @@ public class Exam {
         }
         expiresAt = newExpiresAt;
         status = ExamStatus.PUBLISHED;
+        closedAt = null;
     }
 
     public void changeExpiration(LocalDateTime newExpiresAt) {
@@ -230,6 +237,16 @@ public class Exam {
     /** Publicado y, si tiene fecha de expiración, todavía no ha pasado. */
     public boolean isAccessibleAt(LocalDateTime now) {
         return status == ExamStatus.PUBLISHED && (expiresAt == null || !now.isAfter(expiresAt));
+    }
+
+    /**
+     * Si un intento empezado en startedAt se puede seguir contestando: el examen estaba abierto entonces. Si caduca
+     * a mitad o el profesor lo cierra después, el intento sigue hasta que se le acaba el tiempo (RN-06, DE-07).
+     */
+    public boolean acceptsAttemptStartedAt(LocalDateTime startedAt) {
+        boolean withinExpiration = expiresAt == null || !startedAt.isAfter(expiresAt);
+        boolean closedAfterStart = status == ExamStatus.EXPIRED && closedAt != null && startedAt.isBefore(closedAt);
+        return withinExpiration && (status == ExamStatus.PUBLISHED || closedAfterStart);
     }
 
     public List<Long> getQuestionIds() {

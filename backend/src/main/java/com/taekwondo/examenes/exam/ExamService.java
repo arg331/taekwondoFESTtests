@@ -177,7 +177,7 @@ public class ExamService {
 
     public ExamResponse close(Long examId, Long ownerId) {
         Exam exam = getOwned(examId, ownerId);
-        exam.close();
+        exam.close(LocalDateTime.now(clock));
         return ExamResponse.from(exam);
     }
 
@@ -249,8 +249,8 @@ public class ExamService {
     // ───── Flujo del alumno (público) ─────
 
     @Transactional(readOnly = true)
-    public ExamResponse getAccessibleByCode(String code) {
-        return ExamResponse.from(getAccessible(code));
+    public PublicExamResponse getAccessibleByCode(String code) {
+        return PublicExamResponse.from(getAccessible(code));
     }
 
     /**

@@ -211,11 +211,13 @@ class AttemptRecoveryCharacterizationTest extends ApiCharacterizationTest {
 
         clock.advance(Duration.ofHours(11));
         resultService.autoSubmitExpired();
-        assertThat(get("/api/results/me", student.token()).expectStatus(200).asList()).isEmpty();
+        // La sesión dura 8 horas (DE-10): el alumno vuelve a entrar
+        String token = login(student.username(), STUDENT_PASSWORD);
+        assertThat(get("/api/results/me", token).expectStatus(200).asList()).isEmpty();
 
         clock.advance(Duration.ofHours(2));
         resultService.autoSubmitExpired();
-        List<Map<String, Object>> mine = get("/api/results/me", student.token()).expectStatus(200).asList();
+        List<Map<String, Object>> mine = get("/api/results/me", token).expectStatus(200).asList();
         assertThat(mine).hasSize(1);
         assertThat(mine.get(0)).containsEntry("autoSubmitted", true)
                 .containsEntry("score", 0)

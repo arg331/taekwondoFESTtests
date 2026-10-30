@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
   ExamResponse,
+  PublicExamResponse,
   ExamDraftRequest,
   ExamConfig,
   PublishExamRequest,
@@ -110,8 +111,8 @@ export class ExamService {
   }
 
   // ── Alumno (público) ──────────────────────────────
-  getByCode(code: string): Observable<ExamResponse> {
-    return this.http.get<ExamResponse>(`${this.api}/by-code/${encodeURIComponent(code)}`);
+  getByCode(code: string): Observable<PublicExamResponse> {
+    return this.http.get<PublicExamResponse>(`${this.api}/by-code/${encodeURIComponent(code)}`);
   }
 
   /** Empieza un intento a nombre del alumno (DE-04); si ya tiene uno abierto, lo recupera (RF-24). */

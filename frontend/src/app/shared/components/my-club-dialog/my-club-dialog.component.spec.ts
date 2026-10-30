@@ -23,8 +23,8 @@ describe('MyClubDialogComponent', () => {
   let close: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
-    localStorage.setItem('fest_token', 't');
-    localStorage.setItem('fest_user', JSON.stringify(ME));
+    sessionStorage.setItem('fest_token', 't');
+    sessionStorage.setItem('fest_user', JSON.stringify(ME));
     close = vi.fn();
     TestBed.configureTestingModule({
       imports: [MyClubDialogComponent],
@@ -39,7 +39,7 @@ describe('MyClubDialogComponent', () => {
 
   afterEach(() => {
     http.verify();
-    localStorage.clear();
+    (localStorage.clear(), sessionStorage.clear());
   });
 
   async function stable(): Promise<void> {
@@ -71,7 +71,7 @@ describe('MyClubDialogComponent', () => {
     await stable();
 
     expect(TestBed.inject(AuthService).currentUser()?.club?.name).toBe('Club Badajoz');
-    expect(JSON.parse(localStorage.getItem('fest_user')!).club.name).toBe('Club Badajoz');
+    expect(JSON.parse(sessionStorage.getItem('fest_user')!).club.name).toBe('Club Badajoz');
     expect(close).toHaveBeenCalled();
   });
 

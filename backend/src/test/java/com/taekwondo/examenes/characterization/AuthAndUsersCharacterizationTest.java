@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
@@ -156,6 +157,17 @@ class AuthAndUsersCharacterizationTest extends ApiCharacterizationTest {
         assertThat(byUsername.asMap()).containsOnlyKeys("token", "user");
         assertThat((Integer) byUsername.read("$.user.id")).isEqualTo((int) student.id());
         assertThat((String) byEmail.read("$.token")).isNotBlank();
+    }
+
+    @Test
+    @DisplayName("Login: la sesión dura 8 horas; después hay que volver a entrar (DE-10)")
+    void session_expiresAfterEightHours() {
+        Session student = newStudent();
+
+        clock.advance(Duration.ofHours(8).minusMinutes(1));
+        get("/api/auth/me", student.token()).expectStatus(200);
+        clock.advance(Duration.ofMinutes(2));
+        get("/api/auth/me", student.token()).expectStatus(401);
     }
 
     @Test

@@ -9,7 +9,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { ExamResponse, StartAttemptRequest, VISIBILITY_ICON } from '../../../../core/models/exam.models';
+import { PublicExamResponse, StartAttemptRequest, VISIBILITY_ICON } from '../../../../core/models/exam.models';
 import { ClubService } from '../../../../core/services/club.service';
 import { ClubResponse } from '../../../../core/models/club.models';
 import { UserResponse } from '../../../../core/models/auth.models';
@@ -47,7 +47,7 @@ export class ExamAccessCardComponent {
   /** Clubes que existen, para elegir el propio (vale también sin cuenta). */
   readonly clubs = toSignal(this.clubSvc.list(), { initialValue: [] as ClubResponse[] });
 
-  exam = input.required<ExamResponse>();
+  exam = input.required<PublicExamResponse>();
   user = input<UserResponse | null>(null);
   starting = input(false);
   start = output<StudentInfo>();

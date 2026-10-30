@@ -9,8 +9,8 @@ describe('NavbarComponent', () => {
   let fixture: ComponentFixture<NavbarComponent>;
 
   function render(role: UserRole): string[] {
-    localStorage.setItem('fest_token', 't');
-    localStorage.setItem('fest_user', JSON.stringify({
+    sessionStorage.setItem('fest_token', 't');
+    sessionStorage.setItem('fest_user', JSON.stringify({
       id: 1, username: 'u', email: 'u@x.es', displayName: 'U', role, club: null, active: true, mustChangePassword: false, createdAt: '2026-10-13T10:00:00'
     }));
     TestBed.configureTestingModule({
@@ -23,7 +23,7 @@ describe('NavbarComponent', () => {
       .map(a => a.textContent?.replace(/\s+/g, ' ').trim().replace(/^\S+ /, '') ?? '');
   }
 
-  afterEach(() => localStorage.clear());
+  afterEach(() => (localStorage.clear(), sessionStorage.clear()));
 
   it('el alumno ve su panel y sus resultados', () => {
     expect(render('STUDENT')).toEqual(['Dashboard', 'Mis resultados']);

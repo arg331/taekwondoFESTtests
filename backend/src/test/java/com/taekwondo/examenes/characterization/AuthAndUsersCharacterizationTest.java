@@ -5,6 +5,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
+import org.springframework.security.core.userdetails.UserDetailsService;
 
 import java.time.Duration;
 import java.util.List;
@@ -18,6 +21,15 @@ class AuthAndUsersCharacterizationTest extends ApiCharacterizationTest {
 
     private static final List<String> USER_FIELDS =
             List.of("id", "username", "email", "displayName", "role", "club", "active", "mustChangePassword", "createdAt");
+
+    @Autowired
+    ApplicationContext context;
+
+    @Test
+    @DisplayName("Sin el usuario «user» que Spring crea por defecto: solo se entra con JWT y no se escribe su contraseña en el log")
+    void noDefaultInMemoryUser() {
+        assertThat(context.getBeansOfType(UserDetailsService.class)).isEmpty();
+    }
 
     // ───── Registro ─────
 

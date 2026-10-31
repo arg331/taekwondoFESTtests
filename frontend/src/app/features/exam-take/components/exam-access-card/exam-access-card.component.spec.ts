@@ -14,7 +14,7 @@ const CLUBS = [{ id: 1, name: 'Club Ávila' }, { id: 2, name: 'Club Badajoz' }];
 function exam(visibility: Visibility): PublicExamResponse {
   return {
     title: 'Examen de cinturón', code: 'EXM-1234ABCD', visibility, accessMode: 'OPEN',
-    config: { numberOfQuestions: 10, timeLimitMinutes: null }, maxAttempts: 1
+    config: { numberOfQuestions: 10, timeLimitMinutes: null }, maxAttempts: 1, expiresAt: null
   };
 }
 

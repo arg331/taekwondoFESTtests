@@ -412,11 +412,12 @@ class ExamLifecycleCharacterizationTest extends ApiCharacterizationTest {
         long draft = createDraft(teacher.token(), 5, null, true);
         PublishedExam ownPublic = publishedExam(viewer.token(), 5, null, true);
 
-        List<Long> visible = get("/api/exams/public", viewer.token()).expectStatus(200).asList().stream()
-                .map(e -> ((Number) e.get("id")).longValue()).toList();
+        List<Map<String, Object>> visible = get("/api/exams/public", viewer.token()).expectStatus(200).asList();
 
-        assertThat(visible).contains(open.id())
-                .doesNotContain(privateExam.id(), closed.id(), draft, ownPublic.id());
+        // Los borradores no tienen código, así que tampoco salen
+        assertThat(visible).extracting(e -> e.get("code")).contains(open.code())
+                .doesNotContain(privateExam.code(), closed.code(), ownPublic.code(), null);
+        assertThat((String) get("/api/exams/" + draft, teacher.token()).read("$.status")).isEqualTo("DRAFT");
     }
 
     @Test
@@ -428,9 +429,30 @@ class ExamLifecycleCharacterizationTest extends ApiCharacterizationTest {
 
         clock.advance(Duration.ofHours(2));
 
-        List<Long> visible = get("/api/exams/public", viewer.token()).asList().stream()
-                .map(e -> ((Number) e.get("id")).longValue()).toList();
-        assertThat(visible).doesNotContain(exam.id());
+        List<Object> visible = get("/api/exams/public", viewer.token()).asList().stream()
+                .map(e -> e.get("code")).toList();
+        assertThat(visible).doesNotContain(exam.code());
         assertThat((String) get("/api/exams/" + exam.id(), teacher.token()).read("$.status")).isEqualTo("PUBLISHED");
+    }
+
+    @Test
+    @DisplayName("Públicos: el alumno solo recibe lo que muestra la tarjeta, sin ids ni datos del profesor (DE-22)")
+    void listPublic_onlyStudentFields() {
+        Session teacher = newTeacher();
+        Session viewer = newStudent();
+        PublishedExam exam = publishedExam(teacher.token(), 5, 10, true);
+        patch("/api/exams/" + exam.id() + "/expiration", teacher.token(),
+                obj("newExpiresAt", LocalDateTime.now(clock).plusDays(1).withNano(0).toString())).expectStatus(200);
+
+        Map<String, Object> card = get("/api/exams/public", viewer.token()).expectStatus(200).asList().stream()
+                .filter(e -> exam.code().equals(e.get("code")))
+                .findFirst().orElseThrow();
+
+        assertThat(card).containsOnlyKeys("title", "code", "visibility", "accessMode", "config", "maxAttempts",
+                "expiresAt");
+        assertThat(card.get("expiresAt")).isNotNull();
+        @SuppressWarnings("unchecked")
+        Map<String, Object> config = (Map<String, Object>) card.get("config");
+        assertThat(config).containsOnlyKeys("numberOfQuestions", "timeLimitMinutes");
     }
 }

@@ -93,8 +93,8 @@ export class ExamService {
   }
 
   // ── Cualquier usuario con sesión ──────────────────
-  getPublic(): Observable<ExamResponse[]> {
-    return this.http.get<ExamResponse[]>(`${this.api}/public`);
+  getPublic(): Observable<PublicExamResponse[]> {
+    return this.http.get<PublicExamResponse[]>(`${this.api}/public`);
   }
 
   // ── Alumno (público) ──────────────────────────────

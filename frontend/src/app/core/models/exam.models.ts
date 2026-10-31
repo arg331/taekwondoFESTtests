@@ -54,7 +54,8 @@ export const EXAM_MIN_PASSING_SCORE = 1;
 export const EXAM_MAX_PASSING_SCORE = 100;
 
 /**
- * Portada pública de un examen, para quien tiene el código (DE-19): solo lo que se enseña antes de empezar.
+ * Un examen visto por el alumno antes de empezarlo: la portada para quien tiene el código (DE-19) y las
+ * tarjetas de «Exámenes de prueba» (DE-22). Sin ids ni datos internos del profesor.
  */
 export interface PublicExamResponse {
   title: string;
@@ -65,6 +66,8 @@ export interface PublicExamResponse {
   config: { numberOfQuestions: number; timeLimitMinutes: number | null };
   /** Intentos por alumno (RF-52); null = sin límite. */
   maxAttempts: number | null;
+  /** Hasta cuándo se puede empezar; null = hasta que el profesor lo cierre (RF-48). */
+  expiresAt: string | null;
 }
 
 export interface ExamResponse {

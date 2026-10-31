@@ -128,7 +128,7 @@ public class ExamController {
     }
 
     @GetMapping("/public")
-    public List<ExamResponse> listPublic(@AuthenticationPrincipal Long userId) {
+    public List<PublicExamResponse> listPublic(@AuthenticationPrincipal Long userId) {
         return examService.listPublic(userId);
     }
 

@@ -30,7 +30,8 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
 
         HttpResult result = get("/api/exams/by-code/" + exam.code(), null).expectStatus(200);
 
-        assertThat(result.asMap()).containsOnlyKeys("title", "code", "visibility", "accessMode", "config", "maxAttempts");
+        assertThat(result.asMap()).containsOnlyKeys("title", "code", "visibility", "accessMode", "config", "maxAttempts",
+                "expiresAt");
         assertThat((Map<String, Object>) result.read("$.config")).containsOnlyKeys("numberOfQuestions", "timeLimitMinutes");
         assertThat((String) result.read("$.code")).isEqualTo(exam.code());
         assertThat((Integer) result.read("$.config.timeLimitMinutes")).isEqualTo(10);

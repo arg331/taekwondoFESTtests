@@ -13,7 +13,7 @@ const API = 'http://localhost:8080/api';
 function exam(overrides: Partial<PublicExamResponse> = {}): PublicExamResponse {
   return {
     title: 'Examen de árbitros', code: 'EXM-ABC', visibility: 'PUBLIC', accessMode: 'OPEN',
-    config: { numberOfQuestions: 3, timeLimitMinutes: null }, maxAttempts: 1, ...overrides
+    config: { numberOfQuestions: 3, timeLimitMinutes: null }, maxAttempts: 1, expiresAt: null, ...overrides
   };
 }
 
@@ -462,6 +462,30 @@ describe('ExamTakeComponent', () => {
 
       expect(el.textContent).toContain('Ya has hecho todos los intentos de este examen');
     });
+  });
+
+  it('si el servidor no deja empezar con ese nombre, avisa en la portada y deja escribir otro (DE-21)', async () => {
+    const inUse = 'Ya hay un intento en curso con ese nombre. Si es tuyo, sigue en el navegador donde lo empezaste; '
+      + 'si no, escribe tu nombre completo.';
+    await render(exam());
+    const input = el.querySelector('app-exam-access-card input') as HTMLInputElement;
+    input.value = 'Ana';
+    input.dispatchEvent(new Event('input'));
+    await stable();
+    button('Comenzar examen').click();
+    await stable();
+
+    http.expectOne(`${API}/exams/by-code/EXM-ABC/attempts`).flush(
+      { message: inUse }, { status: 409, statusText: 'Conflict' });
+    await stable();
+
+    expect(el.querySelector('app-exam-access-card [role="alert"]')?.textContent?.trim()).toBe(inUse);
+    expect(button('Comenzar examen').disabled).toBe(false);
+
+    await startAs('Ana García');
+
+    expect(el.querySelector('app-exam-access-card')).toBeNull();
+    expect(el.textContent).toContain('Segunda');
   });
 
   it('si el alumno cancela la confirmación no se envía nada', async () => {

@@ -131,8 +131,8 @@
         </div>
       } @else {
         <div class="exams-grid">
-          @for (exam of publicExams(); track exam.id) {
-            <mat-card class="exam-card" (click)="goToExamTake(exam.code!)">
+          @for (exam of publicExams(); track exam.code) {
+            <mat-card class="exam-card" (click)="goToExamTake(exam.code)">
               <mat-card-header>
                 <mat-card-title>{{ exam.title }}</mat-card-title>
                 <mat-card-subtitle>

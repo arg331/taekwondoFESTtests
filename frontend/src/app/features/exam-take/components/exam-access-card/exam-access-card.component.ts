@@ -50,6 +50,8 @@ export class ExamAccessCardComponent {
   exam = input.required<PublicExamResponse>();
   user = input<UserResponse | null>(null);
   starting = input(false);
+  /** Por qué el servidor no ha dejado empezar; el alumno puede corregir sus datos y volver a intentarlo. */
+  error = input('');
   start = output<StudentInfo>();
 
   /** Público = de prueba; privado = oficial (RF-49). */

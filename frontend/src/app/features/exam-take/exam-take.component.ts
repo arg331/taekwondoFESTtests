@@ -64,6 +64,7 @@ export class ExamTakeComponent implements OnInit, OnDestroy {
   questions   = signal<PublicQuestionResponse[]>([]);
   result      = signal<ResultResponse | null>(null);
   starting    = signal(false);
+  startError  = signal('');
   submitting  = signal(false);
   submitError = signal<string | null>(null);
   /** La última respuesta no se pudo guardar: se avisa, y se enviará igualmente al entregar. */
@@ -146,6 +147,7 @@ export class ExamTakeComponent implements OnInit, OnDestroy {
   startExam(student: StudentInfo): void {
     this.student = student;
     this.starting.set(true);
+    this.startError.set('');
     this.examSvc.startAttempt(this.code(), student).subscribe({
       next: attempt => {
         this.starting.set(false);
@@ -153,7 +155,14 @@ export class ExamTakeComponent implements OnInit, OnDestroy {
       },
       error: err => {
         this.starting.set(false);
-        this.fail(err?.error?.message ?? 'Error al cargar las preguntas.');
+        const message = err?.error?.message ?? 'Error al cargar las preguntas.';
+        // Desde la portada, lo que el servidor rechaza (p. ej. un nombre con un intento en curso, DE-21)
+        // se avisa en el formulario para poder corregirlo
+        if (this.phase() === 'access' && err?.status === 409) {
+          this.startError.set(message);
+        } else {
+          this.fail(message);
+        }
       }
     });
   }

@@ -30,11 +30,11 @@ describe('NavbarComponent', () => {
   });
 
   it('el profesor ve preguntas, exámenes, resultados y clubes, pero no usuarios', () => {
-    expect(render('TEACHER')).toEqual(['Dashboard', 'Preguntas', 'Exámenes', 'Resultados', 'Clubes']);
+    expect(render('TEACHER')).toEqual(['Dashboard', 'Preguntas', 'Exámenes', 'De otros', 'Resultados', 'Clubes']);
   });
 
   it('el administrador ve además la gestión de usuarios', () => {
-    expect(render('ADMIN')).toEqual(['Dashboard', 'Preguntas', 'Exámenes', 'Resultados', 'Clubes', 'Usuarios']);
+    expect(render('ADMIN')).toEqual(['Dashboard', 'Preguntas', 'Exámenes', 'De otros', 'Resultados', 'Clubes', 'Usuarios']);
   });
 
   it('el menú de usuario lleva a cambiar la contraseña (RF-06)', async () => {

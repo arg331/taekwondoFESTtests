@@ -44,6 +44,12 @@ export const routes: Routes = [
           import('./features/exams/exams.routes').then(m => m.EXAMS_ROUTES)
       },
       {
+        path: 'community',
+        canMatch: [teacherGuard],
+        loadChildren: () =>
+          import('./features/community/community.routes').then(m => m.COMMUNITY_ROUTES)
+      },
+      {
         path: 'results',
         loadChildren: () =>
           import('./features/results/results.routes').then(m => m.RESULTS_ROUTES)

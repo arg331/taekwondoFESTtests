@@ -1,0 +1,51 @@
+<div class="detail">
+  <header class="detail-header">
+    <div>
+      <h2>{{ exam().title }}</h2>
+      <p class="meta">
+        De {{ exam().ownerName }} · {{ exam().questionCount }} preguntas
+        @if (exam().status === 'EXPIRED') { · Cerrado }
+      </p>
+    </div>
+  </header>
+
+  @if (questions.isLoading()) {
+    <div class="loading"><mat-spinner diameter="32" /></div>
+  } @else if (questions.error()) {
+    <p class="error">No se pudieron cargar las preguntas.</p>
+  } @else {
+    <div class="actions">
+      <button mat-stroked-button type="button" (click)="selectAll()">Elegir todas</button>
+      <button mat-stroked-button type="button" (click)="selectNone()">Quitar todas</button>
+      <button mat-flat-button color="primary" type="button" class="copy"
+              [disabled]="copying() || selected().size === 0" (click)="copy()">
+        <mat-icon>content_copy</mat-icon>
+        Copiar {{ selected().size }} a mi banco
+      </button>
+    </div>
+    <p class="hint">Se copian tal como se publicaron, con su solución y su grado; los tags no. Las que ya tengas no se repiten.</p>
+
+    <ol class="questions">
+      @for (question of questions.value(); track question.questionId) {
+        <li class="question" [class.unselected]="!isSelected(question.questionId)">
+          <mat-checkbox [checked]="isSelected(question.questionId)" (change)="toggle(question.questionId)">
+            <span class="question-text">{{ question.text }}</span>
+          </mat-checkbox>
+          <ul class="options">
+            @for (option of question.options; track $index) {
+              <li [class.correct]="question.correctAnswers.includes($index)">
+                <span class="letter">{{ letter($index) }}</span> {{ option }}
+                @if (question.correctAnswers.includes($index)) {
+                  <mat-icon class="tick" aria-label="Correcta">check</mat-icon>
+                }
+              </li>
+            }
+          </ul>
+          @if (question.explanation) {
+            <p class="explanation">{{ question.explanation }}</p>
+          }
+        </li>
+      }
+    </ol>
+  }
+</div>

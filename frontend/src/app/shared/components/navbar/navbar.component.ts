@@ -39,6 +39,7 @@ export class NavbarComponent {
     { label: 'Dashboard',  path: '/dashboard',  icon: 'dashboard' },
     { label: 'Preguntas',  path: '/questions',  icon: 'quiz' },
     { label: 'Exámenes',   path: '/exams',       icon: 'assignment' },
+    { label: 'De otros',   path: '/community',   icon: 'travel_explore' },
     { label: 'Resultados', path: '/results',     icon: 'bar_chart' },
     { label: 'Clubes',     path: '/clubs',       icon: 'groups' },
   ];

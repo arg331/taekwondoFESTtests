@@ -12,7 +12,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { ExamCodeEntryComponent } from '../../shared/components/exam-code-entry/exam-code-entry.component';
 import { ShareInvitationsComponent } from './components/share-invitations/share-invitations.component';
 import { ExamService } from '../../core/services/exam.service';
-import { EXAM_STATUS_LABEL, ExamResponse, ExamStatus, VISIBILITY_COLOR, VISIBILITY_ICON, VISIBILITY_LABEL } from '../../core/models/exam.models';
+import { EXAM_STATUS_LABEL, ExamResponse, ExamStatus, PublicExamResponse, VISIBILITY_COLOR, VISIBILITY_ICON, VISIBILITY_LABEL } from '../../core/models/exam.models';
 import { APP_NAME } from '../../core/app-brand';
 
 @Component({
@@ -46,7 +46,7 @@ export class DashboardComponent implements OnInit {
 
   loading        = signal(false);
   exams          = signal<ExamResponse[]>([]);
-  publicExams    = signal<ExamResponse[]>([]);
+  publicExams    = signal<PublicExamResponse[]>([]);
   loadingPublic  = signal(false);
 
   drafts    = computed(() => this.exams().filter(e => e.status === 'DRAFT'));

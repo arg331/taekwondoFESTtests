@@ -28,6 +28,8 @@ class AttemptRecoveryCharacterizationTest extends ApiCharacterizationTest {
 
     private static final String INVALID = "El intento no es válido o ha superado el tiempo límite";
     private static final String SUBMITTED = "Este intento ya se ha entregado";
+    private static final String OPEN_WITH_NAME = "Ya hay un intento en curso con ese nombre. Si es tuyo, sigue en el "
+            + "navegador donde lo empezaste; si no, escribe tu nombre completo.";
 
     @Autowired
     ResultService resultService;
@@ -79,7 +81,7 @@ class AttemptRecoveryCharacterizationTest extends ApiCharacterizationTest {
     }
 
     @Test
-    @DisplayName("Quien vuelve a empezar con un intento abierto lo recupera: el registrado por su cuenta, el anónimo por su nombre")
+    @DisplayName("El registrado que vuelve a empezar con un intento abierto lo recupera; sin sesión, el nombre no basta (DE-21)")
     void startAgain_resumesOpenAttempt() {
         String admin = adminToken();
         PublishedExam exam = publishedExam(admin, 5, 10, true, 3);
@@ -93,14 +95,17 @@ class AttemptRecoveryCharacterizationTest extends ApiCharacterizationTest {
         clock.advance(Duration.ofMinutes(3));
 
         HttpResult again = start(exam.code(), student.token(), obj("studentName", "Otro nombre")).expectStatus(200);
-        HttpResult sameName = start(exam.code(), null, obj("studentName", "  " + name.toUpperCase() + " "))
-                .expectStatus(200);
+        HttpResult sameName = start(exam.code(), null, obj("studentName", "  " + name.toUpperCase() + " "));
 
         assertThat((Integer) again.read("$.attemptNumber")).isEqualTo(1);
         assertThat(saved(again, question)).containsExactly(1);
         assertThat((Integer) again.read("$.secondsLeft")).isEqualTo(420);
-        assertThat((Integer) sameName.read("$.attemptNumber")).isEqualTo(1);
-        assertThat(saved(sameName, question)).containsExactly(2);
+        // Sin sesión, quien escribe el mismo nombre no se lleva el token ni las respuestas del otro (DE-21)
+        assertThat(sameName.expectStatus(409).message()).isEqualTo(OPEN_WITH_NAME);
+        // El dueño sigue con su intento, que solo se recupera con su token
+        HttpResult owner = resume(exam.code(), anonymous).expectStatus(200);
+        assertThat((Integer) owner.read("$.attemptNumber")).isEqualTo(1);
+        assertThat(saved(owner, question)).containsExactly(2);
         // Es el mismo intento, con los datos del principio: al entregarlo, el siguiente es el 2
         assertThat((String) submit(exam.code(), again.read("$.attemptToken"), student.token(),
                 answers(exam.questionIds(), allCorrect(5))).expectStatus(201).read("$.studentName")).isEqualTo("Yo");

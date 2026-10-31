@@ -81,6 +81,9 @@
           }
         </mat-form-field>
       </form>
+      @if (error()) {
+        <p class="error-msg" role="alert">{{ error() }}</p>
+      }
     </mat-card-content>
     <mat-card-actions align="end">
       <button mat-flat-button color="primary" (click)="submit()" [disabled]="form.invalid || starting()">

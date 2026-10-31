@@ -35,6 +35,8 @@ public class AttemptService {
     /** Margen sobre el tiempo límite para absorber la latencia del envío. */
     public static final Duration SUBMIT_GRACE = Duration.ofMinutes(2);
     private static final Duration UNLIMITED_ATTEMPT_VALIDITY = Duration.ofHours(12);
+    private static final String OPEN_ATTEMPT_WITH_NAME = "Ya hay un intento en curso con ese nombre. Si es tuyo, "
+            + "sigue en el navegador donde lo empezaste; si no, escribe tu nombre completo.";
 
     private final ExamService examService;
     private final ExamRepository examRepository;
@@ -55,7 +57,8 @@ public class AttemptService {
      * Empieza un intento: lo registra a nombre del alumno y devuelve las preguntas sin la respuesta
      * correcta, barajadas según la configuración, y el token del intento. Cada alumno tiene tantos
      * intentos como fije el profesor (RF-52): los registrados se cuentan por su cuenta y los anónimos
-     * por su nombre. Quien vuelve a empezar con un intento abierto lo recupera (RF-24).
+     * por su nombre. El registrado que vuelve a empezar con un intento abierto lo recupera (RF-24); sin sesión,
+     * el nombre no demuestra quién eres, así que ese intento solo se recupera con su token (DE-21).
      */
     public ExamAttemptResponse start(String code, StartAttemptRequest identity, Long studentUserId) {
         Exam exam = examService.getAccessible(code);
@@ -69,6 +72,9 @@ public class AttemptService {
                 .filter(a -> a.isOpenAt(now, attemptValidity(exam.getConfig())))
                 .findFirst();
         if (open.isPresent()) {
+            if (studentUserId == null) {
+                throw new BusinessRuleException(OPEN_ATTEMPT_WITH_NAME);
+            }
             return response(exam, open.get(), numberOf(open.get(), previous), now);
         }
         // Cuentan los entregados y los que se quedaron sin entregar fuera de plazo

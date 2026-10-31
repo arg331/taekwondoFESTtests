@@ -19,7 +19,7 @@
 
     @case ('access') {
       <div class="center-screen">
-        <app-exam-access-card [exam]="exam()!" [user]="user()" [starting]="starting()"
+        <app-exam-access-card [exam]="exam()!" [user]="user()" [starting]="starting()" [error]="startError()"
                               (start)="startExam($event)" />
       </div>
     }

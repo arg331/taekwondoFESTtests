@@ -235,14 +235,14 @@ public class ExamService {
                 .collect(Collectors.toSet());
     }
 
-    /** Exámenes públicos y abiertos ahora mismo, de otros profesores. */
+    /** Exámenes públicos y abiertos ahora mismo, de otros profesores; los ve cualquiera con sesión, así que sin datos internos (DE-22). */
     @Transactional(readOnly = true)
-    public List<ExamResponse> listPublic(Long requesterId) {
+    public List<PublicExamResponse> listPublic(Long requesterId) {
         LocalDateTime now = now();
         return examRepository.findAllByVisibilityAndStatusAndOwnerIdNot(Visibility.PUBLIC, ExamStatus.PUBLISHED,
                         requesterId).stream()
                 .filter(exam -> exam.isAccessibleAt(now))
-                .map(ExamResponse::from)
+                .map(PublicExamResponse::from)
                 .toList();
     }
 

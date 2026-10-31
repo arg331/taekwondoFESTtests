@@ -30,11 +30,13 @@ public record ExamResponse(
             boolean showScore,
             boolean showAnswers,
             boolean randomizeOptions,
-            boolean randomizeQuestionOrder
+            boolean randomizeQuestionOrder,
+            /** % de aciertos para aprobar (DE-13). */
+            int passingScore
     ) {
         static Config from(ExamConfig c) {
             return new Config(c.getNumberOfQuestions(), c.getTimeLimitMinutes(), c.isShowScore(), c.isShowAnswers(),
-                    c.isRandomizeOptions(), c.isRandomizeQuestionOrder());
+                    c.isRandomizeOptions(), c.isRandomizeQuestionOrder(), c.getPassingScore());
         }
     }
 

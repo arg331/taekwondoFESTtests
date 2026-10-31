@@ -23,7 +23,7 @@ function exam(status: ExamStatus, questionIds: number[] = []): ExamResponse {
   return {
     id: 7, title: 'Examen', ownerId: 1, status, visibility: 'PUBLIC', accessMode: 'OPEN',
     config: { numberOfQuestions: 10, timeLimitMinutes: null, showScore: true, showAnswers: true, randomizeOptions: false,
-      randomizeQuestionOrder: false },
+      randomizeQuestionOrder: false, passingScore: 50 },
     questionIds, generationTags: [], code: status === 'DRAFT' ? null : 'EXM-1234ABCD',
     createdAt: '2026-10-08T10:00:00', expiresAt: null, maxAttempts: 1, sharedBy: null
   };
@@ -544,6 +544,15 @@ describe('ExamDetailComponent', () => {
 
       expect(el.querySelector('.qr-closed')).toBeNull();
     });
+  });
+
+  it('el resumen dice con cuánto se aprueba (DE-13)', async () => {
+    await render(exam('DRAFT'));
+    expect(el.querySelector('.config-summary')?.textContent).toContain('Aprueba con un 50 %');
+
+    fixture.componentRef.setInput('exam', { ...exam('DRAFT'), config: { ...exam('DRAFT').config, passingScore: 70 } });
+    await stable();
+    expect(el.querySelector('.config-summary')?.textContent).toContain('Aprueba con un 70 %');
   });
 
   describe('qué ve el alumno al entregar (RF-53)', () => {

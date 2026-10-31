@@ -12,5 +12,7 @@ public record ExamStatisticsResponse(
         int passedCount,
         int failedCount,
         int highestScore,
-        int lowestScore
+        int lowestScore,
+        /** El aprobado del examen con el que se cuentan aprobados y suspensos (DE-13). */
+        int passingScore
 ) {}

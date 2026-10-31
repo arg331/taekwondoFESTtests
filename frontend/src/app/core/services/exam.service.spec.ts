@@ -18,7 +18,7 @@ describe('ExamService y ResultService (contrato HTTP)', () => {
 
   const draft: ExamDraftRequest = {
     title: 'Examen', numberOfQuestions: 5, timeLimitMinutes: null, showScore: true, showAnswers: true,
-    randomizeOptions: false, randomizeQuestionOrder: false
+    randomizeOptions: false, randomizeQuestionOrder: false, passingScore: 50
   };
 
   beforeEach(() => {

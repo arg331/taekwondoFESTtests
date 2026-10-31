@@ -62,7 +62,7 @@ class StudentGroupingCharacterizationTest extends ApiCharacterizationTest {
 
         assertThat(stats.asMap()).containsExactlyInAnyOrderEntriesOf(Map.of(
                 "examId", (int) exam.id(), "totalAttempts", 3, "totalStudents", 2, "averageScore", 80.0,
-                "passedCount", 1, "failedCount", 1, "highestScore", 100, "lowestScore", 60));
+                "passedCount", 2, "failedCount", 0, "highestScore", 100, "lowestScore", 60, "passingScore", 50));
     }
 
     // ───── Ayudas ─────

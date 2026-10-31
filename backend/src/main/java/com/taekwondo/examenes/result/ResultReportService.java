@@ -73,7 +73,7 @@ public class ResultReportService {
                 .filter(r -> exams.containsKey(r.getExamId()))
                 .filter(r -> admin || shared.contains(r.getExamId())
                         || exams.get(r.getExamId()).getOwnerId().equals(requesterId))
-                .map(r -> ResultResponse.from(r, exams.get(r.getExamId()).getTitle()))
+                .map(r -> ResultResponse.from(r, exams.get(r.getExamId())))
                 .toList();
         return new UserResultsResponse(user.getId(), user.getUsername(), user.getDisplayName(),
                 user.getClub() == null ? null : user.getClub().getName(), visible);

@@ -1,5 +1,7 @@
 package com.taekwondo.examenes.result;
 
+import com.taekwondo.examenes.exam.ExamConfig;
+
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Font;
@@ -35,7 +37,7 @@ final class ResultSpreadsheet {
     private ResultSpreadsheet() {
     }
 
-    static byte[] build(List<Result> results) {
+    static byte[] build(List<Result> results, ExamConfig config) {
         try (XSSFWorkbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet(SHEET_NAME);
             writeHeader(workbook, sheet);
@@ -44,7 +46,7 @@ final class ResultSpreadsheet {
 
             List<Result> sorted = results.stream().sorted(byClubThenStudent()).toList();
             for (int i = 0; i < sorted.size(); i++) {
-                writeRow(sheet.createRow(i + 1), sorted.get(i), dateStyle);
+                writeRow(sheet.createRow(i + 1), sorted.get(i), config, dateStyle);
             }
 
             sheet.createFreezePane(0, 1);
@@ -87,7 +89,7 @@ final class ResultSpreadsheet {
         }
     }
 
-    private static void writeRow(Row row, Result result, CellStyle dateStyle) {
+    private static void writeRow(Row row, Result result, ExamConfig config, CellStyle dateStyle) {
         String club = club(result);
         row.createCell(0).setCellValue(club == null ? NO_CLUB : club);
         row.createCell(1).setCellValue(result.getStudentName());
@@ -95,7 +97,7 @@ final class ResultSpreadsheet {
         row.createCell(3).setCellValue(result.getScore());
         row.createCell(4).setCellValue(result.getCorrectAnswers());
         row.createCell(5).setCellValue(result.getTotalQuestions());
-        row.createCell(6).setCellValue(result.isPassed() ? "Sí" : "No");
+        row.createCell(6).setCellValue(config.passes(result.getScore()) ? "Sí" : "No");
         row.createCell(7).setCellValue(formatDuration(result.getTimeSpentSeconds()));
         Cell date = row.createCell(8);
         date.setCellValue(result.getCompletedAt());

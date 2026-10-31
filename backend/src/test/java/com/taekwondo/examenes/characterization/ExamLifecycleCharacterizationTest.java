@@ -21,7 +21,7 @@ class ExamLifecycleCharacterizationTest extends ApiCharacterizationTest {
             "accessMode", "config", "questionIds", "generationTags", "code", "createdAt", "expiresAt", "maxAttempts",
             "sharedBy");
     private static final List<String> CONFIG_FIELDS = List.of("numberOfQuestions", "timeLimitMinutes",
-            "showScore", "showAnswers", "randomizeOptions", "randomizeQuestionOrder");
+            "showScore", "showAnswers", "randomizeOptions", "randomizeQuestionOrder", "passingScore");
 
     // ───── Creación ─────
 
@@ -46,7 +46,7 @@ class ExamLifecycleCharacterizationTest extends ApiCharacterizationTest {
         assertThat((List<?>) result.read("$.generationTags")).isEmpty();
         assertThat((Map<String, Object>) result.read("$.config")).containsExactlyInAnyOrderEntriesOf(Map.of(
                 "numberOfQuestions", 10, "timeLimitMinutes", 30, "showScore", true, "showAnswers", true,
-                "randomizeOptions", true, "randomizeQuestionOrder", false));
+                "randomizeOptions", true, "randomizeQuestionOrder", false, "passingScore", 50));
     }
 
     @Test

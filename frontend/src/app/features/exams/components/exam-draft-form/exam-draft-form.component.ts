@@ -12,6 +12,9 @@ import { ExamService } from '../../../../core/services/exam.service';
 import {
   EXAM_MAX_QUESTIONS,
   EXAM_MIN_QUESTIONS,
+  EXAM_DEFAULT_PASSING_SCORE,
+  EXAM_MIN_PASSING_SCORE,
+  EXAM_MAX_PASSING_SCORE,
   ExamDraftRequest,
   ExamResponse,
   RESULT_DISPLAYS,
@@ -65,6 +68,8 @@ export class ExamDraftFormComponent implements OnInit {
     resultDisplay:          ['SCORE_AND_ANSWERS' as ResultDisplay],
     randomizeOptions:       [false],
     randomizeQuestionOrder: [false],
+    passingScore:           [EXAM_DEFAULT_PASSING_SCORE,
+                             [Validators.required, Validators.min(EXAM_MIN_PASSING_SCORE), Validators.max(EXAM_MAX_PASSING_SCORE)]],
     requiredAnyOfTagIds:    [[] as number[]]
   });
 

@@ -77,4 +77,6 @@ export interface ExamStatisticsResponse {
   failedCount: number;
   highestScore: number;
   lowestScore: number;
+  /** El aprobado del examen con el que se cuentan aprobados y suspensos (DE-13). */
+  passingScore: number;
 }

@@ -48,6 +48,11 @@
           </mat-form-field>
         </div>
         <mat-form-field appearance="outline">
+          <mat-label>Aprobado (%)</mat-label>
+          <input matInput type="number" formControlName="passingScore" min="1" max="100" />
+          <mat-hint>De 1 a 100</mat-hint>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
           <mat-label>Mostrar al alumno al entregar</mat-label>
           <mat-select formControlName="resultDisplay" class="result-display-select">
             @for (display of resultDisplays; track display) {
@@ -79,6 +84,7 @@
           <mat-icon>{{ exam().config.showScore ? 'visibility' : 'visibility_off' }}</mat-icon>
           {{ resultDisplaySummary() }}
         </span>
+        <span class="config-item passing-score"><mat-icon>school</mat-icon>Aprueba con un {{ exam().config.passingScore }} %</span>
         @if (exam().expiresAt) {
           <span class="config-item"><mat-icon>event</mat-icon>Hasta {{ exam().expiresAt | date:'dd/MM/yyyy HH:mm' }}</span>
         } @else if (exam().status !== 'DRAFT') {

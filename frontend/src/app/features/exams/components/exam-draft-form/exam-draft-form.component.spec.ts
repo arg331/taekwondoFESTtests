@@ -60,4 +60,35 @@ describe('ExamDraftFormComponent', () => {
   it('«Nada»: ni nota ni respuestas', async () => {
     expect(await createWith('Nada')).toEqual(expect.objectContaining({ showScore: false, showAnswers: false }));
   });
+
+  describe('aprobado (DE-13)', () => {
+    function setPassingScore(value: string): void {
+      const input = el.querySelector('input[formcontrolname="passingScore"]') as HTMLInputElement;
+      input.value = value;
+      input.dispatchEvent(new Event('input'));
+    }
+
+    it('por defecto es el 50 %', async () => {
+      expect(await createWith(null)).toEqual(expect.objectContaining({ passingScore: 50 }));
+    });
+
+    it('se puede elegir otro', async () => {
+      setPassingScore('70');
+      expect(await createWith(null)).toEqual(expect.objectContaining({ passingScore: 70 }));
+    });
+
+    it('fuera de 1 a 100 no deja crear', async () => {
+      const title = el.querySelector('input[formcontrolname="title"]') as HTMLInputElement;
+      title.value = 'Examen de árbitros';
+      title.dispatchEvent(new Event('input'));
+      await stable();
+      expect((el.querySelector('.create-btn') as HTMLButtonElement).disabled).toBe(false);
+
+      for (const invalid of ['0', '101']) {
+        setPassingScore(invalid);
+        await stable();
+        expect((el.querySelector('.create-btn') as HTMLButtonElement).disabled).toBe(true);
+      }
+    });
+  });
 });

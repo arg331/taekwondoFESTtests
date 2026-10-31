@@ -25,6 +25,9 @@ import {
   EXAM_MIN_ATTEMPTS,
   attemptsRequest,
   EXAM_MIN_QUESTIONS,
+  EXAM_DEFAULT_PASSING_SCORE,
+  EXAM_MIN_PASSING_SCORE,
+  EXAM_MAX_PASSING_SCORE,
   EXAM_STATUS_COLOR,
   EXAM_STATUS_LABEL,
   ExamResponse,
@@ -173,7 +176,9 @@ export class ExamDetailComponent {
     timeLimitMinutes:       [0, [Validators.min(0), Validators.max(180)]],
     resultDisplay:          ['SCORE_AND_ANSWERS' as ResultDisplay],
     randomizeOptions:       [false],
-    randomizeQuestionOrder: [false]
+    randomizeQuestionOrder: [false],
+    passingScore:           [EXAM_DEFAULT_PASSING_SCORE,
+                             [Validators.required, Validators.min(EXAM_MIN_PASSING_SCORE), Validators.max(EXAM_MAX_PASSING_SCORE)]]
   });
 
   readonly resultDisplays = RESULT_DISPLAYS;
@@ -218,7 +223,8 @@ export class ExamDetailComponent {
       timeLimitMinutes: config.timeLimitMinutes ?? 0,
       resultDisplay: resultDisplayOf(config),
       randomizeOptions: config.randomizeOptions,
-      randomizeQuestionOrder: config.randomizeQuestionOrder
+      randomizeQuestionOrder: config.randomizeQuestionOrder,
+      passingScore: config.passingScore
     });
     this.editingConfig.set(true);
   }

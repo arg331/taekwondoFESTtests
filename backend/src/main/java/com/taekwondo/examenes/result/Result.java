@@ -20,8 +20,6 @@ import java.util.List;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Result {
 
-    public static final int PASSING_SCORE = 70;
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -81,10 +79,6 @@ public class Result {
         this.timeSpentSeconds = timeSpentSeconds;
         this.completedAt = completedAt;
         this.autoSubmitted = autoSubmitted;
-    }
-
-    public boolean isPassed() {
-        return score >= PASSING_SCORE;
     }
 
     public List<Answer> getAnswers() {

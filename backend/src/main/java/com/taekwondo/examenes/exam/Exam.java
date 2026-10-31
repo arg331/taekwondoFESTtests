@@ -139,7 +139,7 @@ public class Exam {
     public Exam copyAs(String newTitle) {
         ExamConfig configCopy = new ExamConfig(config.getNumberOfQuestions(), config.getTimeLimitMinutes(),
                 config.isShowScore(), config.isShowAnswers(), config.isRandomizeOptions(),
-                config.isRandomizeQuestionOrder());
+                config.isRandomizeQuestionOrder(), config.getPassingScore());
         Exam copy = new Exam(newTitle, ownerId, configCopy, generationTags);
         copy.questionIds.addAll(questionIds);
         return copy;

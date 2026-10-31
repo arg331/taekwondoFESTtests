@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -106,9 +107,10 @@ class AttemptRecoveryCharacterizationTest extends ApiCharacterizationTest {
         HttpResult owner = resume(exam.code(), anonymous).expectStatus(200);
         assertThat((Integer) owner.read("$.attemptNumber")).isEqualTo(1);
         assertThat(saved(owner, question)).containsExactly(2);
-        // Es el mismo intento, con los datos del principio: al entregarlo, el siguiente es el 2
+        // Es el mismo intento: al entregarlo, el siguiente es el 2. Con sesión firma la cuenta (DE-26)
         assertThat((String) submit(exam.code(), again.read("$.attemptToken"), student.token(),
-                answers(exam.questionIds(), allCorrect(5))).expectStatus(201).read("$.studentName")).isEqualTo("Yo");
+                answers(exam.questionIds(), allCorrect(5))).expectStatus(201).read("$.studentName"))
+                .isEqualTo("Alumno " + student.username());
         assertThat((Integer) start(exam.code(), student.token(), obj("studentName", "Yo")).expectStatus(200)
                 .read("$.attemptNumber")).isEqualTo(2);
     }
@@ -205,6 +207,53 @@ class AttemptRecoveryCharacterizationTest extends ApiCharacterizationTest {
         }
 
         assertThat(get("/api/results/exam/" + exam.id(), token).expectStatus(200).asList()).hasSize(students);
+    }
+
+    @Test
+    @DisplayName("Empezar varias veces a la vez el examen de un intento: el registrado recibe siempre el mismo intento")
+    void concurrentStarts_registeredGetsOneAttempt() throws Exception {
+        PublishedExam exam = publishedExam(adminToken(), 5, null, true, 1);
+        Session student = newStudent();
+
+        List<HttpResult> starts = startAtOnce(exam.code(), student.token(), "Yo", 8);
+
+        assertThat(starts).allSatisfy(r -> r.expectStatus(200));
+        assertThat(starts.stream().map(r -> (String) r.read("$.attemptToken")).distinct()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("Empezar varias veces a la vez sin sesión con el mismo nombre: un solo intento, el resto 409")
+    void concurrentStarts_anonymousGetsOneAttempt() throws Exception {
+        PublishedExam exam = publishedExam(adminToken(), 5, null, true, 1);
+
+        List<HttpResult> starts = startAtOnce(exam.code(), null, unique("Ana"), 8);
+
+        assertThat(starts.stream().filter(r -> r.status() == 200)).hasSize(1);
+        assertThat(starts.stream().filter(r -> r.status() != 200))
+                .allSatisfy(r -> assertThat(r.expectStatus(409).message()).isEqualTo(OPEN_WITH_NAME));
+    }
+
+    /** El mismo alumno pulsa «Comenzar» n veces a la vez (doble clic, varias pestañas, un script). */
+    private List<HttpResult> startAtOnce(String code, String token, String name, int n) throws Exception {
+        CountDownLatch ready = new CountDownLatch(1);
+        ExecutorService pool = Executors.newFixedThreadPool(n);
+        try {
+            List<Future<HttpResult>> futures = new ArrayList<>();
+            for (int i = 0; i < n; i++) {
+                futures.add(pool.submit(() -> {
+                    ready.await();
+                    return start(code, token, obj("studentName", name));
+                }));
+            }
+            ready.countDown();
+            List<HttpResult> results = new ArrayList<>();
+            for (Future<HttpResult> future : futures) {
+                results.add(future.get());
+            }
+            return results;
+        } finally {
+            pool.shutdown();
+        }
     }
 
     @Test

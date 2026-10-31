@@ -350,8 +350,24 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
                 .expectStatus(200).asList();
 
         assertThat(results).extracting(r -> r.get("studentName"), r -> r.get("registered"))
-                .containsExactlyInAnyOrder(org.assertj.core.groups.Tuple.tuple("Registrada", true),
+                .containsExactlyInAnyOrder(org.assertj.core.groups.Tuple.tuple("Alumno " + student.username(), true),
                         org.assertj.core.groups.Tuple.tuple("Anónima", false));
+    }
+
+    @Test
+    @DisplayName("Con sesión, la entrega va con el nombre de la cuenta aunque el formulario traiga otro (DE-26)")
+    void registeredStudent_resultUsesAccountName() {
+        Session teacher = newTeacher();
+        PublishedExam exam = publishedExam(teacher.token(), 5, null, true);
+        Session student = newStudent();
+        String accountName = "Alumno " + student.username();
+
+        HttpResult started = start(exam.code(), student.token(), obj("studentName", "Otra Persona")).expectStatus(200);
+        submit(exam.code(), started.read("$.attemptToken"), student.token(),
+                answers(exam.questionIds(), allCorrect(5))).expectStatus(201);
+
+        assertThat(get("/api/results/exam/" + exam.id(), teacher.token()).expectStatus(200).asList())
+                .extracting(r -> r.get("studentName")).containsExactly(accountName);
     }
 
     @Test

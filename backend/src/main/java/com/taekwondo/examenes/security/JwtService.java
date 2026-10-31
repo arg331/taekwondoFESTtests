@@ -90,16 +90,6 @@ public class JwtService {
 
     public record Attempt(Long attemptId, Long examId) {}
 
-    private String build(String type, String subject, Instant issuedAt, Duration validity) {
-        return Jwts.builder()
-                .subject(subject)
-                .claim(TYPE_CLAIM, type)
-                .issuedAt(Date.from(issuedAt))
-                .expiration(Date.from(issuedAt.plus(validity)))
-                .signWith(signingKey)
-                .compact();
-    }
-
     private Optional<Claims> parse(String token, String expectedType) {
         if (token == null || token.isBlank()) return Optional.empty();
         try {

@@ -84,6 +84,22 @@ describe('ExamAccessCardComponent', () => {
     expect(field('studentEmail')).toBe('');
   });
 
+  it('con sesión el nombre es el de la cuenta y no se puede cambiar (DE-26); sin sesión, sí', async () => {
+    await render('PRIVATE');
+    const name = () => el.querySelector('input[formcontrolname="studentName"]') as HTMLInputElement;
+    expect(name().readOnly).toBe(false);
+
+    fixture.componentRef.setInput('user', {
+      id: 3, username: 'ana', email: null, displayName: 'Ana López', role: 'STUDENT',
+      club: null, active: true, mustChangePassword: false, createdAt: '2026-10-13T10:00:00'
+    });
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(name().readOnly).toBe(true);
+    expect(el.textContent).toContain('El de tu cuenta');
+  });
+
   describe('club de un desplegable (también sin cuenta)', () => {
     async function startWith(club: string | null): Promise<StudentInfo> {
       const started: StudentInfo[] = [];

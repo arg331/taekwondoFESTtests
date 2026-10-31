@@ -8,6 +8,8 @@ import com.taekwondo.examenes.common.BusinessRuleException;
 import com.taekwondo.examenes.common.ResourceNotFoundException;
 import com.taekwondo.examenes.question.PublicQuestionResponse;
 import com.taekwondo.examenes.security.JwtService;
+import com.taekwondo.examenes.user.User;
+import com.taekwondo.examenes.user.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,14 +43,17 @@ public class AttemptService {
     private final ExamService examService;
     private final ExamRepository examRepository;
     private final ExamAttemptRepository attemptRepository;
+    private final UserRepository userRepository;
     private final JwtService jwtService;
     private final Clock clock;
 
     public AttemptService(ExamService examService, ExamRepository examRepository,
-                          ExamAttemptRepository attemptRepository, JwtService jwtService, Clock clock) {
+                          ExamAttemptRepository attemptRepository, UserRepository userRepository,
+                          JwtService jwtService, Clock clock) {
         this.examService = examService;
         this.examRepository = examRepository;
         this.attemptRepository = attemptRepository;
+        this.userRepository = userRepository;
         this.jwtService = jwtService;
         this.clock = clock;
     }
@@ -65,7 +70,9 @@ public class AttemptService {
         if (exam.requiresRegistration() && studentUserId == null) {
             throw new BusinessRuleException("Este examen requiere estar registrado e iniciar sesión");
         }
-        String studentName = identity.studentName().trim();
+        // Sin el bloqueo, varios «empezar» a la vez creaban varios intentos y saltaban el máximo (RN-08)
+        examRepository.lockById(exam.getId());
+        String studentName = studentName(identity, studentUserId);
         LocalDateTime now = now();
         List<ExamAttempt> previous = attemptsOf(exam.getId(), studentUserId, StudentIdentity.nameKey(studentName));
         Optional<ExamAttempt> open = previous.stream()
@@ -198,6 +205,13 @@ public class AttemptService {
     /** Qué número de intento es entre los del alumno (RF-52). */
     private static int numberOf(ExamAttempt attempt, List<ExamAttempt> attempts) {
         return (int) attempts.stream().filter(a -> a.getId() <= attempt.getId()).count();
+    }
+
+    /** Con sesión, el de la cuenta: el formulario lo rellena, pero no puede firmar con otro nombre (DE-26). */
+    private String studentName(StartAttemptRequest identity, Long studentUserId) {
+        return studentUserId == null ? identity.studentName().trim()
+                : userRepository.findById(studentUserId).map(User::getDisplayName)
+                        .orElseGet(() -> identity.studentName().trim());
     }
 
     private List<ExamAttempt> attemptsOf(Long examId, Long studentUserId, String studentKey) {

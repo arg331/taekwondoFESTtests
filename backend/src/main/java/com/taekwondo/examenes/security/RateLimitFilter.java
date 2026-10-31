@@ -57,13 +57,14 @@ public class RateLimitFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-        Integer limit = "POST".equals(request.getMethod()) ? limits.get(request.getRequestURI()) : null;
+        String path = decodedPath(request);
+        Integer limit = "POST".equals(request.getMethod()) ? limits.get(path) : null;
         if (limit == null) {
             chain.doFilter(request, response);
             return;
         }
         Instant now = clock.instant();
-        Window window = windows.compute(request.getRequestURI() + "|" + request.getRemoteAddr(),
+        Window window = windows.compute(path + "|" + request.getRemoteAddr(),
                 (key, current) -> current == null || current.isOverAt(now) ? new Window(now, 1) : current.next());
         if (window.count() > limit) {
             reject(response, Duration.between(now, window.end()));
@@ -71,6 +72,15 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
         forgetOldWindows(now);
         chain.doFilter(request, response);
+    }
+
+    /**
+     * Ruta ya descodificada, la misma con la que Spring elige el controlador. Con la ruta tal como llega
+     * (getRequestURI), /api/auth/%72egister llegaba al registro sin pasar por el límite.
+     */
+    private static String decodedPath(HttpServletRequest request) {
+        String pathInfo = request.getPathInfo();
+        return pathInfo == null ? request.getServletPath() : request.getServletPath() + pathInfo;
     }
 
     private void reject(HttpServletResponse response, Duration retryAfter) throws IOException {

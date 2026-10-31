@@ -92,19 +92,6 @@ export class ExamService {
     return this.http.delete<void>(`${this.api}/${id}`);
   }
 
-  // ── Favoritos ─────────────────────────────────────
-  getFavorites(): Observable<ExamResponse[]> {
-    return this.http.get<ExamResponse[]>(`${environment.apiUrl}/favorites`);
-  }
-
-  favorite(id: number): Observable<void> {
-    return this.http.post<void>(`${this.api}/${id}/favorite`, {});
-  }
-
-  unfavorite(id: number): Observable<void> {
-    return this.http.delete<void>(`${this.api}/${id}/favorite`);
-  }
-
   // ── Cualquier usuario con sesión ──────────────────
   getPublic(): Observable<ExamResponse[]> {
     return this.http.get<ExamResponse[]>(`${this.api}/public`);

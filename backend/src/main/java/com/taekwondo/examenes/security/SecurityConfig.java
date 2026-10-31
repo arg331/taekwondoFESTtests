@@ -61,7 +61,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/exams/public").authenticated()
                         .requestMatchers("/api/users/**").hasAuthority(ADMIN)
                         .requestMatchers("/api/questions/**", "/api/tags/**", "/api/exams/**",
-                                "/api/favorites/**", "/api/results/**", "/api/clubs/**", "/api/shares/**")
+                                "/api/favorites/**", "/api/community/**","/api/results/**", "/api/clubs/**", "/api/shares/**")
                                 .hasAnyAuthority(ADMIN, TEACHER)
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

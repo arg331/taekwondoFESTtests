@@ -44,7 +44,14 @@ export interface ExamConfig {
   showAnswers: boolean;
   randomizeOptions: boolean;
   randomizeQuestionOrder: boolean;
+  /** % de aciertos para aprobar (DE-13). */
+  passingScore: number;
 }
+
+/** Aprobado por defecto y límites que acepta el servidor (DE-13). */
+export const EXAM_DEFAULT_PASSING_SCORE = 50;
+export const EXAM_MIN_PASSING_SCORE = 1;
+export const EXAM_MAX_PASSING_SCORE = 100;
 
 /**
  * Portada pública de un examen, para quien tiene el código (DE-19): solo lo que se enseña antes de empezar.

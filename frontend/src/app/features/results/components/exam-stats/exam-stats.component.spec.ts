@@ -4,7 +4,7 @@ import { ExamStatisticsResponse } from '../../../../core/models/result.models';
 
 const STATS: ExamStatisticsResponse = {
   examId: 7, totalAttempts: 5, totalStudents: 4, averageScore: 76.4, passedCount: 3, failedCount: 1,
-  highestScore: 100, lowestScore: 40
+  highestScore: 100, lowestScore: 40, passingScore: 50
 };
 
 /** Estadísticas de un examen: por alumno, con su mejor nota (RF-26, RF-54). */
@@ -24,6 +24,10 @@ describe('ExamStatsComponent', () => {
     return Array.from(el.querySelectorAll('.stat-mini'))
       .find(s => s.querySelector('.stat-l')?.textContent?.trim() === label)?.querySelector('.stat-n')?.textContent?.trim();
   }
+
+  it('dice con qué aprobado se cuentan los aprobados (DE-13)', () => {
+    expect(stat('Aprobados (≥ 50 %)')).toBe('3');
+  });
 
   it('cuenta alumnos y, aparte, entregas', () => {
     expect(stat('Alumnos')).toBe('4');

@@ -114,7 +114,7 @@ public class ExamService {
         Exam exam = getOwned(examId, ownerId);
         exam.changeConfig(new ExamConfig(request.numberOfQuestions(), request.timeLimitMinutes(),
                 request.showScore(), showAnswers(request.showScore(), request.showAnswers()),
-                request.randomizeOptions(), request.randomizeQuestionOrder()));
+                request.randomizeOptions(), request.randomizeQuestionOrder(), passingScore(request.passingScore())));
         return ExamResponse.from(exam);
     }
 
@@ -313,7 +313,12 @@ public class ExamService {
 
     private ExamConfig toConfig(ExamDraftRequest r) {
         return new ExamConfig(r.numberOfQuestions(), r.timeLimitMinutes(), r.showScore(),
-                showAnswers(r.showScore(), r.showAnswers()), r.randomizeOptions(), r.randomizeQuestionOrder());
+                showAnswers(r.showScore(), r.showAnswers()), r.randomizeOptions(), r.randomizeQuestionOrder(),
+                passingScore(r.passingScore()));
+    }
+
+    private static int passingScore(Integer requested) {
+        return requested == null ? ExamConfig.DEFAULT_PASSING_SCORE : requested;
     }
 
     /** Las respuestas solo se muestran con la nota; sin indicarlo, se muestran si se muestra la nota (RF-53). */

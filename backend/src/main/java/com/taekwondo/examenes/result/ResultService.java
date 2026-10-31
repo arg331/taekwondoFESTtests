@@ -7,6 +7,7 @@ import com.taekwondo.examenes.common.BusinessRuleException;
 import com.taekwondo.examenes.common.ResourceNotFoundException;
 import com.taekwondo.examenes.exam.AttemptService;
 import com.taekwondo.examenes.exam.Exam;
+import com.taekwondo.examenes.exam.ExamConfig;
 import com.taekwondo.examenes.exam.ExamRepository;
 import com.taekwondo.examenes.exam.ExamService;
 import com.taekwondo.examenes.exam.PublishedQuestion;
@@ -152,14 +153,14 @@ public class ResultService {
         ResourceNotFoundException notFound = new ResourceNotFoundException("No existe un resultado con id " + resultId);
         Result result = resultRepository.findById(resultId).orElseThrow(() -> notFound);
         Exam exam = examRepository.findByIdAndOwnerId(result.getExamId(), ownerId).orElseThrow(() -> notFound);
-        return ResultResponse.from(result, exam.getTitle());
+        return ResultResponse.from(result, exam);
     }
 
     public List<ResultResponse> listByExam(Long examId, Long teacherId) {
         Exam exam = examService.getViewable(examId, teacherId);
         autoSubmitExpired(examId);
         return resultRepository.findAllByExamIdOrderByCompletedAtDesc(examId).stream()
-                .map(r -> ResultResponse.from(r, exam.getTitle()))
+                .map(r -> ResultResponse.from(r, exam))
                 .toList();
     }
 
@@ -169,7 +170,7 @@ public class ResultService {
         autoSubmitExpired(examId);
         List<Result> results = resultRepository.findAllByExamIdOrderByCompletedAtDesc(examId);
         return new ExportedFile("resultados-" + asciiSlug(exam.getTitle()) + ".xlsx",
-                ResultSpreadsheet.CONTENT_TYPE, ResultSpreadsheet.build(results));
+                ResultSpreadsheet.CONTENT_TYPE, ResultSpreadsheet.build(results, exam.getConfig()));
     }
 
     /** «Examen de Árbitros 2026» → «examen-de-arbitros-2026»: seguro como nombre de fichero. */
@@ -183,19 +184,19 @@ public class ResultService {
     }
 
     public ExamStatisticsResponse statistics(Long examId, Long teacherId) {
-        examService.getViewable(examId, teacherId);
+        ExamConfig config = examService.getViewable(examId, teacherId).getConfig();
         autoSubmitExpired(examId);
         List<Result> results = resultRepository.findAllByExamIdOrderByCompletedAtDesc(examId);
         if (results.isEmpty()) {
-            return new ExamStatisticsResponse(examId, 0, 0, 0.0, 0, 0, 0, 0);
+            return new ExamStatisticsResponse(examId, 0, 0, 0.0, 0, 0, 0, 0, config.getPassingScore());
         }
         // Cada alumno cuenta una vez, con su mejor nota (RF-54)
         Map<String, Integer> bestByStudent = results.stream().collect(Collectors.toMap(
                 r -> StudentIdentity.key(r.getStudentUserId(), r.getStudentName()), Result::getScore, Math::max));
         IntSummaryStatistics scores = bestByStudent.values().stream().mapToInt(Integer::intValue).summaryStatistics();
-        int passed = (int) bestByStudent.values().stream().filter(score -> score >= Result.PASSING_SCORE).count();
+        int passed = (int) bestByStudent.values().stream().filter(config::passes).count();
         return new ExamStatisticsResponse(examId, results.size(), bestByStudent.size(), scores.getAverage(), passed,
-                bestByStudent.size() - passed, scores.getMax(), scores.getMin());
+                bestByStudent.size() - passed, scores.getMax(), scores.getMin(), config.getPassingScore());
     }
 
     // ───── Consultas del alumno ─────

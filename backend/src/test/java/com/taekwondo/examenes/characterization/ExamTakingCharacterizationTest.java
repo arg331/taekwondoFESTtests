@@ -151,28 +151,12 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
         assertThat((Integer) result.read("$.correctAnswers")).isEqualTo(3);
         assertThat((Integer) result.read("$.totalQuestions")).isEqualTo(5);
         assertThat((Integer) result.read("$.score")).isEqualTo(60);
-        assertThat((Boolean) result.read("$.passed")).isFalse();
+        assertThat((Boolean) result.read("$.passed")).isTrue();
         assertThat((Integer) result.read("$.timeSpentSeconds")).isEqualTo(150);
         List<Map<String, Object>> answers = result.read("$.answers");
         assertThat(answers.get(0)).containsOnlyKeys(ANSWER_FIELDS);
         assertThat(answers).extracting(a -> a.get("correct")).containsExactly(true, true, true, false, false);
         assertThat((List<?>) answers.get(4).get("studentAnswers")).isEmpty();
-    }
-
-    @Test
-    @DisplayName("Entrega: el aprobado está en 70 (7 de 10 aprueba; 3 de 5 = 60 suspende)")
-    void submit_passMarkIsSeventy() {
-        PublishedExam exam = publishedExam(adminToken(), 10, null, true);
-        List<Integer> chosen = new ArrayList<>(allCorrect(10));
-        chosen.set(0, null);
-        chosen.set(1, null);
-        chosen.set(2, null);
-
-        HttpResult result = submit(exam.code(), startAttempt(exam.code(), null, unique("Alumno")), null,
-                answers(exam.questionIds(), chosen)).expectStatus(201);
-
-        assertThat((Integer) result.read("$.score")).isEqualTo(70);
-        assertThat((Boolean) result.read("$.passed")).isTrue();
     }
 
     @Test
@@ -347,7 +331,7 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
         assertThat(results).allMatch(r -> Boolean.TRUE.equals(r.get("scoreVisible")));
         assertThat(stats.asMap()).containsExactlyInAnyOrderEntriesOf(Map.of(
                 "examId", (int) exam.id(), "totalAttempts", 2, "totalStudents", 2, "averageScore", 80.0,
-                "passedCount", 1, "failedCount", 1, "highestScore", 100, "lowestScore", 60));
+                "passedCount", 2, "failedCount", 0, "highestScore", 100, "lowestScore", 60, "passingScore", 50));
     }
 
     @Test
@@ -379,7 +363,7 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
 
         assertThat(stats.asMap()).containsExactlyInAnyOrderEntriesOf(Map.of(
                 "examId", (int) exam.id(), "totalAttempts", 0, "totalStudents", 0, "averageScore", 0.0,
-                "passedCount", 0, "failedCount", 0, "highestScore", 0, "lowestScore", 0));
+                "passedCount", 0, "failedCount", 0, "highestScore", 0, "lowestScore", 0, "passingScore", 50));
     }
 
     @Test

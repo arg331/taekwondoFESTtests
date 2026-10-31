@@ -21,5 +21,7 @@ public record ExamDraftRequest(
         Boolean showAnswers,
         boolean randomizeOptions,
         boolean randomizeQuestionOrder,
-        Set<Long> requiredAnyOfTagIds
+        Set<Long> requiredAnyOfTagIds,
+        /** % de aciertos para aprobar; null = el 50 % (DE-13). */
+        @Min(ExamConfig.MIN_PASSING_SCORE) @Max(ExamConfig.MAX_PASSING_SCORE) Integer passingScore
 ) {}

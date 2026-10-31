@@ -18,7 +18,7 @@ describe('ExamService y ResultService (contrato HTTP)', () => {
 
   const draft: ExamDraftRequest = {
     title: 'Examen', numberOfQuestions: 5, timeLimitMinutes: null, showScore: true, showAnswers: true,
-    randomizeOptions: false, randomizeQuestionOrder: false
+    randomizeOptions: false, randomizeQuestionOrder: false, passingScore: 50
   };
 
   beforeEach(() => {
@@ -45,8 +45,6 @@ describe('ExamService y ResultService (contrato HTTP)', () => {
     expectCall('GET', `${API}/exams/7`);
     exams.getPublic().subscribe();
     expectCall('GET', `${API}/exams/public`);
-    exams.getFavorites().subscribe();
-    expectCall('GET', `${API}/favorites`);
   });
 
   it('creación y edición de borradores', () => {
@@ -77,10 +75,6 @@ describe('ExamService y ResultService (contrato HTTP)', () => {
     expectCall('PATCH', `${API}/exams/7/expiration`, { newExpiresAt: '2026-10-10T10:00' });
     exams.changeVisibility(7, { newVisibility: 'PRIVATE' }).subscribe();
     expectCall('PATCH', `${API}/exams/7/visibility`, { newVisibility: 'PRIVATE' });
-    exams.favorite(7).subscribe();
-    expectCall('POST', `${API}/exams/7/favorite`, {});
-    exams.unfavorite(7).subscribe();
-    expectCall('DELETE', `${API}/exams/7/favorite`);
   });
 
   it('flujo del alumno: el código va codificado en la URL', () => {

@@ -1,6 +1,7 @@
 package com.taekwondo.examenes.result;
 
 import com.taekwondo.examenes.attempt.StudentIdentity;
+import com.taekwondo.examenes.exam.Exam;
 import com.taekwondo.examenes.exam.ExamConfig;
 
 import java.time.LocalDateTime;
@@ -50,13 +51,13 @@ public record ResultResponse(
         }
     }
 
-    /** Vista completa, la del profesor. */
-    public static ResultResponse from(Result r, String examTitle) {
-        return new ResultResponse(r.getId(), r.getExamId(), examTitle, r.getStudentName(), r.getStudentClub(),
+    /** Vista completa, la del profesor; aprueba según el aprobado de su examen (DE-13). */
+    public static ResultResponse from(Result r, Exam exam) {
+        return new ResultResponse(r.getId(), r.getExamId(), exam.getTitle(), r.getStudentName(), r.getStudentClub(),
                 r.getStudentEmail(), r.getStudentUserId() != null, r.getStudentUserId(),
                 StudentIdentity.key(r.getStudentUserId(), r.getStudentName()), true,
                 r.getAnswers().stream().map(AnswerResponse::from).toList(),
-                r.getCorrectAnswers(), r.getTotalQuestions(), r.getScore(), r.isPassed(),
+                r.getCorrectAnswers(), r.getTotalQuestions(), r.getScore(), exam.getConfig().passes(r.getScore()),
                 r.getTimeSpentSeconds(), r.getCompletedAt(), r.isAutoSubmitted());
     }
 
@@ -72,7 +73,7 @@ public record ResultResponse(
         return new ResultResponse(r.getId(), r.getExamId(), examTitle, r.getStudentName(), r.getStudentClub(),
                 r.getStudentEmail(), r.getStudentUserId() != null, r.getStudentUserId(),
                 StudentIdentity.key(r.getStudentUserId(), r.getStudentName()), true, answers,
-                r.getCorrectAnswers(), r.getTotalQuestions(), r.getScore(), r.isPassed(),
+                r.getCorrectAnswers(), r.getTotalQuestions(), r.getScore(), config.passes(r.getScore()),
                 r.getTimeSpentSeconds(), r.getCompletedAt(), r.isAutoSubmitted());
     }
 

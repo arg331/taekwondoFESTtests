@@ -18,6 +18,10 @@ public interface ExamRepository extends JpaRepository<Exam, Long> {
 
     List<Exam> findAllByVisibilityAndStatusAndOwnerIdNot(Visibility visibility, ExamStatus status, Long ownerId);
 
+    /** Exámenes de prueba de otros profesores (RF-30). */
+    List<Exam> findAllByVisibilityAndStatusInAndOwnerIdNotOrderByCreatedAtDesc(Visibility visibility,
+                                                                             Collection<ExamStatus> statuses, Long ownerId);
+
     boolean existsByCode(String code);
 
     @Query("select e from Exam e join e.questionIds q where q = :questionId")

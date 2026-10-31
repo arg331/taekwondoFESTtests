@@ -158,7 +158,9 @@ class ExamFlowIntegrationTest {
         mvc.perform(get("/api/results/exam/" + examId + "/statistics")
                         .header("Authorization", "Bearer " + adminToken))
                 .andExpect(jsonPath("$.totalAttempts").value(1))
-                .andExpect(jsonPath("$.failedCount").value(1));
+                // 60 aprueba con el aprobado por defecto, el 50 % (DE-13)
+                .andExpect(jsonPath("$.passedCount").value(1))
+                .andExpect(jsonPath("$.failedCount").value(0));
     }
 
     @Test

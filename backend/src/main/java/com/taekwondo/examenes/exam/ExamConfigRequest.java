@@ -10,5 +10,7 @@ public record ExamConfigRequest(
         /** null = lo mismo que showScore; sin nota, nunca se muestran las respuestas. */
         Boolean showAnswers,
         boolean randomizeOptions,
-        boolean randomizeQuestionOrder
+        boolean randomizeQuestionOrder,
+        /** % de aciertos para aprobar; null = el 50 % (DE-13). */
+        @Min(ExamConfig.MIN_PASSING_SCORE) @Max(ExamConfig.MAX_PASSING_SCORE) Integer passingScore
 ) {}

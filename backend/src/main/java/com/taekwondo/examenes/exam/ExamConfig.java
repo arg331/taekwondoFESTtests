@@ -19,6 +19,10 @@ public class ExamConfig {
     public static final int MIN_QUESTIONS = 5;
     public static final int MAX_QUESTIONS = 50;
     public static final int MAX_TIME_LIMIT_MINUTES = 180;
+    /** Aprobado en % de aciertos (DE-13): el 50 % salvo que el profesor elija otro. */
+    public static final int DEFAULT_PASSING_SCORE = 50;
+    public static final int MIN_PASSING_SCORE = 1;
+    public static final int MAX_PASSING_SCORE = 100;
 
     /**
      * Preguntas que pide el examen. En un borrador es el objetivo (para generar al azar o
@@ -44,8 +48,16 @@ public class ExamConfig {
     @Column(name = "randomize_question_order", nullable = false)
     private boolean randomizeQuestionOrder;
 
+    /** % de aciertos con el que se aprueba (DE-13). */
+    @Column(name = "passing_score", nullable = false)
+    private int passingScore;
+
     public boolean hasTimeLimit() {
         return timeLimitMinutes != null && timeLimitMinutes > 0;
+    }
+
+    public boolean passes(int score) {
+        return score >= passingScore;
     }
 
     void matchQuestionCount(int count) {

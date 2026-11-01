@@ -148,14 +148,6 @@ public class ResultService {
 
     // ───── Consultas del profesor ─────
 
-    @Transactional(readOnly = true)
-    public ResultResponse get(Long resultId, Long ownerId) {
-        ResourceNotFoundException notFound = new ResourceNotFoundException("No existe un resultado con id " + resultId);
-        Result result = resultRepository.findById(resultId).orElseThrow(() -> notFound);
-        Exam exam = examRepository.findByIdAndOwnerId(result.getExamId(), ownerId).orElseThrow(() -> notFound);
-        return ResultResponse.from(result, exam);
-    }
-
     public List<ResultResponse> listByExam(Long examId, Long teacherId) {
         Exam exam = examService.getViewable(examId, teacherId);
         autoSubmitExpired(examId);

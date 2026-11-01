@@ -40,11 +40,6 @@ public class ResultController {
         return resultService.listMine(userId);
     }
 
-    @GetMapping("/{id}")
-    public ResultResponse get(@PathVariable Long id, @AuthenticationPrincipal Long userId) {
-        return resultService.get(id, userId);
-    }
-
     @GetMapping("/exam/{examId}")
     public List<ResultResponse> listByExam(@PathVariable Long examId, @AuthenticationPrincipal Long userId) {
         return resultService.listByExam(examId, userId);

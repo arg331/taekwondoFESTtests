@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static com.taekwondo.examenes.characterization.support.Json.obj;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -105,6 +106,27 @@ class ClubCharacterizationTest extends ApiCharacterizationTest {
     }
 
     @Test
+    @DisplayName("Miembros: cada uno dice si quien mira puede abrir sus resultados; el administrador, todos (DE-23)")
+    void members_resultsVisible() {
+        Session teacher = newTeacher();
+        long clubId = createClub(teacher);
+        Session withResult = newStudent();
+        Session withoutResult = newStudent();
+        put("/api/clubs/" + clubId + "/members/" + withResult.id(), teacher.token(), null).expectStatus(200);
+        put("/api/clubs/" + clubId + "/members/" + withoutResult.id(), teacher.token(), null).expectStatus(200);
+        PublishedExam exam = publishedExam(teacher.token(), 5, null, true);
+        submit(exam.code(), startAttempt(exam.code(), withResult.token()), withResult.token(),
+                answers(exam.questionIds(), allCorrect(5))).expectStatus(201);
+
+        Map<Long, Object> forTeacher = resultsVisible(clubId, teacher);
+        Map<Long, Object> forAdmin = resultsVisible(clubId, adminSession());
+
+        assertThat(forTeacher).containsExactlyInAnyOrderEntriesOf(Map.of(
+                teacher.id(), false, withResult.id(), true, withoutResult.id(), false));
+        assertThat(forAdmin.values()).containsOnly(true);
+    }
+
+    @Test
     @DisplayName("Miembros: el profesor añade y quita alumnos y profesores sin club, y ve la lista (RF-40)")
     void members_addListRemove() {
         Session teacher = newTeacher();
@@ -112,7 +134,7 @@ class ClubCharacterizationTest extends ApiCharacterizationTest {
         Session student = newStudent();
 
         HttpResult added = put("/api/clubs/" + clubId + "/members/" + student.id(), teacher.token(), null).expectStatus(200);
-        assertThat(added.asMap()).containsOnlyKeys("id", "username", "displayName", "role");
+        assertThat(added.asMap()).containsOnlyKeys("id", "username", "displayName", "role", "resultsVisible");
         assertThat((Integer) me(student).read("$.club.id")).isEqualTo((int) clubId);
         assertThat(memberIds(clubId, teacher)).containsExactlyInAnyOrder(teacher.id(), student.id());
 
@@ -284,6 +306,16 @@ class ClubCharacterizationTest extends ApiCharacterizationTest {
 
     private HttpResult me(Session session) {
         return get("/api/auth/me", session.token()).expectStatus(200);
+    }
+
+    private Map<Long, Object> resultsVisible(long clubId, Session session) {
+        return get("/api/clubs/" + clubId + "/members", session.token()).expectStatus(200).asList().stream()
+                .collect(Collectors.toMap((Map<String, Object> m) -> ((Number) m.get("id")).longValue(),
+                        (Map<String, Object> m) -> m.get("resultsVisible")));
+    }
+
+    private Session adminSession() {
+        return new Session(get("/api/auth/me", adminToken()).expectStatus(200).id(), ADMIN_USERNAME, adminToken());
     }
 
     private List<Long> memberIds(long clubId, Session session) {

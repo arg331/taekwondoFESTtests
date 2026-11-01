@@ -9,8 +9,8 @@ import { of } from 'rxjs';
 
 const API = 'http://localhost:8080/api';
 const CLUB: ClubResponse = { id: 2, name: 'Club Badajoz' };
-const PROFE: ClubMemberResponse = { id: 7, username: 'profe', displayName: 'Profe', role: 'TEACHER' };
-const ANA: ClubMemberResponse = { id: 8, username: 'ana', displayName: 'Ana', role: 'STUDENT' };
+const PROFE: ClubMemberResponse = { id: 7, username: 'profe', displayName: 'Profe', role: 'TEACHER', resultsVisible: false };
+const ANA: ClubMemberResponse = { id: 8, username: 'ana', displayName: 'Ana', role: 'STUDENT', resultsVisible: true };
 
 /** Detalle de un club: miembros, añadir, quitar, renombrar y borrar (RF-40, RF-42). */
 describe('ClubDetailComponent', () => {
@@ -52,11 +52,12 @@ describe('ClubDetailComponent', () => {
     return Array.from(el.querySelectorAll('.member-name')).map(m => m.textContent?.trim() ?? '');
   }
 
-  it('el nombre de cada miembro lleva a sus resultados (RF-55)', async () => {
+  it('el nombre lleva a los resultados solo si quien mira puede verlos (RF-55, DE-23)', async () => {
     await render(true);
 
+    expect(memberNames()).toEqual(['Profe', 'Ana']);
     expect(Array.from(el.querySelectorAll('a.member-name')).map(a => a.getAttribute('href')))
-      .toEqual(['/results/user/7', '/results/user/8']);
+      .toEqual(['/results/user/8']);
   });
 
   function type(selector: string, value: string): void {

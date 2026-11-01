@@ -384,20 +384,18 @@ class ExamTakingCharacterizationTest extends ApiCharacterizationTest {
     }
 
     @Test
-    @DisplayName("Profesor: una entrega concreta solo la ve el dueño del examen")
-    void teacherResult_onlyOwner() {
+    @DisplayName("Profesor: no hay ruta para una entrega suelta (DE-24); la lista del examen solo la ve su dueño")
+    void teacherResult_noSingleResultRoute() {
         Session owner = newTeacher();
         Session other = newTeacher();
         PublishedExam exam = publishedExam(owner.token(), 5, null, true);
         long resultId = submit(exam.code(), startAttempt(exam.code(), null, unique("A")), null,
                 answers(exam.questionIds(), allCorrect(5))).expectStatus(201).id();
 
-        HttpResult asOwner = get("/api/results/" + resultId, owner.token()).expectStatus(200);
-        HttpResult asOther = get("/api/results/" + resultId, other.token());
+        HttpResult single = get("/api/results/" + resultId, owner.token());
         HttpResult otherList = get("/api/results/exam/" + exam.id(), other.token());
 
-        assertThat((String) asOwner.read("$.examTitle")).isNotBlank();
-        assertThat(asOther.expectStatus(404).message()).isEqualTo("No existe un resultado con id " + resultId);
+        single.expectStatus(404);
         assertThat(otherList.expectStatus(404).message()).isEqualTo("No existe un examen con id " + exam.id());
     }
 

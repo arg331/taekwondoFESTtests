@@ -10,6 +10,8 @@ import com.taekwondo.examenes.user.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -57,12 +59,13 @@ public class ResultReportService {
 
     /**
      * Las entregas de un usuario con la vista completa del profesor. El profesor ve las de sus propios
-     * exámenes y las de los que le han compartido (RN-14, RF-51); el administrador, todas.
+     * exámenes y las de los que le han compartido (RN-14, RF-51); el administrador, todas. Si el profesor
+     * no tiene ninguna a la vista, el usuario no existe para él: así no se sacan las cuentas recorriendo ids (DE-23).
      */
     public UserResultsResponse userResults(Long userId, Long requesterId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("No existe un usuario con id " + userId));
-        boolean admin = userRepository.findById(requesterId).map(User::isAdmin).orElse(false);
+        ResourceNotFoundException notFound = new ResourceNotFoundException("No existe un usuario con id " + userId);
+        User user = userRepository.findById(userId).orElseThrow(() -> notFound);
+        boolean admin = isAdmin(requesterId);
         Set<Long> shared = examService.sharedExamIds(requesterId);
         resultService.autoSubmitExpiredOf(userId);
         List<Result> results = resultRepository.findAllByStudentUserIdOrderByCompletedAtDesc(userId);
@@ -75,7 +78,27 @@ public class ResultReportService {
                         || exams.get(r.getExamId()).getOwnerId().equals(requesterId))
                 .map(r -> ResultResponse.from(r, exams.get(r.getExamId())))
                 .toList();
+        if (!admin && visible.isEmpty()) {
+            throw notFound;
+        }
         return new UserResultsResponse(user.getId(), user.getUsername(), user.getDisplayName(),
                 user.getClub() == null ? null : user.getClub().getName(), visible);
+    }
+
+    /**
+     * De esos usuarios, cuyos resultados puede abrir quien pregunta: el administrador, los de todos; el
+     * profesor, los de quienes tienen alguna entrega en sus exámenes o en los que le han compartido (DE-23).
+     */
+    @Transactional(readOnly = true)
+    public Set<Long> withVisibleResults(Collection<Long> userIds, Long requesterId) {
+        if (userIds.isEmpty()) return Set.of();
+        if (isAdmin(requesterId)) return Set.copyOf(userIds);
+        Set<Long> examIds = new HashSet<>(examService.sharedExamIds(requesterId));
+        examRepository.findAllByOwnerIdOrderByCreatedAtDesc(requesterId).forEach(e -> examIds.add(e.getId()));
+        return examIds.isEmpty() ? Set.of() : resultRepository.findStudentsWithResultsIn(userIds, examIds);
+    }
+
+    private boolean isAdmin(Long userId) {
+        return userRepository.findById(userId).map(User::isAdmin).orElse(false);
     }
 }

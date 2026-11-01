@@ -50,6 +50,22 @@ class ExamLifecycleCharacterizationTest extends ApiCharacterizationTest {
     }
 
     @Test
+    @DisplayName("Borrador y configuración: las casillas que no llegan en el JSON valen «no», en vez de 400")
+    void draftAndConfig_missingBooleans_false() {
+        Session teacher = newTeacher();
+
+        HttpResult draft = post("/api/exams/drafts", teacher.token(),
+                obj("title", unique("Sin casillas"), "numberOfQuestions", 5)).expectStatus(201);
+        HttpResult config = patch("/api/exams/" + draft.id() + "/config", teacher.token(),
+                obj("numberOfQuestions", 6)).expectStatus(200);
+
+        for (HttpResult result : List.of(draft, config)) {
+            assertThat((Map<String, Object>) result.read("$.config")).containsAllEntriesOf(Map.of(
+                    "showScore", false, "showAnswers", false, "randomizeOptions", false, "randomizeQuestionOrder", false));
+        }
+    }
+
+    @Test
     @DisplayName("Borrador: tiempo límite 0 se guarda tal cual (0, no null)")
     void createDraft_zeroTimeLimit_storedAsZero() {
         HttpResult result = post("/api/exams/drafts", adminToken(),

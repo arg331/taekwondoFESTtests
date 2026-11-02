@@ -29,7 +29,7 @@
     <properties>
         <java.version>17</java.version>
         <jjwt.version>0.13.0</jjwt.version>
-        <jacoco.version>0.8.15</jacoco.version>
+        <jacoco.version>0.8.16</jacoco.version>
         <poi.version>5.5.1</poi.version>
     </properties>
     <dependencies>

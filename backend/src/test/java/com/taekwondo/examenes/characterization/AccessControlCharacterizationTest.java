@@ -58,7 +58,6 @@ class AccessControlCharacterizationTest extends ApiCharacterizationTest {
                 Arguments.of(HttpMethod.POST, "/api/exams/" + MISSING + "/favorite", null),
                 Arguments.of(HttpMethod.DELETE, "/api/exams/" + MISSING + "/favorite", null),
                 Arguments.of(HttpMethod.GET, "/api/favorites", null),
-                Arguments.of(HttpMethod.GET, "/api/results/" + MISSING, null),
                 Arguments.of(HttpMethod.GET, "/api/results/exam/" + MISSING, null),
                 Arguments.of(HttpMethod.GET, "/api/results/exam/" + MISSING + "/statistics", null));
     }

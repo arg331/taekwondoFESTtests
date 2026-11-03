@@ -9,8 +9,11 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
+import java.util.Map;
 
 import static com.taekwondo.examenes.characterization.support.Json.obj;
 import static com.taekwondo.examenes.characterization.support.Json.write;
@@ -18,7 +21,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * RNF-07: límite de intentos. En el inicio de sesión solo cuentan los fallos: por dirección y minuto, y por
- * cuenta (5 seguidos → 30 s de espera). El registro y la entrega de exámenes, por dirección y minuto.
+ * cuenta (5 seguidos → 30 s de espera). El registro, la entrega, la portada, empezar o recuperar un intento y
+ * guardar respuestas, por dirección y minuto (DE-25).
  * Aquí con límites pequeños para probarlos; el resto de tests los tienen desactivados.
  */
 @SpringBootTest(properties = {
@@ -26,7 +30,10 @@ import static org.assertj.core.api.Assertions.assertThat;
         "app.rate-limit.enabled=true",
         "app.rate-limit.login-failures-per-minute=12",
         "app.rate-limit.register-per-minute=2",
-        "app.rate-limit.submit-per-minute=2"})
+        "app.rate-limit.submit-per-minute=2",
+        "app.rate-limit.exam-page-per-minute=2",
+        "app.rate-limit.attempt-start-per-minute=2",
+        "app.rate-limit.answers-per-minute=2"})
 @DisplayName("Caracterización: límite de intentos")
 class RateLimitCharacterizationTest extends ApiCharacterizationTest {
 
@@ -148,6 +155,56 @@ class RateLimitCharacterizationTest extends ApiCharacterizationTest {
         assertThat(post("/api/results", null, body).expectStatus(429).message()).isEqualTo(TOO_MANY);
     }
 
+    @Test
+    @DisplayName("Registro: la ruta con letras codificadas (%72 = r) cuenta en el mismo cupo y no se salta el límite")
+    void register_encodedPathSharesLimit() throws Exception {
+        register().expectStatus(201);
+        rawRegister("/api/auth/%72egister").expectStatus(201);
+
+        assertThat(rawRegister("/api/auth/regist%65r").expectStatus(429).message()).isEqualTo(TOO_MANY);
+        assertThat(register().expectStatus(429).message()).isEqualTo(TOO_MANY);
+    }
+
+    @Test
+    @DisplayName("Entrega de exámenes: la ruta con letras codificadas también tiene límite")
+    void submit_encodedPathLimited() throws Exception {
+        String body = "{\"examCode\":\"EXM-NOEXISTE\",\"attemptToken\":\"x\",\"answers\":[]}";
+        rawPost("/api/r%65sults", body).expectStatus(404);
+        rawPost("/api/r%65sults", body).expectStatus(404);
+
+        assertThat(rawPost("/api/r%65sults", body).expectStatus(429).message()).isEqualTo(TOO_MANY);
+    }
+
+    @Test
+    @DisplayName("Portada: pasado el límite, 429, aunque cada petición pida otro código (no se pueden recorrer)")
+    void examPage_limitedAcrossCodes() {
+        get("/api/exams/by-code/EXM-00000001", null).expectStatus(404);
+        get("/api/exams/by-code/EXM-00000002", null).expectStatus(404);
+
+        assertThat(get("/api/exams/by-code/EXM-00000003", null).expectStatus(429).message()).isEqualTo(TOO_MANY);
+    }
+
+    @Test
+    @DisplayName("Empezar y recuperar intentos comparten límite; pasado, 429")
+    void attemptStartAndResume_limited() {
+        post("/api/exams/by-code/EXM-00000001/attempts", null, obj("studentName", unique("A"))).expectStatus(404);
+        post("/api/exams/by-code/EXM-00000002/attempts/resume", null, obj("attemptToken", "x")).expectStatus(404);
+
+        HttpResult blocked = post("/api/exams/by-code/EXM-00000003/attempts", null, obj("studentName", unique("B")));
+        assertThat(blocked.expectStatus(429).message()).isEqualTo(TOO_MANY);
+    }
+
+    @Test
+    @DisplayName("Guardar respuestas: pasado el límite, 429")
+    void saveAnswers_limited() {
+        Map<String, Object> body = obj("attemptToken", "x", "questionId", 1, "chosenOptions", List.of(0));
+        put("/api/exams/by-code/EXM-00000001/attempts/answers", null, body).expectStatus(404);
+        put("/api/exams/by-code/EXM-00000001/attempts/answers", null, body).expectStatus(404);
+
+        assertThat(put("/api/exams/by-code/EXM-00000001/attempts/answers", null, body).expectStatus(429).message())
+                .isEqualTo(TOO_MANY);
+    }
+
     private HttpResult badLogin(String usernameOrEmail) {
         return post("/api/auth/login", null, obj("usernameOrEmail", usernameOrEmail, "plainPassword", "mala123"));
     }
@@ -157,6 +214,20 @@ class RateLimitCharacterizationTest extends ApiCharacterizationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(write(obj("usernameOrEmail", usernameOrEmail, "plainPassword", password))))
                 .andReturn().getResponse();
+    }
+
+    /** POST con la ruta tal cual, sin volver a codificarla (el helper post convertiría % en %25). */
+    private HttpResult rawPost(String rawPath, String body) throws Exception {
+        MockHttpServletResponse response = mvc.perform(MockMvcRequestBuilders.post(URI.create(rawPath))
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andReturn().getResponse();
+        return new HttpResult(response.getStatus(), response.getContentAsString(StandardCharsets.UTF_8));
+    }
+
+    private HttpResult rawRegister(String rawPath) throws Exception {
+        String username = unique("limite");
+        return rawPost(rawPath, write(obj("username", username, "plainPassword", "secreto1",
+                "displayName", "Alumno " + username)));
     }
 
     private HttpResult register() {

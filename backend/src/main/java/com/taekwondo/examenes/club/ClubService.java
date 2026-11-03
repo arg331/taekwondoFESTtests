@@ -3,6 +3,7 @@ package com.taekwondo.examenes.club;
 import com.taekwondo.examenes.common.BusinessRuleException;
 import com.taekwondo.examenes.common.ForbiddenException;
 import com.taekwondo.examenes.common.ResourceNotFoundException;
+import com.taekwondo.examenes.result.ResultReportService;
 import com.taekwondo.examenes.user.User;
 import com.taekwondo.examenes.user.UserRepository;
 import com.taekwondo.examenes.user.UserResponse;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * Clubes (RF-38 a RF-42). Los crean el administrador y los profesores; los gestionan el
@@ -26,10 +28,13 @@ public class ClubService {
 
     private final ClubRepository clubRepository;
     private final UserRepository userRepository;
+    private final ResultReportService resultReportService;
 
-    public ClubService(ClubRepository clubRepository, UserRepository userRepository) {
+    public ClubService(ClubRepository clubRepository, UserRepository userRepository,
+                       ResultReportService resultReportService) {
         this.clubRepository = clubRepository;
         this.userRepository = userRepository;
+        this.resultReportService = resultReportService;
     }
 
     @Transactional(readOnly = true)
@@ -80,7 +85,10 @@ public class ClubService {
     public List<ClubMemberResponse> members(Long clubId, Long requesterId) {
         Club club = getClub(clubId);
         requireManager(club, getUser(requesterId));
-        return userRepository.findAllByClubId(clubId).stream().map(ClubMemberResponse::from).toList();
+        List<User> members = userRepository.findAllByClubId(clubId);
+        Set<Long> visible = resultReportService.withVisibleResults(members.stream().map(User::getId).toList(),
+                requesterId);
+        return members.stream().map(m -> ClubMemberResponse.from(m, visible.contains(m.getId()))).toList();
     }
 
     /**
@@ -114,7 +122,8 @@ public class ClubService {
                     + "»: solo el administrador puede cambiarlo de club");
         }
         member.joinClub(club);
-        return ClubMemberResponse.from(member);
+        return ClubMemberResponse.from(member,
+                resultReportService.withVisibleResults(List.of(member.getId()), requesterId).contains(member.getId()));
     }
 
     public void removeMember(Long clubId, Long userId, Long requesterId) {

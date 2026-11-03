@@ -59,7 +59,11 @@
       <form [formGroup]="form" (ngSubmit)="submit()">
         <mat-form-field appearance="outline" class="full-width">
           <mat-label>Nombre completo *</mat-label>
-          <input matInput formControlName="studentName" />
+          <!-- Con sesión la entrega va con el nombre de la cuenta (DE-26) -->
+          <input matInput formControlName="studentName" [readonly]="!!user()" />
+          @if (user()) {
+            <mat-hint>El de tu cuenta</mat-hint>
+          }
           @if (form.controls.studentName.hasError('required') && form.controls.studentName.touched) {
             <mat-error>Campo obligatorio</mat-error>
           }

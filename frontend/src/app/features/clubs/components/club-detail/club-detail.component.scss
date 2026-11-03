@@ -23,7 +23,9 @@ h3 {
 }
 .avatar { color: #9e9e9e; }
 .member-info { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-.member-name { font-weight: 500; color: inherit; text-decoration: none; &:hover { text-decoration: underline; } }
+.member-name { font-weight: 500; color: inherit; text-decoration: none; }
+// Solo el que enlaza a los resultados (DE-23)
+a.member-name:hover { text-decoration: underline; }
 .member-username { font-size: 0.8rem; color: #777; strong { color: #e65100; font-weight: 600; } }
 
 .role-badge {

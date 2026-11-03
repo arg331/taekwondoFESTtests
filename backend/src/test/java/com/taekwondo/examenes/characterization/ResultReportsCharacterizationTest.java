@@ -117,15 +117,20 @@ class ResultReportsCharacterizationTest extends ApiCharacterizationTest {
     }
 
     @Test
-    @DisplayName("Un alumno sin entregas en los exámenes del profesor sale con la lista vacía")
-    void userResults_empty() {
+    @DisplayName("Sin entregas en los exámenes del profesor: 404, como si no existiera (DE-23); el administrador lo ve vacío")
+    void userResults_noVisibleResults_notFound() {
         Session teacher = newTeacher();
         Session student = newStudent();
+        long adminId = get("/api/auth/me", adminToken()).expectStatus(200).id();
 
-        HttpResult result = userResults(student.id(), teacher.token()).expectStatus(200);
+        HttpResult forTeacher = userResults(student.id(), teacher.token());
+        HttpResult adminAccount = userResults(adminId, teacher.token());
+        HttpResult forAdmin = userResults(student.id(), adminToken()).expectStatus(200);
 
-        assertThat((List<?>) result.read("$.results")).isEmpty();
-        assertThat((Object) result.read("$.clubName")).isNull();
+        assertThat(forTeacher.expectStatus(404).message()).isEqualTo("No existe un usuario con id " + student.id());
+        assertThat(adminAccount.expectStatus(404).message()).isEqualTo("No existe un usuario con id " + adminId);
+        assertThat((List<?>) forAdmin.read("$.results")).isEmpty();
+        assertThat((Object) forAdmin.read("$.clubName")).isNull();
     }
 
     // ───── Ayudas ─────

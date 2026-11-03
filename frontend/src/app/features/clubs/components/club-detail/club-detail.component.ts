@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSignal, output, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { Observable, of } from 'rxjs';
+import { Observable, of, switchMap, timer } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -17,6 +17,11 @@ import { ROLE_LABEL } from '../../../../core/models/auth.models';
  * Un club: sus miembros, añadir y quitar, renombrarlo y, el administrador, borrarlo (RF-40, RF-42).
  * Los miembros solo los ve quien gestiona el club.
  */
+/** Pausa tras la última tecla antes de pedir la lista, para no lanzar una petición por letra. */
+const SEARCH_PAUSE_MS = 250;
+/** Los que devuelve el servidor como mucho (ClubService.MAX_CANDIDATES). */
+export const MAX_CANDIDATES = 20;
+
 @Component({
   selector: 'app-club-detail',
   imports: [MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatProgressSpinnerModule, RouterLink],
@@ -37,6 +42,7 @@ export class ClubDetailComponent {
   deleted = output<number>();
 
   readonly roleLabel = ROLE_LABEL;
+  readonly maxCandidates = MAX_CANDIDATES;
   private readonly clubId = computed(() => this.club().id);
 
   readonly members = rxResource({
@@ -48,7 +54,16 @@ export class ClubDetailComponent {
   renaming = linkedSignal({ source: this.clubId, computation: () => false });
   nameDraft = linkedSignal({ source: this.clubId, computation: () => '' });
   query = linkedSignal({ source: this.clubId, computation: () => '' });
-  candidates = linkedSignal<number, ClubCandidateResponse[] | null>({ source: this.clubId, computation: () => null });
+
+  /** A quién se puede añadir: sin escribir, todos; lo que se escribe acota la lista. */
+  readonly candidates = rxResource({
+    params: () => (this.canManage() ? { id: this.clubId(), q: this.query().trim() } : undefined),
+    stream: ({ params }) => {
+      if (params === undefined) return of([] as ClubCandidateResponse[]);
+      const request = this.clubSvc.candidates(params.id, params.q);
+      return params.q ? timer(SEARCH_PAUSE_MS).pipe(switchMap(() => request)) : request;
+    }
+  });
   error = linkedSignal<number, string | null>({ source: this.clubId, computation: () => null });
   busy = signal(false);
 
@@ -66,16 +81,10 @@ export class ClubDetailComponent {
     });
   }
 
-  search(): void {
-    const q = this.query().trim();
-    if (!q || this.busy()) return;
-    this.run(this.clubSvc.candidates(this.clubId(), q), found => this.candidates.set(found));
-  }
-
   add(candidate: ClubCandidateResponse): void {
     this.run(this.clubSvc.addMember(this.clubId(), candidate.id), member => {
       this.members.update(list => [...(list ?? []), member]);
-      this.candidates.update(list => list?.filter(c => c.id !== candidate.id) ?? null);
+      this.candidates.update(list => list?.filter(c => c.id !== candidate.id) ?? []);
     });
   }
 

@@ -56,6 +56,7 @@ describe('ClubsComponent', () => {
   it('lista los clubes y marca el del profesor, que se abre al entrar', async () => {
     await render(me('TEACHER', BADAJOZ), [AVILA, BADAJOZ]);
     http.expectOne(`${API}/clubs/2/members`).flush([]);
+    http.expectOne(`${API}/clubs/2/candidates?q=`).flush([]);
     await stable();
 
     expect(Array.from(el.querySelectorAll('.club-item .club-name')).map(n => n.textContent?.trim()))
@@ -67,6 +68,7 @@ describe('ClubsComponent', () => {
   it('un profesor que ya tiene club no ve el formulario para crear otro', async () => {
     await render(me('TEACHER', BADAJOZ), [BADAJOZ]);
     http.expectOne(`${API}/clubs/2/members`).flush([]);
+    http.expectOne(`${API}/clubs/2/candidates?q=`).flush([]);
     await stable();
 
     expect(el.querySelector('.create-club')).toBeNull();
@@ -87,6 +89,7 @@ describe('ClubsComponent', () => {
     req.flush({ id: 3, name: 'Club Cáceres' });
     fixture.detectChanges();
     http.expectOne(`${API}/clubs/3/members`).flush([]);
+    http.expectOne(`${API}/clubs/3/candidates?q=`).flush([]);
     await stable();
 
     expect(TestBed.inject(AuthService).currentUser()?.club).toEqual({ id: 3, name: 'Club Cáceres' });
@@ -107,6 +110,7 @@ describe('ClubsComponent', () => {
     http.expectOne(`${API}/clubs`).flush({ id: 3, name: 'Club Cáceres' });
     fixture.detectChanges();
     http.expectOne(`${API}/clubs/3/members`).flush([]);
+    http.expectOne(`${API}/clubs/3/candidates?q=`).flush([]);
     await stable();
 
     expect(TestBed.inject(AuthService).currentUser()?.club).toBeNull();

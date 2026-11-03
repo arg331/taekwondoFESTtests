@@ -212,6 +212,20 @@ class ClubCharacterizationTest extends ApiCharacterizationTest {
     }
 
     @Test
+    @DisplayName("Candidatos: sin texto, salen todos los que se pueden añadir, como mucho 20")
+    void candidates_withoutText_listsAll() {
+        Session teacher = newTeacher();
+        long clubId = createClub(teacher);
+        newStudent();
+
+        List<Map<String, Object>> found = get("/api/clubs/" + clubId + "/candidates", teacher.token())
+                .expectStatus(200).asList();
+
+        assertThat(found).isNotEmpty().hasSizeLessThanOrEqualTo(20);
+        assertThat(found).allSatisfy(c -> assertThat(c.get("clubName")).isNull());
+    }
+
+    @Test
     @DisplayName("Candidatos: busca también por el nombre visible y sin distinguir mayúsculas")
     void candidates_byDisplayName() {
         Session teacher = newTeacher();

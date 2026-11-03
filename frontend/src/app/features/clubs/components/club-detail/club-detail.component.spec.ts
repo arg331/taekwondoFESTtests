@@ -3,7 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { ClubDetailComponent } from './club-detail.component';
-import { ClubMemberResponse, ClubResponse } from '../../../../core/models/club.models';
+import { ClubCandidateResponse, ClubMemberResponse, ClubResponse } from '../../../../core/models/club.models';
 import { ConfirmService } from '../../../../core/services/confirm.service';
 import { of } from 'rxjs';
 
@@ -11,6 +11,8 @@ const API = 'http://localhost:8080/api';
 const CLUB: ClubResponse = { id: 2, name: 'Club Badajoz' };
 const PROFE: ClubMemberResponse = { id: 7, username: 'profe', displayName: 'Profe', role: 'TEACHER', resultsVisible: false };
 const ANA: ClubMemberResponse = { id: 8, username: 'ana', displayName: 'Ana', role: 'STUDENT', resultsVisible: true };
+const ANA_CANDIDATA: ClubCandidateResponse = { id: 8, username: 'ana', displayName: 'Ana', role: 'STUDENT', clubName: null };
+const LUIS_CANDIDATO: ClubCandidateResponse = { id: 9, username: 'luis', displayName: 'Luis', role: 'STUDENT', clubName: null };
 
 /** Detalle de un club: miembros, añadir, quitar, renombrar y borrar (RF-40, RF-42). */
 describe('ClubDetailComponent', () => {
@@ -18,7 +20,8 @@ describe('ClubDetailComponent', () => {
   let http: HttpTestingController;
   let el: HTMLElement;
 
-  async function render(canManage: boolean, isAdmin = false, members: ClubMemberResponse[] = [PROFE, ANA]): Promise<void> {
+  async function render(canManage: boolean, isAdmin = false, members: ClubMemberResponse[] = [PROFE, ANA],
+                        candidates: ClubCandidateResponse[] = []): Promise<void> {
     TestBed.configureTestingModule({
       imports: [ClubDetailComponent],
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
@@ -34,6 +37,8 @@ describe('ClubDetailComponent', () => {
     fixture.detectChanges();
     if (canManage) {
       http.expectOne(`${API}/clubs/2/members`).flush(members);
+      // Sin escribir nada ya salen todos los que se pueden añadir
+      http.expectOne(`${API}/clubs/2/candidates?q=`).flush(candidates);
     }
     await stable();
   }
@@ -59,6 +64,17 @@ describe('ClubDetailComponent', () => {
     expect(Array.from(el.querySelectorAll('a.member-name')).map(a => a.getAttribute('href')))
       .toEqual(['/results/user/8']);
   });
+
+  function candidateNames(): string[] {
+    return Array.from(el.querySelectorAll('.candidate .member-name')).map(m => m.textContent?.trim() ?? '');
+  }
+
+  /** Escribe en el buscador y espera a que pase la pausa antes de pedir la lista. */
+  async function typeAndWait(value: string): Promise<void> {
+    type('.add-member input', value);
+    await new Promise(resolve => setTimeout(resolve, 400));
+    fixture.detectChanges();
+  }
 
   function type(selector: string, value: string): void {
     const input = el.querySelector(selector) as HTMLInputElement;
@@ -86,14 +102,36 @@ describe('ClubDetailComponent', () => {
     expect(el.querySelector('.members')?.textContent).toContain('Alumno');
   });
 
-  it('busca candidatos y añade uno al club', async () => {
-    await render(true, false, [PROFE]);
+  it('al abrir, lista todos los que se pueden añadir, sin escribir nada', async () => {
+    await render(true, false, [PROFE], [ANA_CANDIDATA, LUIS_CANDIDATO]);
 
-    type('.add-member input', 'an');
+    expect(candidateNames()).toEqual(['Ana', 'Luis']);
+    expect(button('Buscar')).toBeUndefined();
+  });
+
+  it('al escribir, acota la lista', async () => {
+    await render(true, false, [PROFE], [ANA_CANDIDATA, LUIS_CANDIDATO]);
+
+    await typeAndWait('lu');
+    http.expectOne(`${API}/clubs/2/candidates?q=lu`).flush([LUIS_CANDIDATO]);
     await stable();
-    button('Buscar')!.click();
-    http.expectOne(`${API}/clubs/2/candidates?q=an`).flush([{ ...ANA, clubName: null }]);
+
+    expect(candidateNames()).toEqual(['Luis']);
+  });
+
+  it('si nadie coincide con lo escrito, lo dice', async () => {
+    await render(true, false, [PROFE], [ANA_CANDIDATA]);
+
+    await typeAndWait('zz');
+    http.expectOne(`${API}/clubs/2/candidates?q=zz`).flush([]);
     await stable();
+
+    expect(el.querySelector('.candidates')?.textContent).toContain('Nadie coincide');
+  });
+
+  it('añade un candidato de la lista al club', async () => {
+    await render(true, false, [PROFE], [ANA_CANDIDATA]);
+
     button('Añadir', el.querySelector('.candidates')!)!.click();
     http.expectOne(`${API}/clubs/2/members/8`).flush(ANA);
     await stable();
@@ -103,13 +141,7 @@ describe('ClubDetailComponent', () => {
   });
 
   it('al administrador le avisa de que el candidato cambiará de club', async () => {
-    await render(true, true, [PROFE]);
-
-    type('.add-member input', 'an');
-    await stable();
-    button('Buscar')!.click();
-    http.expectOne(`${API}/clubs/2/candidates?q=an`).flush([{ ...ANA, clubName: 'Club Ávila' }]);
-    await stable();
+    await render(true, true, [PROFE], [{ ...ANA_CANDIDATA, clubName: 'Club Ávila' }]);
 
     expect(el.querySelector('.candidates')?.textContent).toContain('ahora en Club Ávila');
   });

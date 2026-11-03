@@ -55,19 +55,23 @@
   <section class="add-member" aria-label="Añadir miembros">
     <h3>Añadir miembros</h3>
     <p class="hint">
-      Busca por nombre o por usuario.
+      Escribe un nombre o un usuario para acotar la lista.
       @if (isAdmin()) { Si ya está en otro club, se cambiará a este. } @else { Solo aparecen quienes aún no tienen club. }
     </p>
-    <form class="search-form" (submit)="$event.preventDefault(); search()">
+    <form class="search-form" (submit)="$event.preventDefault()">
       <mat-form-field appearance="outline" subscriptSizing="dynamic">
-        <mat-label>Nombre o usuario</mat-label>
+        <mat-label>Filtrar por nombre o usuario</mat-label>
         <input matInput [value]="query()" (input)="query.set($any($event.target).value)" />
         <mat-icon matPrefix>search</mat-icon>
       </mat-form-field>
-      <button mat-stroked-button type="submit" [disabled]="busy() || !query().trim()">Buscar</button>
     </form>
 
-    @if (candidates(); as found) {
+    @if (candidates.error()) {
+      <p class="hint">No se ha podido cargar la lista. Vuelve a intentarlo.</p>
+    } @else if (candidates.isLoading() && !candidates.hasValue()) {
+      <mat-spinner diameter="28" />
+    } @else if (candidates.hasValue()) {
+      @let found = candidates.value();
       <div class="candidates">
         @for (candidate of found; track candidate.id) {
           <div class="candidate">
@@ -81,7 +85,14 @@
             <button mat-flat-button color="primary" type="button" (click)="add(candidate)" [disabled]="busy()">Añadir</button>
           </div>
         } @empty {
-          <p class="hint">Nadie coincide con la búsqueda.</p>
+          @if (query().trim()) {
+            <p class="hint">Nadie coincide con la búsqueda.</p>
+          } @else {
+            <p class="hint">No hay nadie más para añadir.</p>
+          }
+        }
+        @if (found.length === maxCandidates) {
+          <p class="hint">Se muestran los {{ maxCandidates }} primeros: escribe para acotar.</p>
         }
       </div>
     }
